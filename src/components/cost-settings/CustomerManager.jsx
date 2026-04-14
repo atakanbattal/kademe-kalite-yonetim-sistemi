@@ -15,8 +15,9 @@ import {
 import { 
     AlertDialog, AlertDialogAction, AlertDialogCancel, 
     AlertDialogContent, AlertDialogDescription, AlertDialogFooter, 
-    AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger 
+    AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { 
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
@@ -284,6 +285,7 @@ const CustomerManager = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
     const [filterActive, setFilterActive] = useState('all');
+    const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -380,7 +382,7 @@ const CustomerManager = () => {
                 title: 'Hata', 
                 description: 'Kontrol sırasında hata oluştu.' 
             });
-            return;
+            return false;
         }
 
         if (complaints && complaints.length > 0) {
@@ -389,7 +391,7 @@ const CustomerManager = () => {
                 title: 'Silme Başarısız', 
                 description: 'Bu müşteriye ait şikayetler olduğu için silinemez.' 
             });
-            return;
+            return false;
         }
         
         const { error } = await supabase
@@ -403,14 +405,17 @@ const CustomerManager = () => {
                 title: 'Hata!', 
                 description: 'Müşteri silinemedi.' 
             });
-        } else {
-            toast({ 
-                title: 'Başarılı!', 
-                description: 'Müşteri silindi.' 
-            });
-            fetchData();
+            return false;
         }
+        toast({ 
+            title: 'Başarılı!', 
+            description: 'Müşteri silindi.' 
+        });
+        fetchData();
+        return true;
     };
+
+    const pendingDeleteName = pendingDeleteId ? customers.find((c) => c.id === pendingDeleteId)?.name : null;
 
     return (
         <motion.div 
@@ -446,6 +451,32 @@ const CustomerManager = () => {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <AlertDialog open={!!pendingDeleteId} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Müşteriyi silmek istiyor musunuz?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    {pendingDeleteName
+                                        ? `"${pendingDeleteName}" kaydı kalıcı olarak kaldırılır.`
+                                        : 'Bu işlem geri alınamaz.'}
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+                                <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={async () => {
+                                        if (!pendingDeleteId) return;
+                                        const ok = await deleteCustomer(pendingDeleteId);
+                                        if (ok) setPendingDeleteId(null);
+                                    }}
+                                >
+                                    Sil
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+
                     {/* Filtreler ve Arama */}
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
@@ -488,8 +519,10 @@ const CustomerManager = () => {
                     </div>
 
                     {/* Müşteri Listesi */}
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="data-table">
+                    <TooltipProvider delayDuration={250}>
+                    <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="data-table document-module-table">
                             <thead>
                                 <tr>
                                     <th className="w-12">S.No</th>
@@ -499,7 +532,7 @@ const CustomerManager = () => {
                                     <th>İletişim</th>
                                     <th>Şehir</th>
                                     <th>Durum</th>
-                                    <th className="text-center z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                    <th className="text-right">İşlemler</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -557,46 +590,38 @@ const CustomerManager = () => {
                                                     {customer.is_active ? 'Aktif' : 'Pasif'}
                                                 </Badge>
                                             </td>
-                                            <td onClick={(e) => e.stopPropagation()}>
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="ghost"
-                                                        onClick={() => openModal(customer)}
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="sm"
-                                                                className="text-destructive hover:text-destructive"
+                                            <td onClick={(e) => e.stopPropagation()} className="align-middle">
+                                                <div className="inline-flex items-center justify-end gap-0.5">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                aria-label="Düzenle"
+                                                                onClick={() => openModal(customer)}
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="bottom">Düzenle</TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                                aria-label="Sil"
+                                                                onClick={() => setPendingDeleteId(customer.id)}
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>
-                                                                    Emin misiniz?
-                                                                </AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    "{customer.name}" adlı müşteriyi 
-                                                                    kalıcı olarak sileceksiniz. Bu işlem geri alınamaz.
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                                <AlertDialogAction 
-                                                                    onClick={() => deleteCustomer(customer.id)}
-                                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                                                >
-                                                                    Sil
-                                                                </AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="bottom">Sil</TooltipContent>
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>
@@ -605,6 +630,8 @@ const CustomerManager = () => {
                             </tbody>
                         </table>
                     </div>
+                    </div>
+                    </TooltipProvider>
 
                     {/* Özet İstatistikler */}
                     {!loading && filteredCustomers.length > 0 && (

@@ -3,7 +3,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Input } from '@/components/ui/input';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, PlusCircle, Search, PlayCircle, CheckCircle, XCircle, FileText } from 'lucide-react';
+    import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+    import ListTableShell from '@/components/ui/ListTableShell';
+    import { MoreVertical, PlusCircle, Search, PlayCircle, CheckCircle, XCircle, FileText, Eye, Edit } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Badge } from '@/components/ui/badge';
@@ -198,6 +200,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         };
 
         return (
+            <TooltipProvider delayDuration={200}>
             <div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
                     <div className="search-box w-full max-w-sm">
@@ -218,7 +221,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     </div>
                 </div>
 
-                <div className="rounded-md border">
+                <ListTableShell noInner>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -228,7 +231,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 <TableHead>Katılımcı Sayısı</TableHead>
                                 <TableHead>Planlanan Tarih</TableHead>
                                 <TableHead>Durum</TableHead>
-                                <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
+                                <TableHead className="text-right">İşlemler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -246,19 +249,30 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                         <TableCell>{training.start_date ? format(new Date(training.start_date), 'dd MMMM yyyy', { locale: tr }) : '-'}</TableCell>
                                         <TableCell>{getStatusBadge(training.status)}</TableCell>
                                         <TableCell className="text-right">
+                                            <div className="inline-flex items-center justify-end gap-0.5">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleEditTraining(training)} aria-label="Görüntüle">
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                                </Tooltip>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                                        <span className="sr-only">Menü aç</span>
-                                                        <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Diğer işlemler">
+                                                        <MoreVertical className="h-4 w-4 shrink-0" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleEditTraining(training)}>Görüntüle / Düzenle</DropdownMenuItem>
+                                                <DropdownMenuContent align="end" className="w-52">
+                                                    <DropdownMenuItem className="text-sm" onClick={() => handleEditTraining(training)}>
+                                                        <Edit className="mr-2 h-4 w-4 shrink-0" /> Düzenle
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuItem
+                                                        className="text-sm"
                                                         onClick={() => openPrintableReport({ id: training.id }, 'training_record', false)}
                                                     >
-                                                        <FileText className="mr-2 h-4 w-4" />
+                                                        <FileText className="mr-2 h-4 w-4 shrink-0" />
                                                         Rapor oluştur
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
@@ -281,9 +295,10 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                                         </DropdownMenuItem>
                                                     )}
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => confirmDeleteTraining(training)} className="text-destructive">Sil</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => confirmDeleteTraining(training)} className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10">Sil</DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -294,7 +309,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                </ListTableShell>
                 <TrainingFormModal
                     isOpen={isModalOpen}
                     setIsOpen={(open) => {
@@ -320,6 +335,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
+            </TooltipProvider>
         );
     };
 

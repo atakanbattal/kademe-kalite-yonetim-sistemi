@@ -4,6 +4,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { fetchProducedVehiclesMerged } from '@/lib/fetchProducedVehiclesMerged';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { normalizeCostSettingsRows, normalizeCostSettingsJoin, normalizeNonConformityUnitFields } from '@/lib/utils';
 
 const DataContext = createContext();
 
@@ -367,7 +368,16 @@ export const DataProvider = ({ children }) => {
             instantResults.forEach((result, index) => {
                 const key = instantKeys[index];
                 const val = result.status === 'fulfilled' ? result.value : null;
-                newState[key] = (val && !val.error && val.data) ? val.data : [];
+                let data = (val && !val.error && val.data) ? val.data : [];
+                if (key === 'unitCostSettings' && Array.isArray(data)) {
+                    data = normalizeCostSettingsRows(data);
+                } else if (key === 'personnel' && Array.isArray(data)) {
+                    data = data.map((p) => ({
+                        ...p,
+                        unit: p.unit && typeof p.unit === 'object' ? normalizeCostSettingsJoin(p.unit) : p.unit,
+                    }));
+                }
+                newState[key] = data;
             });
             setData(prev => ({ ...prev, ...newState }));
             setLoading(false); // Arayüz hemen göster
@@ -428,7 +438,18 @@ export const DataProvider = ({ children }) => {
                 const key = mediumKeys[index];
                 const val = result.status === 'fulfilled' ? result.value : null;
                 if (result.status === 'fulfilled' && val && !val.error) {
-                    newState[key] = val.data || [];
+                    let data = val.data || [];
+                    if (key === 'kaizenEntries' && Array.isArray(data)) {
+                        data = data.map((row) => ({
+                            ...row,
+                            department: normalizeCostSettingsJoin(row.department),
+                        }));
+                    } else if (key === 'nonConformities' && Array.isArray(data)) {
+                        data = data.map((row) => normalizeNonConformityUnitFields(row));
+                    } else if (key === 'nonconformityRecords' && Array.isArray(data)) {
+                        data = data.map((row) => normalizeNonConformityUnitFields(row));
+                    }
+                    newState[key] = data;
                 } else {
                     const error = result.reason || val?.error;
                     console.warn(`⚠️ ${key} fetch failed:`, error);
@@ -460,7 +481,10 @@ export const DataProvider = ({ children }) => {
                     if (key === 'documents') {
                         const documentsResult = result.value;
                         if (documentsResult && !documentsResult.error && documentsResult.data) {
-                            newState[key] = documentsResult.data || [];
+                            newState[key] = (documentsResult.data || []).map((doc) => ({
+                                ...doc,
+                                department: normalizeCostSettingsJoin(doc.department),
+                            }));
                             console.log('📚 Documents fetch başarılı:', documentsResult.data?.length || 0, 'doküman');
                             if (documentsResult.data && documentsResult.data.length > 0) {
                                 console.log('📚 İlk doküman örneği:', documentsResult.data[0]);
@@ -516,7 +540,24 @@ export const DataProvider = ({ children }) => {
                     } else {
                         const lv = result.value;
                         if (lv && !lv.error) {
-                            newState[key] = lv.data || [];
+                            let data = lv.data || [];
+                            if (key === 'audits' && Array.isArray(data)) {
+                                data = data.map((row) => ({
+                                    ...row,
+                                    department: normalizeCostSettingsJoin(row.department),
+                                }));
+                            } else if (key === 'customerComplaints' && Array.isArray(data)) {
+                                data = data.map((row) => ({
+                                    ...row,
+                                    responsible_department: normalizeCostSettingsJoin(row.responsible_department),
+                                }));
+                            } else if (key === 'complaintActions' && Array.isArray(data)) {
+                                data = data.map((row) => ({
+                                    ...row,
+                                    responsible_department: normalizeCostSettingsJoin(row.responsible_department),
+                                }));
+                            }
+                            newState[key] = data;
                         } else {
                             console.warn(`⚠️ ${key} fetch failed:`, lv?.error);
                             newState[key] = [];
@@ -965,7 +1006,8 @@ export const DataProvider = ({ children }) => {
         try {
             const { data: ncData, error } = await supabase.from('non_conformities').select('*, supplier:supplier_id(name)');
             if (!error) {
-                setData(prev => ({ ...prev, nonConformities: ncData || [] }));
+                const mapped = (ncData || []).map((row) => normalizeNonConformityUnitFields(row));
+                setData(prev => ({ ...prev, nonConformities: mapped }));
                 console.log('✅ Non-conformities refreshed:', ncData?.length || 0);
             }
         } catch (error) {
@@ -1031,7 +1073,11 @@ export const DataProvider = ({ children }) => {
         try {
             const { data: ccData, error } = await supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500);
             if (!error) {
-                setData(prev => ({ ...prev, customerComplaints: ccData || [] }));
+                const mapped = (ccData || []).map((row) => ({
+                    ...row,
+                    responsible_department: normalizeCostSettingsJoin(row.responsible_department),
+                }));
+                setData(prev => ({ ...prev, customerComplaints: mapped }));
                 console.log('✅ Customer complaints refreshed:', ccData?.length || 0);
             }
         } catch (error) {

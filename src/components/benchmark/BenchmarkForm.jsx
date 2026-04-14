@@ -30,6 +30,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { normalizeCostSettingsRows } from '@/lib/utils';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -624,9 +625,9 @@ const BenchmarkForm = ({
 
             if (costError) console.warn('cost_settings hatası:', costError);
             
-            const formattedCostDepts = (costDepts || []).map(d => ({
+            const formattedCostDepts = normalizeCostSettingsRows(costDepts || []).map((d) => ({
                 id: d.id,
-                name: d.unit_name
+                name: d.unit_name,
             }));
 
             // Eğer cost_settings boşsa, boş liste kullan (personnel'den çekme)

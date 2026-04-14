@@ -1250,7 +1250,7 @@ const InkrManagement = ({ onViewPdf, initialStatusFilter, onInitialFilterConsume
                 </div>
             </div>
             <div className="overflow-x-auto">
-                <table className="data-table">
+                <table className="data-table document-module-table">
                     <thead>
                         <tr>
                             <th>Parça Kodu</th>
@@ -1259,7 +1259,7 @@ const InkrManagement = ({ onViewPdf, initialStatusFilter, onInitialFilterConsume
                             <th>Tedarikçi</th>
                             <th>Rapor Tarihi</th>
                             <th>Durum</th>
-                            <th>İşlemler</th>
+                            <th className="text-right">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>

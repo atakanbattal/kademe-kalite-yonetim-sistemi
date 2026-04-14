@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckSquare, XCircle, AlertTriangle } from 'lucide-react';
+import { normalizeUnitNameForSettings } from '@/lib/utils';
 
 const ListView = ({ setView, setFilter, filter, filteredRecords, handleExport, handleRecordClick, onEdit }) => {
 
@@ -38,7 +39,7 @@ const ListView = ({ setView, setFilter, filter, filteredRecords, handleExport, h
                                 </div>
                                 <p className="text-sm text-foreground max-w-lg truncate">{record.problem_definition}</p>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                    <span>Birim: {record.department || '-'}</span>
+                                    <span>Birim: {record.department ? normalizeUnitNameForSettings(String(record.department)) : '-'}</span>
                                     {record.status !== 'Reddedildi' && (
                                         <>
                                             <span>|</span>

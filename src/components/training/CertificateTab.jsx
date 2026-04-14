@@ -334,7 +334,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                                     <TableRow>
                                                         <TableHead>Katılımcı</TableHead>
                                                         <TableHead>Tamamlanma Tarihi</TableHead>
-                                                        <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
+                                                        <TableHead className="text-right">İşlemler</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>

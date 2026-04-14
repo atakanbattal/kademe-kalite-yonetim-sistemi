@@ -90,8 +90,9 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
                     <Button onClick={onAdd} className="flex-shrink-0"><Plus className="mr-2 h-4 w-4" /> Yeni</Button>
                 </div>
             </div>
-            <div className="overflow-x-auto">
-                <table className="data-table">
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                <table className="data-table document-module-table">
                     <thead>
                         <tr>
                             <th>Kaizen No</th>
@@ -101,7 +102,7 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
                             <th>Yıllık Kazanç</th>
                             <th>Tarih</th>
                             <th>Durum</th>
-                            <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                            <th className="text-right">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -130,22 +131,25 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
                                     <td className="font-semibold text-green-600">{(item.total_yearly_gain || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</td>
                                     <td>{format(new Date(item.created_at), 'dd.MM.yyyy')}</td>
                                     <td><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></td>
-                                    <td className="flex gap-1">
-                                        <Button size="icon" variant="ghost" onClick={() => onView(item)}><Eye className="w-4 h-4" /></Button>
-                                        <Button size="icon" variant="ghost" onClick={() => onEdit(item)}><Edit className="w-4 h-4" /></Button>
+                                    <td className="align-middle">
+                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onView(item); }}><Eye className="w-4 h-4" /></Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onEdit(item); }}><Edit className="w-4 h-4" /></Button>
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>"{item.title}" başlıklı Kaizen kaydını kalıcı olarak sileceksiniz.</AlertDialogDescription></AlertDialogHeader>
                                                 <AlertDialogFooter><AlertDialogCancel>İptal</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)}>Sil</AlertDialogAction></AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
                         )}
                     </tbody>
                 </table>
+                </div>
             </div>
         </motion.div>
     );

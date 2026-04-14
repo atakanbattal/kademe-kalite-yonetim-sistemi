@@ -5,16 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Search, MoreHorizontal, Trash2, Eye, Edit, Play, CheckCircle } from 'lucide-react';
+import { Search, MoreVertical, Trash2, Eye, Edit, Play, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ListTableShell from '@/components/ui/ListTableShell';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -193,6 +194,7 @@ const StockRiskControlList = () => {
 
 
     return (
+        <TooltipProvider delayDuration={200}>
         <>
                 <StockRiskDetailModal
                     isOpen={isDetailModalOpen}
@@ -220,7 +222,7 @@ const StockRiskControlList = () => {
                     />
                 </div>
             </div>
-            <div className="overflow-x-auto">
+            <ListTableShell noInner>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -233,7 +235,7 @@ const StockRiskControlList = () => {
                             <TableHead>Kontrol Eden</TableHead>
                             <TableHead>Durum</TableHead>
                             <TableHead>Karar</TableHead>
-                            <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
+                            <TableHead className="text-right">İşlemler</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -271,54 +273,57 @@ const StockRiskControlList = () => {
                                     <TableCell>{control.controlled_by?.full_name || '-'}</TableCell>
                                     <TableCell>{getStatusBadge(control.status)}</TableCell>
                                     <TableCell>{getDecisionBadge(control.decision)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                                                    <span className="sr-only">Menüyü aç</span>
-                                                    <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewRecord(control); }}>
-                                                    <Eye className="mr-2 h-4 w-4" />
-                                                    <span>Görüntüle</span>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditControl(control); }}>
-                                                    <Edit className="mr-2 h-4 w-4" />
-                                                    <span>Düzenle</span>
-                                                </DropdownMenuItem>
-                                                {(!control.status || control.status === 'Beklemede') && (
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStartControl(control); }}>
-                                                        <Play className="mr-2 h-4 w-4" />
-                                                        <span>Kontrolü Başlat</span>
+                                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); handleViewRecord(control); }} aria-label="Görüntüle">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                            </Tooltip>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()} aria-label="Diğer işlemler">
+                                                        <MoreVertical className="h-4 w-4 shrink-0" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+                                                    <DropdownMenuItem className="text-sm" onClick={(e) => { e.stopPropagation(); handleEditControl(control); }}>
+                                                        <Edit className="mr-2 h-4 w-4 shrink-0" />
+                                                        Düzenle
                                                     </DropdownMenuItem>
-                                                )}
-                                                {(control.status === 'Başlatıldı' || control.status === 'Devam Ediyor') && (
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCompleteControl(control); }}>
-                                                        <CheckCircle className="mr-2 h-4 w-4" />
-                                                        <span>Tamamla</span>
+                                                    {(!control.status || control.status === 'Beklemede') && (
+                                                        <DropdownMenuItem className="text-sm" onClick={(e) => { e.stopPropagation(); handleStartControl(control); }}>
+                                                            <Play className="mr-2 h-4 w-4 shrink-0" />
+                                                            Kontrolü Başlat
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {(control.status === 'Başlatıldı' || control.status === 'Devam Ediyor') && (
+                                                        <DropdownMenuItem className="text-sm" onClick={(e) => { e.stopPropagation(); handleCompleteControl(control); }}>
+                                                            <CheckCircle className="mr-2 h-4 w-4 shrink-0" />
+                                                            Tamamla
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(control); }}
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                                                        Sil
                                                     </DropdownMenuItem>
-                                                )}
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(control); }}
-                                                    className="text-destructive focus:text-destructive"
-                                                >
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    <span>Sil</span>
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </TableCell>
                                 </tr>
                             ))
                         )}
                     </TableBody>
                 </Table>
-            </div>
+            </ListTableShell>
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -337,6 +342,7 @@ const StockRiskControlList = () => {
             </AlertDialog>
         </div>
     </>
+        </TooltipProvider>
     );
 };
 

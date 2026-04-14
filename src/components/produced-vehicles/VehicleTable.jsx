@@ -277,8 +277,10 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
         };
 
         return (
+            <TooltipProvider delayDuration={250}>
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-                <table className="data-table w-full">
+                <table className="data-table data-table-wide data-table-wide-actions w-full">
                     <thead>
                         <tr>
                             {onSort ? (
@@ -356,7 +358,7 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
                             <th>Termin / Kalan</th>
                                 </>
                             )}
-                            <th className="text-center">İşlemler</th>
+                            <th className="text-right">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -432,16 +434,24 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
                                             <span className="text-muted-foreground">-</span>
                                         )}
                                     </td>
-                                    <td onClick={(e) => e.stopPropagation()} className="text-center">
+                                    <td onClick={(e) => e.stopPropagation()} className="align-middle">
+                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Detayları gör" onClick={(e) => { e.stopPropagation(); onView(vehicle); }}>
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">Detayları gör</TooltipContent>
+                                        </Tooltip>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <Button type="button" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
                                                     <span className="sr-only">Menüyü aç</span>
-                                                    <MoreVertical className="h-4 w-4 flex-shrink-0 text-foreground" />
+                                                    <MoreVertical className="h-4 w-4 flex-shrink-0" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); onView(vehicle)}}><Eye className="mr-2 h-4 w-4" /> Detayları Gör</DropdownMenuItem>
+                                            <DropdownMenuContent align="end" className="w-56">
                                                 <DropdownMenuItem onClick={(e) => {e.stopPropagation(); onViewTimeDetails(vehicle)}} disabled={isActionDisabled}><Timer className="mr-2 h-4 w-4" /> Süreleri Yönet</DropdownMenuItem>
                                                 <DropdownMenuItem onClick={(e) => {e.stopPropagation(); onEdit(vehicle)}} disabled={isActionDisabled}><Edit className="mr-2 h-4 w-4" /> Temel Bilgileri Düzenle</DropdownMenuItem>
                                                 <DropdownMenuItem onClick={(e) => {e.stopPropagation(); onOpenFaults(vehicle)}} disabled={isActionDisabled}><AlertTriangle className="mr-2 h-4 w-4" /> Hataları Yönet</DropdownMenuItem>
@@ -465,6 +475,7 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
                                                 </AlertDialog>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
+                                        </div>
                                     </td>
                                 </motion.tr>
                             );
@@ -472,6 +483,8 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
                     </tbody>
                 </table>
             </div>
+            </div>
+            </TooltipProvider>
         );
     };
 

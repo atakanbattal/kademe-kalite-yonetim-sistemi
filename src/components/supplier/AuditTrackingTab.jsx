@@ -184,7 +184,7 @@ import React, { useMemo, useState } from 'react';
                     </CardHeader>
                     <CardContent>
                         <div className="overflow-x-auto max-h-[70vh]">
-                            <table className="data-table w-full">
+                            <table className="data-table document-module-table w-full">
                                 <thead>
                                     <tr>
                                         <th>Tedarikçi</th>

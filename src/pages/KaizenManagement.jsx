@@ -9,6 +9,7 @@ import KaizenFormModal from '@/components/kaizen/KaizenFormModal';
 import KaizenDashboard from '@/components/kaizen/KaizenDashboard';
 import KaizenDetailModal from '@/components/kaizen/KaizenDetailModal';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { normalizeCostSettingsRows, normalizeCostSettingsJoin } from '@/lib/utils';
 
 const KaizenManagement = () => {
     const { toast } = useToast();
@@ -42,7 +43,12 @@ const KaizenManagement = () => {
             toast({ variant: 'destructive', title: 'Hata!', description: `Kaizen kayıtları alınamadı: ${error.message}` });
             setKaizenEntries([]);
         } else {
-            setKaizenEntries(data);
+            setKaizenEntries(
+                (data || []).map((row) => ({
+                    ...row,
+                    department: row.department ? normalizeCostSettingsJoin(row.department) : row.department,
+                }))
+            );
         }
         setLoading(false);
     }, [toast]);
@@ -56,7 +62,7 @@ const KaizenManagement = () => {
             ]);
 
             if (personnelResult.data) setPersonnel(personnelResult.data);
-            if (unitsResult.data) setUnits(unitsResult.data);
+            if (unitsResult.data) setUnits(normalizeCostSettingsRows(unitsResult.data));
             if (suppliersResult.data) setSuppliers(suppliersResult.data);
 
             // Only show error toast if multiple critical failures

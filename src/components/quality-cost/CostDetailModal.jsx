@@ -34,7 +34,7 @@ export const CostDetailModal = ({ isOpen, setOpen, title, costs }) => {
                     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto px-6 py-4 pb-6">
                         <div className="dashboard-widget">
                             <div className="overflow-x-auto">
-                                <table className="data-table">
+                                <table className="data-table document-module-table">
                                     <thead>
                                         <tr>
                                             <th>Tarih</th>

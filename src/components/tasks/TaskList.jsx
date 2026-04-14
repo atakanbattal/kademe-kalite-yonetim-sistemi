@@ -4,11 +4,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Eye, Flag, AlertCircle, Sparkles, Trash2, MoreHorizontal, Calendar, CheckSquare, AlertTriangle } from 'lucide-react';
+import { Edit, Eye, Flag, AlertCircle, Sparkles, Trash2, MoreVertical, Calendar, CheckSquare, AlertTriangle } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import ListTableShell from '@/components/ui/ListTableShell';
 
 const priorityConfig = {
     'Kritik': { icon: <Flag className="h-3 w-3" />, color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400', order: 0 },
@@ -41,8 +42,8 @@ const TaskList = ({ tasks, onEditTask, onViewTask, onDeleteTask }) => {
     };
 
     return (
-        <div className="border rounded-xl overflow-hidden bg-card">
-            <div className="overflow-auto max-h-[calc(100vh-16rem)]">
+        <TooltipProvider delayDuration={200}>
+        <ListTableShell innerClassName="overflow-auto max-h-[calc(100vh-16rem)]">
                 <Table>
                     <TableHeader className="sticky top-0 bg-card z-10">
                         <TableRow className="hover:bg-transparent">
@@ -53,7 +54,7 @@ const TaskList = ({ tasks, onEditTask, onViewTask, onDeleteTask }) => {
                             <TableHead className="text-[11px] font-semibold uppercase tracking-wider w-[90px]">Öncelik</TableHead>
                             <TableHead className="text-[11px] font-semibold uppercase tracking-wider w-[110px]">Durum</TableHead>
                             <TableHead className="text-[11px] font-semibold uppercase tracking-wider w-[100px]">Bitiş</TableHead>
-                            <TableHead className="w-[60px]" />
+                            <TableHead className="w-[120px] text-right">İşlemler</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -151,38 +152,48 @@ const TaskList = ({ tasks, onEditTask, onViewTask, onDeleteTask }) => {
                                             <span className="text-xs text-muted-foreground/40">-</span>
                                         )}
                                     </TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-36">
-                                                <DropdownMenuItem onClick={(e) => handleActionClick(e, onViewTask, task)}>
-                                                    <Eye className="mr-2 h-3.5 w-3.5" /> Görüntüle
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={(e) => handleActionClick(e, onEditTask, task)}>
-                                                    <Edit className="mr-2 h-3.5 w-3.5" /> Düzenle
-                                                </DropdownMenuItem>
-                                                {onDeleteTask && (
-                                                    <DropdownMenuItem
-                                                        onClick={(e) => handleActionClick(e, onDeleteTask, task)}
-                                                        className="text-destructive focus:text-destructive"
-                                                    >
-                                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Sil
+                                    <TableCell className="text-right">
+                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onViewTask(task); }} aria-label="Görüntüle">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                            </Tooltip>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()} aria-label="Diğer işlemler">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-40">
+                                                    <DropdownMenuItem className="text-sm" onClick={(e) => handleActionClick(e, onEditTask, task)}>
+                                                        <Edit className="mr-2 h-4 w-4 shrink-0" /> Düzenle
                                                     </DropdownMenuItem>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                    {onDeleteTask && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                                onClick={(e) => handleActionClick(e, onDeleteTask, task)}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4 shrink-0" /> Sil
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             );
                         })}
                     </TableBody>
                 </Table>
-            </div>
-        </div>
+        </ListTableShell>
+        </TooltipProvider>
     );
 };
 

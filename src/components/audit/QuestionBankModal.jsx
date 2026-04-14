@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { normalizeCostSettingsRows } from '@/lib/utils';
 
 const QuestionBankModal = ({ isOpen, setIsOpen }) => {
     const { toast } = useToast();
@@ -55,7 +56,7 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Birimler yüklenemedi.' });
                 setDepartments([]);
             } else {
-                setDepartments(data);
+                setDepartments(normalizeCostSettingsRows(data || []));
             }
             setLoadingDepartments(false);
         };

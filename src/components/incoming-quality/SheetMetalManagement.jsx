@@ -6,13 +6,14 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Label } from '@/components/ui/label';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-    import { Plus, Trash2, Edit, Search, FileText, X, MoreHorizontal, Eye, ExternalLink, Check, XCircle as CircleX } from 'lucide-react';
+    import { Plus, Trash2, Edit, Search, FileText, X, MoreVertical, Eye, ExternalLink, Check, XCircle as CircleX } from 'lucide-react';
     import { motion } from 'framer-motion';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { useDropzone } from 'react-dropzone';
     import { v4 as uuidv4 } from 'uuid';
     import { useData } from '@/contexts/DataContext';
-    import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+    import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+    import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
     import { Badge } from '@/components/ui/badge';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
     import { sanitizeFileName } from '@/lib/utils';
@@ -355,6 +356,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [searchTerm, setSearchTerm] = useState('');
         const [isViewMode, setIsViewMode] = useState(false);
         const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+        const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
         const fetchRecords = useCallback(async () => {
             setLoading(true);
@@ -430,6 +432,26 @@ import React, { useState, useEffect, useCallback } from 'react';
         
         return (
             <div className="dashboard-widget">
+                <AlertDialog open={!!pendingDeleteId} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Kaydı silmek istiyor musunuz?</AlertDialogTitle>
+                            <AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => {
+                                    if (pendingDeleteId) handleDelete(pendingDeleteId);
+                                    setPendingDeleteId(null);
+                                }}
+                            >
+                                Sil
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
                 <SheetMetalFormModal isOpen={isFormModalOpen} setIsOpen={setFormModalOpen} existingRecord={selectedRecord} refreshData={fetchRecords} isViewMode={isViewMode} />
                 <SheetMetalDetailModal isOpen={isDetailModalOpen} setIsOpen={setIsDetailModalOpen} record={selectedRecord} onDownloadPDF={(record) => {
                     openPrintableReport(record, 'sheet_metal_entry', true);
@@ -447,9 +469,11 @@ import React, { useState, useEffect, useCallback } from 'react';
                     </div>
                     <Button onClick={handleNew}><Plus className="w-4 h-4 mr-2" /> Yeni Giriş</Button>
                 </div>
+                <TooltipProvider delayDuration={250}>
+                <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="data-table w-full">
-                        <thead><tr><th>İrsaliye No</th><th>Tedarikçi</th><th>Giriş Tarihi</th><th>Kalite</th><th>Lot No</th><th>Heat No</th><th>Coil No</th><th>Karar</th><th>Sertifika</th><th>İşlemler</th></tr></thead>
+                    <table className="data-table document-module-table w-full">
+                        <thead><tr><th>İrsaliye No</th><th>Tedarikçi</th><th>Giriş Tarihi</th><th>Kalite</th><th>Lot No</th><th>Heat No</th><th>Coil No</th><th>Karar</th><th>Sertifika</th><th className="text-right">İşlemler</th></tr></thead>
                         <tbody>
                             {loading ? (<tr><td colSpan="10" className="text-center py-8">Yükleniyor...</td></tr>) 
                             : items.length === 0 ? (<tr><td colSpan="10" className="text-center py-8">Kayıt bulunamadı.</td></tr>) 
@@ -477,18 +501,28 @@ import React, { useState, useEffect, useCallback } from 'react';
                                         <td>{item.coil_no || '-'}</td>
                                         <td>{getDecisionBadge(item.decision)}</td>
                                         <td className='text-center'>{hasCertificates(item) ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <CircleX className="h-5 w-5 text-red-500 mx-auto" />}</td>
-                                        <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                                            <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" /></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleView(entry)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleEdit(entry)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
-                                                    <AlertDialogTrigger asChild><DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem></AlertDialogTrigger>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
-                                                <AlertDialogFooter><AlertDialogCancel>İptal</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(entry.id)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction></AlertDialogFooter>
-                                            </AlertDialogContent></AlertDialog>
+                                        <td onClick={(e) => e.stopPropagation()} className="align-middle">
+                                            <div className="inline-flex items-center justify-end gap-0.5">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Görüntüle" onClick={() => handleView(entry)}>
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                                </Tooltip>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Diğer işlemler">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem className="text-sm" onClick={() => handleEdit(entry)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => setPendingDeleteId(entry.id)}><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
                                         </td>
                                     </motion.tr>
                                 ));
@@ -496,6 +530,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                         </tbody>
                     </table>
                 </div>
+                </div>
+                </TooltipProvider>
             </div>
         );
     };

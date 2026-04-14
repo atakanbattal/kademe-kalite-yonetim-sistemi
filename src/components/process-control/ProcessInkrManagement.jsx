@@ -1515,7 +1515,7 @@ const ProcessInkrManagement = ({ onViewPdf, plans = [], refreshReports, refreshD
                 <Button onClick={handleNew}><Plus className="w-4 h-4 mr-2" /> Yeni INKR Raporu</Button>
             </div>
             <div className="overflow-x-auto">
-                <table className="data-table">
+                <table className="data-table document-module-table">
                     <thead>
                         <tr>
                             <th>Parça Kodu</th>

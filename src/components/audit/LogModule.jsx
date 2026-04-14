@@ -173,7 +173,7 @@ const AuditLogModule = ({ onOpenRelatedRecord }) => {
                       <SelectItem value="trainings">Eğitim Yönetimi</SelectItem>
                       <SelectItem value="wps_procedures">WPS Yönetimi</SelectItem>
                       <SelectItem value="personnel">Personel</SelectItem>
-                      <SelectItem value="cost_settings">Maliyet Ayarları</SelectItem>
+                      <SelectItem value="cost_settings">Birim Yönetimi</SelectItem>
                     </SelectContent>
                   </Select>
                   {(debouncedSearchTerm.trim() || tableFilter !== 'all' || userFilter !== 'all') && (

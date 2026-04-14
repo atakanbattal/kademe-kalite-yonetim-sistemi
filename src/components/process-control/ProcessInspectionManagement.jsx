@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ListTableShell from '@/components/ui/ListTableShell';
+import { MoreVertical, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatInspectionDateOnly } from '@/lib/dateDisplay';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ProcessInspectionFormModal from './ProcessInspectionFormModal';
 import ProcessInspectionDetailModal from './ProcessInspectionDetailModal';
 
@@ -42,6 +44,7 @@ const ProcessInspectionManagement = () => {
     
     // View Mode flag (true if viewing, false if editing)
     const [isViewMode, setIsViewMode] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -175,6 +178,7 @@ const ProcessInspectionManagement = () => {
     };
 
     return (
+        <TooltipProvider delayDuration={200}>
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-lg border shadow-sm">
                 <div className="search-box w-full max-w-sm">
@@ -194,7 +198,7 @@ const ProcessInspectionManagement = () => {
                 </div>
             </div>
 
-            <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
+            <ListTableShell noInner className="flex flex-col">
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-muted/50">
@@ -237,36 +241,35 @@ const ProcessInspectionManagement = () => {
                                     <TableCell>{inspection.operator_name || '-'}</TableCell>
                                     <TableCell>{getDecisionBadge(inspection.decision)}</TableCell>
                                     <TableCell className="text-right">
-                                        <AlertDialog>
-                                            <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="icon" onClick={() => handleViewDetail(inspection)} title="Görüntüle">
-                                                    <Eye className="h-4 w-4 text-blue-500" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(inspection)} title="Düzenle">
-                                                    <Edit className="h-4 w-4 text-amber-500" />
-                                                </Button>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" title="Sil">
-                                                        <Trash2 className="h-4 w-4" />
+                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleViewDetail(inspection)} aria-label="Görüntüle">
+                                                        <Eye className="h-4 w-4" />
                                                     </Button>
-                                                </AlertDialogTrigger>
-                                            </div>
-                                            
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Kaydı Sil</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        Bu muayene kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDelete(inspection)} className="bg-red-600 hover:bg-red-700">
-                                                        Sil
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                            </Tooltip>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Diğer işlemler">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-40">
+                                                    <DropdownMenuItem className="text-sm" onClick={() => handleEdit(inspection)}>
+                                                        <Edit className="mr-2 h-4 w-4 shrink-0" /> Düzenle
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                        onSelect={(e) => { e.preventDefault(); setDeleteTarget(inspection); }}
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4 shrink-0" /> Sil
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -305,7 +308,30 @@ const ProcessInspectionManagement = () => {
                         </div>
                     </div>
                 )}
-            </div>
+            </ListTableShell>
+
+            <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Kaydı Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu muayene kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteTarget(null)}>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (deleteTarget) handleDelete(deleteTarget);
+                                setDeleteTarget(null);
+                            }}
+                        >
+                            Sil
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Modals */}
             <ProcessInspectionFormModal 
@@ -322,6 +348,7 @@ const ProcessInspectionManagement = () => {
                 inspection={selectedInspectionForView}
             />
         </div>
+        </TooltipProvider>
     );
 };
 

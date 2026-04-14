@@ -6,6 +6,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { normalizeUnitNameForSettings } from '@/lib/utils';
 
 const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
     const [departments, setDepartments] = useState([]);
@@ -22,7 +23,7 @@ const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
 
             if (!costError && costSettingsData) {
                 costSettingsData.forEach((d) => {
-                    if (d.unit_name && String(d.unit_name).trim()) names.add(String(d.unit_name).trim());
+                    if (d.unit_name && String(d.unit_name).trim()) names.add(normalizeUnitNameForSettings(String(d.unit_name).trim()));
                 });
             }
 
@@ -34,14 +35,14 @@ const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
                 persData.forEach((p) => {
                     if (p.department && String(p.department).trim()) names.add(String(p.department).trim());
                     if (p.management_department && String(p.management_department).trim()) {
-                        names.add(String(p.management_department).trim());
+                        names.add(normalizeUnitNameForSettings(String(p.management_department).trim()));
                     }
                 });
             }
 
             if (names.size === 0 && !costError && costSettingsData?.length) {
                 costSettingsData.forEach((d) => {
-                    if (d.unit_name && String(d.unit_name).trim()) names.add(String(d.unit_name).trim());
+                    if (d.unit_name && String(d.unit_name).trim()) names.add(normalizeUnitNameForSettings(String(d.unit_name).trim()));
                 });
             }
 

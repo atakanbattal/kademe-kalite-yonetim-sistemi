@@ -251,6 +251,30 @@ body {
   @apply w-[168px] min-w-[168px];
 }
 
+/* Geniş listeler (ör. DF/8D): işlemler sütunu sabit; ilk sütunda başlık sarması yok */
+.data-table-wide-actions.data-table th {
+  @apply py-2.5 normal-case tracking-normal text-xs font-semibold;
+}
+.data-table-wide-actions.data-table td {
+  @apply py-2 align-middle;
+}
+.data-table-wide-actions.data-table thead th:last-child,
+.data-table-wide-actions.data-table tbody td:last-child {
+  @apply text-right;
+}
+.data-table-wide-actions.data-table thead th:last-child {
+  @apply w-[168px] min-w-[168px];
+}
+
+/* Tüm modül listeleri — tek tip dış çerçeve (içte overflow-x-auto veya data-table) */
+.list-table-shell {
+  @apply rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden;
+}
+.list-table-shell-inner {
+  @apply overflow-x-auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Responsive table wrapper */
 .table-responsive {
   @apply w-full overflow-x-auto;

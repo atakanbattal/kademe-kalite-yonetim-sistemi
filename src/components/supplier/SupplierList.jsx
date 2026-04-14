@@ -255,7 +255,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                 />
 
                 <div className="overflow-x-auto">
-                    <table className="data-table w-full">
+                    <table className="data-table document-module-table w-full">
                         <thead>
                             <tr>
                                 <th>S.No</th>
@@ -267,7 +267,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                                 <th>İlişki</th>
                                 <th>Yaklaşan Denetim</th>
                                 <th>Durum</th>
-                                <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                <th className="text-right">İşlemler</th>
                             </tr>
                         </thead>
                         <tbody>

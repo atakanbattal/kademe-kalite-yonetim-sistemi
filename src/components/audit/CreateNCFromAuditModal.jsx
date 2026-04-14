@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/customSupabaseClient';
+import { normalizeUnitNameForSettings } from '@/lib/utils';
 
 const CreateNCFromAuditModal = ({ isOpen, setIsOpen, finding, audit, onOpenNCForm }) => {
     const { toast } = useToast();
@@ -21,7 +22,7 @@ const CreateNCFromAuditModal = ({ isOpen, setIsOpen, finding, audit, onOpenNCFor
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Birimler yüklenemedi.' });
             } else {
-                setDepartments(data.map(d => d.unit_name).sort());
+                setDepartments(data.map((d) => normalizeUnitNameForSettings(d.unit_name || '')).filter(Boolean).sort((a, b) => a.localeCompare(b, 'tr')));
             }
         };
         fetchDepartments();
@@ -29,7 +30,7 @@ const CreateNCFromAuditModal = ({ isOpen, setIsOpen, finding, audit, onOpenNCFor
     
     useEffect(() => {
         if (audit?.department?.unit_name) {
-            setSelectedDepartment(audit.department.unit_name);
+            setSelectedDepartment(normalizeUnitNameForSettings(audit.department.unit_name));
         } else {
             setSelectedDepartment('');
         }

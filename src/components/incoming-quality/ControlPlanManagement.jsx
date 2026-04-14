@@ -946,7 +946,7 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
                 </div>
             </div>
             <div className="overflow-x-auto">
-                <table className="data-table">
+                <table className="data-table document-module-table">
                     <thead>
                         <tr>
                             <th>Parça Kodu</th>
@@ -954,7 +954,7 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
                             <th>Rev. No</th>
                             <th>Madde Sayısı</th>
                             <th>Son Güncelleme</th>
-                            <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                            <th className="text-right">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>

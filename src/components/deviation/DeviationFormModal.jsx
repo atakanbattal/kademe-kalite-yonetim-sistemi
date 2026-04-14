@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { cn, sanitizeFileName, getAttachmentDisplayName } from '@/lib/utils';
+import { cn, sanitizeFileName, getAttachmentDisplayName, normalizeUnitNameForSettings } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -111,7 +111,7 @@ const DeviationFormModal = ({
                     .order('unit_name');
                 
                 if (deptError) throw deptError;
-                setDepartments(deptData.map(d => d.unit_name));
+                setDepartments(deptData.map((d) => normalizeUnitNameForSettings(d.unit_name || '')));
                 
                 // Fetch active personnel
                 const { data: personnelData, error: personnelError } = await supabase

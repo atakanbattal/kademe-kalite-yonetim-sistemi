@@ -451,3 +451,66 @@ export function formatPersonnelModuleField(text) {
         })
         .join(' ');
 }
+
+/**
+ * Bitişik yazılmış eski camelCase birim adlarını kelimelere böler (ör. arGeDirektörlüğü → ar Ge Direktörlüğü).
+ * Zaten boşluk veya tire varsa dokunulmaz.
+ */
+function expandStuckCamelCaseWords(s) {
+    if (!s || /\s/.test(s) || /-/.test(s)) return s;
+    let out = s;
+    let prev = '';
+    while (out !== prev) {
+        prev = out;
+        out = out.replace(/([a-zğüşıöç])([A-ZĞÜŞİÖÇİ])/g, '$1 $2');
+    }
+    return out;
+}
+
+/**
+ * Ayarlardaki birim adları (cost_settings): boşluk ve tire korunur, Türkçe title case.
+ * Örnek: "KALİTE MÜDÜRLÜĞÜ" → "Kalite Müdürlüğü", "AR-GE DİREKTÖRLÜĞÜ" → "Ar-Ge Direktörlüğü"
+ */
+export function normalizeUnitNameForSettings(text) {
+    if (text == null || typeof text !== 'string') return '';
+    const normalized = text.normalize('NFC').replace(/\s+/g, ' ').trim();
+    if (!normalized) return '';
+    const expanded = expandStuckCamelCaseWords(normalized);
+    return formatPersonnelModuleField(expanded);
+}
+
+export function normalizeCostSettingsRows(rows) {
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => ({
+        ...row,
+        unit_name:
+            row.unit_name != null && String(row.unit_name).trim() !== ''
+                ? normalizeUnitNameForSettings(String(row.unit_name))
+                : row.unit_name,
+    }));
+}
+
+export function normalizeCostSettingsJoin(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (!Object.prototype.hasOwnProperty.call(obj, 'unit_name')) return obj;
+    return {
+        ...obj,
+        unit_name: normalizeUnitNameForSettings(String(obj.unit_name ?? '')),
+    };
+}
+
+function normalizeDepartmentishField(v) {
+    if (v == null || v === '') return v;
+    return normalizeUnitNameForSettings(String(v));
+}
+
+/** DF/8D kayıtlarında birim metinleri — boşluklu okunaklı yazıma çeker (DB’de kalan eski biçimler dahil). */
+export function normalizeNonConformityUnitFields(row) {
+    if (!row || typeof row !== 'object') return row;
+    return {
+        ...row,
+        department: normalizeDepartmentishField(row.department),
+        requesting_unit: normalizeDepartmentishField(row.requesting_unit),
+        forwarded_unit: normalizeDepartmentishField(row.forwarded_unit),
+    };
+}

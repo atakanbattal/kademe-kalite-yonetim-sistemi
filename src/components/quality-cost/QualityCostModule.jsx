@@ -1105,7 +1105,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                             </div>
                         </div>
                         <div className="border rounded-lg overflow-auto max-h-[min(60vh,600px)]" style={{ minHeight: 320 }}>
-                            <table className="data-table min-w-full">
+                            <table className="data-table data-table-wide-actions min-w-full">
                                     <thead>
                                         <tr>
                                             <th className="w-10">#</th>

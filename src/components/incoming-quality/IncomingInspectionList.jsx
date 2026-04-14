@@ -1,21 +1,22 @@
 import React from 'react';
-    import { Button } from '@/components/ui/button';
-    import { Input } from '@/components/ui/input';
-    import { Badge } from '@/components/ui/badge';
-    import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-    import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, Plus, Search, Edit, FileSignature, Trash2, Eye, CheckSquare, Filter, Check, XCircle as CircleX, FilePlus, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
-    import { format } from 'date-fns';
-    import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-    import { supabase } from '@/lib/customSupabaseClient';
-    import { useToast } from '@/components/ui/use-toast';
-    import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-    import { Label } from '@/components/ui/label';
-    import { DateRangePicker } from '@/components/ui/date-range-picker';
-    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-    import IncomingInspectionDetailModal from './IncomingInspectionDetailModal';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ListTableShell from '@/components/ui/ListTableShell';
+import { MoreVertical, Plus, Search, Edit, Trash2, Eye, CheckSquare, Filter, FilePlus, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { format } from 'date-fns';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import IncomingInspectionDetailModal from './IncomingInspectionDetailModal';
 
-    const InspectionFilters = ({ filters, setFilters, suppliers }) => {
+const InspectionFilters = ({ filters, setFilters, suppliers }) => {
         
         const handleClear = () => {
             setFilters({
@@ -89,14 +90,15 @@ import React from 'react';
                 </PopoverContent>
             </Popover>
         );
-    };
+};
 
 
-    const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, onDecide, onOpenNCForm, onOpenNCView, onDownloadPDF, onGenerateReport, refreshData, suppliers, filters, setFilters, onOpenControlPlanForm, page, setPage, totalCount, pageSize, onOpenStockRiskModal }) => {
+const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, onDecide, onOpenNCForm, onOpenNCView, onDownloadPDF, onGenerateReport, refreshData, suppliers, filters, setFilters, onOpenControlPlanForm, page, setPage, totalCount, pageSize, onOpenStockRiskModal }) => {
         const { toast } = useToast();
         const totalPages = Math.ceil(totalCount / pageSize);
         const [selectedInspection, setSelectedInspection] = React.useState(null);
         const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
+        const [deleteTarget, setDeleteTarget] = React.useState(null);
 
         const getDecisionBadge = (decision) => {
             switch (decision) {
@@ -209,7 +211,8 @@ import React from 'react';
         };
 
         return (
-            <div className="p-4 border rounded-lg bg-card">
+            <TooltipProvider delayDuration={200}>
+            <div className="p-4 space-y-4">
                 <div className="flex items-center justify-between mb-4 gap-2">
                     <div className="search-box w-full max-w-sm">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
@@ -236,7 +239,7 @@ import React from 'react';
                         <Button onClick={onAdd}><Plus className="mr-2 h-4 w-4" /> Yeni Muayene</Button>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
+                <ListTableShell noInner>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -247,7 +250,7 @@ import React from 'react';
                                 <TableHead>Miktar</TableHead>
                                 <TableHead>Karar</TableHead>
                                 <TableHead>Uygunsuzluk</TableHead>
-                                <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
+                                <TableHead className="text-right">İşlemler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -274,46 +277,38 @@ import React from 'react';
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                            <AlertDialog>
+                                            <div className="inline-flex items-center justify-end gap-0.5">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleViewDetail(inspection)} aria-label="Görüntüle">
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                                </Tooltip>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                                            <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Diğer işlemler">
+                                                            <MoreVertical className="h-4 w-4 shrink-0" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleViewDetail(inspection)}>
-                                                            <Eye className="mr-2 h-4 w-4" /> Görüntüle
+                                                    <DropdownMenuContent align="end" className="w-44">
+                                                        <DropdownMenuItem className="text-sm" onClick={() => handleEditWithFullData(inspection)}>
+                                                            <Edit className="mr-2 h-4 w-4 shrink-0" /> Düzenle
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleEditWithFullData(inspection)}>
-                                                            <Edit className="mr-2 h-4 w-4" /> Düzenle
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => onDecide(inspection)}>
-                                                            <CheckSquare className="mr-2 h-4 w-4" /> Karar Ver
+                                                        <DropdownMenuItem className="text-sm" onClick={() => onDecide(inspection)}>
+                                                            <CheckSquare className="mr-2 h-4 w-4 shrink-0" /> Karar Ver
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
-                                                                <Trash2 className="mr-2 h-4 w-4" /> Sil
-                                                            </DropdownMenuItem>
-                                                        </AlertDialogTrigger>
+                                                        <DropdownMenuItem
+                                                            className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                            onSelect={(e) => { e.preventDefault(); setDeleteTarget(inspection); }}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4 shrink-0" /> Sil
+                                                        </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Kayıtı Sil</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Bu kayıtı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(inspection)} className="bg-red-600">
-                                                            Sil
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -324,7 +319,7 @@ import React from 'react';
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                </ListTableShell>
 
                 <div className="flex items-center justify-end space-x-2 py-4">
                     <span className="text-sm text-muted-foreground">
@@ -359,8 +354,32 @@ import React from 'react';
                     onOpenNCForm={onOpenNCForm}
                     onOpenNCView={onOpenNCView}
                 />
-            </div>
-        );
-    };
 
-    export default React.memo(IncomingInspectionList);
+                <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Kayıtı Sil</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Bu kayıtı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>İptal</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => {
+                                    if (deleteTarget) handleDelete(deleteTarget);
+                                    setDeleteTarget(null);
+                                }}
+                            >
+                                Sil
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
+            </TooltipProvider>
+        );
+};
+
+export default React.memo(IncomingInspectionList);

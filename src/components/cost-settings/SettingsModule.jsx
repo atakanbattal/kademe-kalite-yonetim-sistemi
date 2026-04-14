@@ -16,10 +16,6 @@ const CostSettingsModule = () => {
 
     return (
         <div className="space-y-4 sm:space-y-6 md:space-y-8">
-            <div className="mb-4 sm:mb-6 md:mb-8">
-                <p className="text-xs sm:text-sm text-muted-foreground">Maliyetleri, personeli ve hesapları yönetin. <span className="text-foreground/90">Birim</span> sekmesi personeldeki üst departman / müdürlük ile aynı listedir.</p>
-            </div>
-
             <Tabs defaultValue={hasAccountAccess ? "accounts" : "personnel"} className="w-full">
                 {/* Mobil için yatay scroll ile tabs */}
                 <div className="w-full overflow-x-auto pb-2 -mx-1 px-1">
@@ -39,10 +35,10 @@ const CostSettingsModule = () => {
                             <span className="hidden xs:inline">Müşteri</span>
                             <span className="xs:hidden">👥</span>
                         </TabsTrigger>
-                        <TabsTrigger value="units" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3" title="Üst departman / müdürlük maliyetleri">
+                        <TabsTrigger value="units" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3" title="Birim Yönetimi — birim adları ve dakika maliyeti">
                             <Building className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0"/>
-                            <span className="hidden sm:inline">Üst dep. / MD</span>
-                            <span className="hidden xs:inline sm:hidden">Üst dep.</span>
+                            <span className="hidden sm:inline">Birim Yönetimi</span>
+                            <span className="hidden xs:inline sm:hidden">Birim</span>
                             <span className="xs:hidden">🏢</span>
                         </TabsTrigger>
                         <TabsTrigger value="materials" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">

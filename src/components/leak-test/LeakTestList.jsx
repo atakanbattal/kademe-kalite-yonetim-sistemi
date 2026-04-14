@@ -34,6 +34,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import {
@@ -224,8 +225,10 @@ const LeakTestList = ({
                         {filteredRecords.length} / {records.length} kayıt görüntüleniyor
                     </div>
 
+                    <TooltipProvider delayDuration={250}>
+                    <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
                     <div className="table-responsive">
-                        <table className="data-table min-w-[1260px]">
+                        <table className="data-table data-table-wide data-table-wide-actions min-w-[1260px]">
                             <thead>
                                 <tr>
                                     <th>Kayıt No</th>
@@ -238,7 +241,7 @@ const LeakTestList = ({
                                     <th>Sonuç</th>
                                     <th>Testi Yapan</th>
                                     <th>Kaynak / tedarikçi</th>
-                                    <th>İşlemler</th>
+                                    <th className="text-right">İşlemler</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -280,32 +283,38 @@ const LeakTestList = ({
                                                     <div>{getWelderOrSupplierLine(record)}</div>
                                                 </div>
                                             </td>
-                                            <td>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon">
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => onView?.(record)}>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Görüntüle
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => onEdit?.(record)}>
-                                                            <Edit className="mr-2 h-4 w-4" />
-                                                            Düzenle
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            className="text-destructive focus:text-destructive"
-                                                            onClick={() => handleDeleteClick(record)}
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Sil
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                            <td onClick={(e) => e.stopPropagation()} className="align-middle">
+                                                <div className="inline-flex items-center justify-end gap-0.5">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Görüntüle" onClick={() => onView?.(record)}>
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                                    </Tooltip>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Diğer işlemler">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-48">
+                                                            <DropdownMenuItem className="text-sm" onClick={() => onEdit?.(record)}>
+                                                                <Edit className="mr-2 h-4 w-4 shrink-0" />
+                                                                Düzenle
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                                onClick={() => handleDeleteClick(record)}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                                                                Sil
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </td>
                                         </motion.tr>
                                     ))
@@ -313,6 +322,8 @@ const LeakTestList = ({
                             </tbody>
                         </table>
                     </div>
+                    </div>
+                    </TooltipProvider>
                 </div>
             )}
         </div>

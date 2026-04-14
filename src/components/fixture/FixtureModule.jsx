@@ -515,8 +515,8 @@ const FixtureModule = () => {
                 </div>
             </div>
 
-            {/* Liste */}
-            <div className="card overflow-hidden">
+            {/* Liste (FixtureList kendi kart çerçevesini taşır) */}
+            <div className="min-w-0">
                 <FixtureList
                     fixtures={filteredFixtures}
                     onView={(f) => setDetailModal({ open: true, fixture: f })}

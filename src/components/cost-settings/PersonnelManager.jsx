@@ -13,12 +13,19 @@ import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { formatPersonnelModuleField } from '@/lib/utils';
+import { formatPersonnelModuleField, normalizeUnitNameForSettings, normalizeCostSettingsRows, normalizeCostSettingsJoin } from '@/lib/utils';
 
 const PERSONNEL_TITLE_FIELDS = ['full_name', 'department', 'management_department', 'job_title'];
 
-function displayPersonnelTitle(value) {
+function formatTitleField(key, value) {
+    if (value == null || typeof value !== 'string' || !value.trim()) return value;
+    if (key === 'management_department') return normalizeUnitNameForSettings(value);
+    return formatPersonnelModuleField(value);
+}
+
+function displayPersonnelField(fieldId, value) {
     if (value == null || String(value).trim() === '') return '';
+    if (fieldId === 'management_department') return normalizeUnitNameForSettings(String(value));
     return formatPersonnelModuleField(String(value));
 }
 
@@ -63,7 +70,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
             const p = { ...existingPersonnel };
             for (const key of PERSONNEL_TITLE_FIELDS) {
                 if (typeof p[key] === 'string' && p[key].trim()) {
-                    p[key] = formatPersonnelModuleField(p[key]);
+                    p[key] = formatTitleField(key, p[key]);
                 }
             }
             setFormData(p);
@@ -80,7 +87,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
     const handleTitleFieldBlur = (e) => {
         const { id, value } = e.target;
         if (!PERSONNEL_TITLE_FIELDS.includes(id)) return;
-        const formatted = formatPersonnelModuleField(value);
+        const formatted = formatTitleField(id, value);
         if (formatted !== value) {
             setFormData((prev) => ({ ...prev, [id]: formatted }));
         }
@@ -97,7 +104,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
     const handleUnitChange = (unitId) => {
         const selectedUnit = units.find(u => u.id === unitId);
         const rawName = selectedUnit?.unit_name ?? '';
-        const formatted = rawName ? formatPersonnelModuleField(rawName) : '';
+        const formatted = rawName ? normalizeUnitNameForSettings(rawName) : '';
         setFormData(prev => ({
             ...prev,
             unit_id: unitId,
@@ -118,7 +125,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
         const dataToSubmit = { ...raw };
         for (const key of PERSONNEL_TITLE_FIELDS) {
             if (typeof dataToSubmit[key] === 'string') {
-                dataToSubmit[key] = formatPersonnelModuleField(dataToSubmit[key]);
+                dataToSubmit[key] = formatTitleField(key, dataToSubmit[key]);
             }
         }
       
@@ -143,7 +150,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
         () =>
             units.map((unit) => ({
                 value: unit.id,
-                label: formatPersonnelModuleField(unit.unit_name || ''),
+                label: normalizeUnitNameForSettings(unit.unit_name || ''),
             })),
         [units]
     );
@@ -154,9 +161,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Önce birim tanımlayın</DialogTitle>
-                        <DialogDescription>
-                            Yeni personel eklemek için en az bir üst departman / müdürlük kaydı gerekir. Ayarlar &gt; Birim sekmesinden ekleyip bu ekrana dönün.
-                        </DialogDescription>
+                        <DialogDescription>Önce Birim Yönetimi&apos;nden birim ekleyin.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button onClick={() => setOpen(false)}>Tamam</Button>
@@ -174,9 +179,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                 <DialogHeader className="px-6 pt-6 pb-3 border-b border-border shrink-0 text-left">
                     <DialogTitle className="text-xl">{isEditMode ? 'Personeli düzenle' : 'Yeni personel'}</DialogTitle>
                     <DialogDescription className="text-sm leading-relaxed">
-                        {isEditMode
-                            ? 'Kimlik, birim ve ünvan bilgilerini güncelleyin. Durum &quot;Pasif&quot; ise personel çoğu seçicide görünmez.'
-                            : 'Üst departman / müdürlüğü listeden seçin; alt birim (ekip) adını ve yaka bilgisini doldurun.'}
+                        {isEditMode ? 'Bilgileri güncelleyin.' : 'Zorunlu alanları doldurun.'}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4">
@@ -207,17 +210,16 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2 sm:col-span-2">
-                                    <Label>Üst departman / müdürlük (maliyet) <span className="text-destructive">*</span></Label>
+                                    <Label>Birim (maliyet) <span className="text-destructive">*</span></Label>
                                     <SearchableSelectDialog
                                         options={unitOptions}
                                         value={formData.unit_id || ''}
                                         onChange={handleUnitChange}
-                                        triggerPlaceholder="Üst departman veya müdürlük seçin..."
-                                        dialogTitle="Üst departman / müdürlük seç"
+                                        triggerPlaceholder="Birim seçin..."
+                                        dialogTitle="Birim seç"
                                         searchPlaceholder="Ara..."
                                         notFoundText="Kayıt bulunamadı."
                                     />
-                                    <p className="text-xs text-muted-foreground">Ayarlar &gt; Birim ile aynı listedir; maliyet ve organizasyon üst düzeyine bağlanır.</p>
                                 </div>
                                 <div className="space-y-2 sm:col-span-2">
                                     <Label htmlFor="department">Alt birim / ekip (görünen)</Label>
@@ -230,7 +232,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                                     />
                                 </div>
                                 <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="management_department">Üst departman (metin özeti)</Label>
+                                    <Label htmlFor="management_department">Birim özeti</Label>
                                     <Input
                                         id="management_department"
                                         value={formData.management_department || ''}
@@ -238,7 +240,6 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                                         onBlur={handleTitleFieldBlur}
                                         placeholder="Üst seçimle dolar; gerekirse düzenleyin"
                                     />
-                                    <p className="text-xs text-muted-foreground">Üstteki seçimle aynı olmalı; tabloda ve raporlarda üst yapı olarak görünür.</p>
                                 </div>
                             </div>
                         </section>
@@ -332,11 +333,14 @@ const PersonnelManager = () => {
         if (personnelError) {
             toast({ variant: 'destructive', title: 'Personel alınamadı!' });
         } else {
-            const mapped = [...(personnelData || [])];
+            const mapped = (personnelData || []).map((p) => ({
+                ...p,
+                unit: p.unit && typeof p.unit === 'object' ? normalizeCostSettingsJoin(p.unit) : p.unit,
+            }));
             mapped.sort(comparePersonnelBySicil);
             setPersonnel(mapped);
         }
-        if (unitsError) toast({ variant: 'destructive', title: 'Üst departman listesi alınamadı!' }); else setUnits(unitsData);
+        if (unitsError) toast({ variant: 'destructive', title: 'Birim listesi alınamadı!' }); else setUnits(normalizeCostSettingsRows(unitsData || []));
         
         setLoading(false);
     }, [toast]);
@@ -550,9 +554,6 @@ const PersonnelManager = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                         <h2 className="widget-title">Personel listesi</h2>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Üst departman ve yaka bilgileri tabloda görünür; durumu filtreleyebilir veya satırdan anında değiştirebilirsiniz.
-                        </p>
                     </div>
                     <Button size="sm" onClick={() => openModal()} className="flex-shrink-0 self-start sm:self-center">
                         <Plus className="w-4 h-4 mr-2" /> Yeni personel
@@ -563,7 +564,7 @@ const PersonnelManager = () => {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="Ad, sicil, birim, üst departman, yaka veya ünvan ara..."
+                            placeholder="Ad, sicil, birim, yaka veya ünvan ara..."
                             className="search-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -585,18 +586,18 @@ const PersonnelManager = () => {
                 </div>
             </div>
             <div className="overflow-x-auto">
-                <table className="data-table">
+                <table className="data-table document-module-table">
                     <thead>
                         <tr>
                             <th className="w-10">S.No</th>
                             <th>Ad soyad</th>
                             <th>Sicil</th>
                             <th>Alt birim / ekip</th>
-                            <th className="min-w-[220px] max-w-[280px]">Üst departman / müdürlük</th>
+                            <th className="min-w-[220px] max-w-[280px]">Birim</th>
                             <th>Yaka</th>
                             <th className="min-w-[160px]">Şirket ünvanı</th>
                             <th className="whitespace-nowrap">Aktif</th>
-                            <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                            <th className="text-right">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -616,15 +617,15 @@ const PersonnelManager = () => {
                                 className={p.is_active === false ? 'bg-muted/40 text-muted-foreground' : undefined}
                             >
                                 <td className="tabular-nums text-muted-foreground">{index + 1}</td>
-                                <td className="font-medium">{displayPersonnelTitle(p.full_name) || '—'}</td>
+                                <td className="font-medium">{displayPersonnelField('full_name', p.full_name) || '—'}</td>
                                 <td className="font-mono text-sm">{p.registration_number || '—'}</td>
                                 <td className="text-sm">
-                                    {displayPersonnelTitle(p.department) || '—'}
+                                    {displayPersonnelField('department', p.department) || '—'}
                                 </td>
                                 <td className="text-sm align-top">
                                     {p.management_department ? (
                                         <span className="block leading-snug whitespace-normal break-words">
-                                            {displayPersonnelTitle(p.management_department)}
+                                            {displayPersonnelField('management_department', p.management_department)}
                                         </span>
                                     ) : (
                                         <span className="text-muted-foreground">—</span>
@@ -642,7 +643,7 @@ const PersonnelManager = () => {
                                 <td className="text-sm align-top">
                                     {p.job_title ? (
                                         <span className="block leading-snug whitespace-normal break-words">
-                                            {displayPersonnelTitle(p.job_title)}
+                                            {displayPersonnelField('job_title', p.job_title)}
                                         </span>
                                     ) : (
                                         <span className="text-muted-foreground">—</span>

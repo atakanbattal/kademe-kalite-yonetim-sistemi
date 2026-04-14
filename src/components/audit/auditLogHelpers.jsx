@@ -101,7 +101,7 @@ const getReadableTableName = (tableName) => {
     'trainings': 'Eğitimler',
     'training_participants': 'Eğitim Katılımcıları',
     'wps_procedures': 'WPS Prosedürleri',
-    'cost_settings': 'Maliyet Ayarları',
+    'cost_settings': 'Birim Yönetimi (cost_settings)',
     'material_costs': 'Malzeme Maliyetleri',
     'characteristics': 'Karakteristikler',
     'measurement_equipment': 'Ölçüm Ekipmanları',

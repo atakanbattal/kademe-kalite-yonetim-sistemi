@@ -7,7 +7,8 @@ import React, { useState, useMemo } from 'react';
     import { tr } from 'date-fns/locale';
     import { Button } from '@/components/ui/button';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, Eye, Edit, Trash2, Printer } from 'lucide-react';
+    import { MoreVertical, Eye, Edit, Trash2, Printer } from 'lucide-react';
+    import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
@@ -146,17 +147,19 @@ import React, { useState, useMemo } from 'react';
                             </SelectContent>
                         </Select>
                     </div>
+                    <TooltipProvider delayDuration={250}>
+                    <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="w-full">
+                        <table className="data-table document-module-table w-full">
                             <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Rapor No</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Başlık</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Denetlenen Birim</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Denetçi</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tarih</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Durum</th>
-                                    <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                <tr>
+                                    <th>Rapor No</th>
+                                    <th>Başlık</th>
+                                    <th>Denetlenen Birim</th>
+                                    <th>Denetçi</th>
+                                    <th>Tarih</th>
+                                    <th>Durum</th>
+                                    <th className="text-right">İşlemler</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -171,39 +174,45 @@ import React, { useState, useMemo } from 'react';
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: index * 0.05 }}
-                                            className="border-b border-border last:border-b-0 hover:bg-accent cursor-pointer"
+                                            className="hover:bg-accent cursor-pointer"
                                             onClick={() => onViewAudit(audit.id)}
                                         >
-                                            <td className="px-4 py-3 font-medium text-foreground">{audit.report_number}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{audit.title}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{audit.department?.unit_name || 'N/A'}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{audit.auditor_name?.trim() || '—'}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{formatDate(audit.audit_date)}</td>
-                                            <td className="px-4 py-3"><Badge variant={getStatusVariant(audit.status)}>{audit.status}</Badge></td>
-                                            <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                                            <span className="sr-only">Menüyü aç</span>
-                                                            <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => onViewAudit(audit.id)}>
-                                                            <Eye className="mr-2 h-4 w-4" /> Görüntüle
+                                            <td className="font-medium text-foreground">{audit.report_number}</td>
+                                            <td className="text-muted-foreground">{audit.title}</td>
+                                            <td className="text-muted-foreground">{audit.department?.unit_name || 'N/A'}</td>
+                                            <td className="text-muted-foreground">{audit.auditor_name?.trim() || '—'}</td>
+                                            <td className="text-muted-foreground">{formatDate(audit.audit_date)}</td>
+                                            <td><Badge variant={getStatusVariant(audit.status)}>{audit.status}</Badge></td>
+                                            <td className="align-middle" onClick={(e) => e.stopPropagation()}>
+                                                <div className="inline-flex items-center justify-end gap-0.5">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Görüntüle" onClick={() => onViewAudit(audit.id)}>
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                                    </Tooltip>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Diğer işlemler">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-52">
+                                                         <DropdownMenuItem className="text-sm" onClick={(e) => handlePrintClick(e, audit)}>
+                                                            <Printer className="mr-2 h-4 w-4 shrink-0" /> Raporu yazdır
                                                         </DropdownMenuItem>
-                                                         <DropdownMenuItem onClick={(e) => handlePrintClick(e, audit)}>
-                                                            <Printer className="mr-2 h-4 w-4" /> Raporu Yazdır
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => onEditAudit(audit)}>
-                                                            <Edit className="mr-2 h-4 w-4" /> Düzenle
+                                                        <DropdownMenuItem className="text-sm" onClick={() => onEditAudit(audit)}>
+                                                            <Edit className="mr-2 h-4 w-4 shrink-0" /> Düzenle
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleDeleteClick(audit)} className="text-destructive focus:text-destructive">
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Sil
+                                                        <DropdownMenuItem className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleDeleteClick(audit)}>
+                                                            <Trash2 className="mr-2 h-4 w-4 shrink-0" /> Sil
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
+                                                </div>
                                             </td>
                                         </motion.tr>
                                     ))
@@ -211,6 +220,8 @@ import React, { useState, useMemo } from 'react';
                             </tbody>
                         </table>
                     </div>
+                    </div>
+                    </TooltipProvider>
                 </div>
             </>
         );

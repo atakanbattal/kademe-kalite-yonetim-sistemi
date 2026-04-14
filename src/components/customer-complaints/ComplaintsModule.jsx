@@ -312,7 +312,7 @@ const AfterSalesCaseList = ({
         <Card>
             <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                    <table className="data-table">
+                    <table className="data-table document-module-table">
                         <thead>
                             <tr>
                                 <th>No</th>

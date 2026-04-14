@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
+import { normalizeUnitNameForSettings } from '@/lib/utils';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,7 +46,7 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
                     .order('unit_name');
                 
                 if (deptError) throw deptError;
-                setDepartments(deptData.map(d => d.unit_name));
+                setDepartments(deptData.map((d) => normalizeUnitNameForSettings(d.unit_name || '')));
                 
                 // Fetch active personnel
                 const { data: personnelData, error: personnelError } = await supabase

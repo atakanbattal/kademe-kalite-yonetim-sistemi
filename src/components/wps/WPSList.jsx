@@ -1,15 +1,25 @@
-import React from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Eye, FileDown, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { MoreVertical, Edit, Eye, FileDown, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData }) => {
     const { toast } = useToast();
+    const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
     const handleDelete = async (wpsId) => {
         const { error } = await supabase.from('wps_procedures').delete().eq('id', wpsId);
@@ -22,95 +32,152 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
     };
 
     return (
-        <div className="border rounded-lg">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>WPS No</TableHead>
-                        <TableHead>Revizyon</TableHead>
-                        <TableHead>Tarih</TableHead>
-                        <TableHead>Ana Malzeme</TableHead>
-                        <TableHead>Malzeme Kalınlığı</TableHead>
-                        <TableHead>Kaynak Prosesi</TableHead>
-                        <TableHead>Durum</TableHead>
-                        <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {loading ? (
-                        <TableRow><TableCell colSpan="8" className="text-center">Yükleniyor...</TableCell></TableRow>
-                    ) : wpsList.length === 0 ? (
-                        <TableRow><TableCell colSpan="8" className="text-center">Kayıtlı WPS bulunamadı.</TableCell></TableRow>
-                    ) : (
-                        wpsList.map(wps => {
-                            // Kalınlık bilgisini formatla
-                            const formatThickness = () => {
-                                if (wps.thickness_1 && wps.thickness_2) {
-                                    return `${wps.thickness_1} - ${wps.thickness_2} mm`;
-                                } else if (wps.thickness_1) {
-                                    return `${wps.thickness_1} mm`;
-                                } else if (wps.thickness_2) {
-                                    return `${wps.thickness_2} mm`;
-                                }
-                                return '-';
-                            };
-                            
-                            return (
-                            <TableRow 
-                                key={wps.id}
-                                className="cursor-pointer hover:bg-muted/50"
-                                onClick={(e) => {
-                                    // Dropdown menüye tıklanırsa modal açılmasın
-                                    if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) {
-                                        return;
-                                    }
-                                    onView(wps);
-                                }}
-                                title="Detayları görüntülemek için tıklayın"
-                            >
-                                <TableCell className="font-medium">{wps.wps_no}</TableCell>
-                                <TableCell>{wps.revision}</TableCell>
-                                <TableCell>{format(new Date(wps.wps_date), 'dd.MM.yyyy')}</TableCell>
-                                <TableCell>{wps.base_material_1?.name || '-'}</TableCell>
-                                <TableCell>{formatThickness()}</TableCell>
-                                <TableCell>{wps.welding_process_code || '-'}</TableCell>
-                                <TableCell>{wps.status}</TableCell>
-                                <TableCell className="text-right">
-                                    <AlertDialog>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => onView(wps)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => onEdit(wps)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => onDownloadPDF(wps)}><FileDown className="mr-2 h-4 w-4" /> PDF İndir</DropdownMenuItem>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                                <AlertDialogDescription>Bu işlem geri alınamaz. Bu WPS kaydını kalıcı olarak sileceksiniz.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDelete(wps.id)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </TableCell>
-                            </TableRow>
-                            );
-                        })
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+        <>
+            <AlertDialog open={!!pendingDeleteId} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>WPS kaydını silmek istiyor musunuz?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu işlem geri alınamaz. WPS kaydı kalıcı olarak kaldırılır.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteId) handleDelete(pendingDeleteId);
+                                setPendingDeleteId(null);
+                            }}
+                        >
+                            Sil
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <TooltipProvider delayDuration={250}>
+                <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="data-table document-module-table">
+                            <thead>
+                                <tr>
+                                    <th>WPS No</th>
+                                    <th>Revizyon</th>
+                                    <th>Tarih</th>
+                                    <th>Ana Malzeme</th>
+                                    <th>Malzeme Kalınlığı</th>
+                                    <th>Kaynak Prosesi</th>
+                                    <th>Durum</th>
+                                    <th className="text-right">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                ) : wpsList.length === 0 ? (
+                                    <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">Kayıtlı WPS bulunamadı.</td></tr>
+                                ) : (
+                                    wpsList.map((wps) => {
+                                        const formatThickness = () => {
+                                            if (wps.thickness_1 && wps.thickness_2) {
+                                                return `${wps.thickness_1} - ${wps.thickness_2} mm`;
+                                            }
+                                            if (wps.thickness_1) return `${wps.thickness_1} mm`;
+                                            if (wps.thickness_2) return `${wps.thickness_2} mm`;
+                                            return '-';
+                                        };
+
+                                        return (
+                                            <tr
+                                                key={wps.id}
+                                                className="cursor-pointer hover:bg-muted/50"
+                                                onClick={(e) => {
+                                                    if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) {
+                                                        return;
+                                                    }
+                                                    onView(wps);
+                                                }}
+                                                title="Detayları görüntülemek için tıklayın"
+                                            >
+                                                <td className="font-medium">{wps.wps_no}</td>
+                                                <td>{wps.revision}</td>
+                                                <td>{format(new Date(wps.wps_date), 'dd.MM.yyyy')}</td>
+                                                <td>{wps.base_material_1?.name || '-'}</td>
+                                                <td>{formatThickness()}</td>
+                                                <td>{wps.welding_process_code || '-'}</td>
+                                                <td>{wps.status}</td>
+                                                <td onClick={(e) => e.stopPropagation()} className="align-middle">
+                                                    <div className="inline-flex items-center justify-end gap-0.5">
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                    aria-label="Detayları gör"
+                                                                    onClick={() => onView(wps)}
+                                                                >
+                                                                    <Eye className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="bottom">Detayları gör</TooltipContent>
+                                                        </Tooltip>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                    aria-label="PDF indir"
+                                                                    onClick={() => onDownloadPDF(wps)}
+                                                                >
+                                                                    <FileDown className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="bottom">PDF indir</TooltipContent>
+                                                        </Tooltip>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                    aria-label="Diğer işlemler"
+                                                                >
+                                                                    <MoreVertical className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-48">
+                                                                <DropdownMenuItem onClick={() => onEdit(wps)}>
+                                                                    <Edit className="mr-2 h-4 w-4" />
+                                                                    Düzenle
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                                    onClick={() => setPendingDeleteId(wps.id)}
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Sil
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </TooltipProvider>
+        </>
     );
 };
 

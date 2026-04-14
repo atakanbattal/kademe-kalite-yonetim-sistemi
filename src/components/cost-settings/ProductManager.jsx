@@ -476,7 +476,7 @@ const ProductManager = () => {
                                 <th className="p-3 text-left">Kategori</th>
                                 <th className="p-3 text-left">Parça No</th>
                                 <th className="p-3 text-left">Durum</th>
-                                <th className="p-3 text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                <th className="p-3 text-right">İşlemler</th>
                             </tr>
                         </thead>
                         <tbody>

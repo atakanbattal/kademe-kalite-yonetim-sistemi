@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Save, Trash2, Plus, Edit } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { formatPersonnelModuleField } from '@/lib/utils';
+import { normalizeUnitNameForSettings, normalizeCostSettingsRows } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,7 +35,7 @@ const UnitCostModal = ({ open, setOpen, onSave, existingUnit }) => {
             return;
         }
         setIsSubmitting(true);
-        const unitData = { unit_name: unitName, cost_per_minute: parseFloat(costPerMinute) };
+        const unitData = { unit_name: normalizeUnitNameForSettings(unitName), cost_per_minute: parseFloat(costPerMinute) };
 
         let error;
         if (isEditMode) {
@@ -49,7 +49,7 @@ const UnitCostModal = ({ open, setOpen, onSave, existingUnit }) => {
         if (error) {
             toast({ variant: 'destructive', title: 'Hata!', description: `Kayıt ${isEditMode ? 'güncellenemedi' : 'eklenemedi'}. Hata: ${error.message}` });
         } else {
-            toast({ title: 'Başarılı!', description: `Üst departman / müdürlük ${isEditMode ? 'güncellendi' : 'eklendi'}.` });
+            toast({ title: 'Başarılı!', description: `Birim ${isEditMode ? 'güncellendi' : 'eklendi'}.` });
             onSave();
             setOpen(false);
         }
@@ -60,12 +60,12 @@ const UnitCostModal = ({ open, setOpen, onSave, existingUnit }) => {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{isEditMode ? 'Üst departman / müdürlük' : 'Yeni üst departman / müdürlük'}</DialogTitle>
-                    <DialogDescription>{isEditMode ? 'Ad veya dakika maliyetini güncelleyin.' : 'Üst departman veya müdürlük adı ile dakika başına maliyeti girin.'}</DialogDescription>
+                    <DialogTitle>{isEditMode ? 'Birim düzenle' : 'Yeni birim'}</DialogTitle>
+                    <DialogDescription>{isEditMode ? 'Birim adı ve dakika maliyetini güncelleyin.' : 'Birim adı ve dakika maliyetini girin.'}</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div>
-                        <Label htmlFor="unitName">Üst departman / müdürlük adı</Label>
+                        <Label htmlFor="unitName">Birim adı</Label>
                         <Input id="unitName" value={unitName} onChange={(e) => setUnitName(e.target.value)} required />
                     </div>
                     <div>
@@ -95,8 +95,8 @@ const UnitCosts = () => {
             console.warn('sync_cost_settings_from_personnel', syncErr);
         }
         const { data, error } = await supabase.from('cost_settings').select('*').order('unit_name');
-        if (error) toast({ variant: 'destructive', title: 'Üst departman maliyetleri alınamadı!' });
-        else setUnitCosts(data || []);
+        if (error) toast({ variant: 'destructive', title: 'Birim listesi alınamadı!' });
+        else setUnitCosts(normalizeCostSettingsRows(data || []));
         setLoading(false);
     }, [toast]);
 
@@ -120,7 +120,7 @@ const UnitCosts = () => {
         }
 
         if (personnel && personnel.length > 0) {
-            toast({ variant: 'destructive', title: 'Silme Başarısız', description: 'Bu üst departman kaydına personel bağlı olduğu için silinemez. Önce ilgili personellerde üst departman seçimini değiştirin.' });
+            toast({ variant: 'destructive', title: 'Silme Başarısız', description: 'Bu birime personel bağlı olduğu için silinemez. Önce ilgili personellerde birim seçimini değiştirin.' });
             return;
         }
         
@@ -137,17 +137,14 @@ const UnitCosts = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="dashboard-widget">
             <UnitCostModal open={isModalOpen} setOpen={setIsModalOpen} onSave={fetchData} existingUnit={selectedUnit} />
             <div className="flex items-center justify-between mb-4">
-                <h2 className="widget-title">Üst departman / müdürlük maliyetleri</h2>
+                <h2 className="widget-title">Birim Yönetimi</h2>
                 <Button variant="outline" size="sm" onClick={() => handleOpenModal(null)}><Plus className="w-4 h-4 mr-2" /> Yeni kayıt</Button>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
-                Liste, personel modülündeki üst departman / müdürlük havuzu ile her yüklemede senkronize edilir (eksik müdürlük satırları otomatik eklenir; ad yazımı personelde en çok kullanılan metne göre hizalanır). Dakika maliyetleri Kalite Maliyetleri ve personel atamasında kullanılır. Alt birim personel kartındaki &quot;Alt birim / ekip&quot; alanındadır.
-            </p>
             <ScrollArea className="h-[60vh]">
                 <div className="space-y-2 pr-4">
                     {loading ? <p className="text-muted-foreground">Yükleniyor...</p> : unitCosts.length === 0 ? <p className="text-muted-foreground text-center py-4">Henüz birim eklenmemiş.</p> : unitCosts.map(cost => (
                         <div key={cost.id} className="flex items-center gap-4 p-3 rounded-lg border border-border bg-card">
-                            <div className="flex-1 font-semibold text-card-foreground">{formatPersonnelModuleField(cost.unit_name || '')}</div>
+                            <div className="flex-1 font-semibold text-card-foreground">{cost.unit_name || ''}</div>
                             <div className="flex-1 text-muted-foreground">{parseFloat(cost.cost_per_minute).toFixed(2)} ₺ / dk</div>
                             <div className="flex gap-2">
                                 <Button size="icon" variant="ghost" onClick={() => handleOpenModal(cost)}><Edit className="w-4 h-4" /></Button>

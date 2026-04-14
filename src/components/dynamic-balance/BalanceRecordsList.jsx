@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -115,8 +116,10 @@ const BalanceRecordsList = ({ records, loading, onEdit, onView, onDelete, onDown
             </div>
 
             {/* Tablo */}
+            <TooltipProvider delayDuration={250}>
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-                <table className="data-table">
+                <table className="data-table data-table-wide-actions">
                     <thead>
                         <tr>
                             <th>Seri No</th>
@@ -129,7 +132,7 @@ const BalanceRecordsList = ({ records, loading, onEdit, onView, onDelete, onDown
                             <th>Sol Düzlem</th>
                             <th>Sağ Düzlem</th>
                             <th>Genel Sonuç</th>
-                            <th>İşlemler</th>
+                            <th className="text-right">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -194,36 +197,46 @@ const BalanceRecordsList = ({ records, loading, onEdit, onView, onDelete, onDown
                                             <Badge variant="secondary">-</Badge>
                                         )}
                                     </td>
-                                    <td>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreVertical className="w-4 h-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => onView?.(record)}>
-                                                    <Eye className="w-4 h-4 mr-2" />
-                                                    Görüntüle
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => onEdit(record)}>
-                                                    <Edit className="w-4 h-4 mr-2" />
-                                                    Düzenle
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => onDownloadPDF(record)}>
-                                                    <FileText className="w-4 h-4 mr-2" />
-                                                    Rapor Al
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    onClick={() => handleDeleteClick(record)}
-                                                    className="text-destructive"
-                                                >
-                                                    <Trash2 className="w-4 h-4 mr-2" />
-                                                    Sil
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                    <td onClick={(e) => e.stopPropagation()} className="align-middle">
+                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Görüntüle" onClick={() => onView?.(record)}>
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom">Görüntüle</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Rapor al" onClick={() => onDownloadPDF(record)}>
+                                                        <FileText className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom">Rapor al</TooltipContent>
+                                            </Tooltip>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Diğer işlemler">
+                                                        <MoreVertical className="w-4 h-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem className="text-sm" onClick={() => onEdit(record)}>
+                                                        <Edit className="w-4 h-4 mr-2 shrink-0" />
+                                                        Düzenle
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                        onClick={() => handleDeleteClick(record)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2 shrink-0" />
+                                                        Sil
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </td>
                                 </motion.tr>
                             ))
@@ -231,6 +244,8 @@ const BalanceRecordsList = ({ records, loading, onEdit, onView, onDelete, onDown
                     </tbody>
                 </table>
             </div>
+            </div>
+            </TooltipProvider>
 
             {/* Silme Onay Dialog */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

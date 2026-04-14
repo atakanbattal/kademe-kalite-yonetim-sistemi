@@ -733,7 +733,7 @@ const generateTrainingRecordReportHtml = (record) => {
 					<tr>
 						<th style="width:36px;">#</th>
 						<th>Ad soyad</th>
-						<th style="width:24%;">Alt birim / üst dep.</th>
+						<th style="width:24%;">Alt birim / birim</th>
 						<th style="width:16%;">Durum</th>
 						<th style="width:22%;">İmza</th>
 					</tr>

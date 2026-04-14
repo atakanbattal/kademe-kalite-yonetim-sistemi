@@ -2,7 +2,7 @@ import React, { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
     Plus, Search, FileDown, Eye, Trash2, Edit, Scale, BookMarked, Building2, Factory,
-    FileText, X, GraduationCap,
+    FileText, X, GraduationCap, MoreVertical,
 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -29,8 +29,15 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { format } from 'date-fns';
@@ -43,7 +50,6 @@ import { createTrainingPlanFromExternalDocument } from '@/lib/createTrainingFrom
 import { v4 as uuidv4 } from 'uuid';
 import { Checkbox } from '@/components/ui/checkbox';
 import TrainingFormModal from '@/components/training/TrainingFormModal';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const BUCKET_NAME = 'documents';
 
@@ -81,27 +87,29 @@ const customerDisplay = (c) => {
     return c.name || c.customer_name || c.customer_code || '—';
 };
 
+const validityBadgeClass = 'text-xs font-medium px-2 py-0 h-6 shrink-0';
+
 const ValidityStatus = ({ validUntil }) => {
     if (!validUntil) {
-        return <Badge variant="secondary">Süresiz</Badge>;
+        return <Badge variant="secondary" className={validityBadgeClass}>Süresiz</Badge>;
     }
     try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const expiryDate = new Date(validUntil);
         if (isNaN(expiryDate.getTime())) {
-            return <Badge variant="secondary">Geçersiz Tarih</Badge>;
+            return <Badge variant="secondary" className={validityBadgeClass}>Geçersiz Tarih</Badge>;
         }
         const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
         if (diffDays < 0) {
-            return <Badge variant="destructive">Süresi doldu</Badge>;
+            return <Badge variant="destructive" className={validityBadgeClass}>Süresi doldu</Badge>;
         }
         if (diffDays <= 30) {
-            return <Badge className="bg-yellow-500 text-white">{diffDays} gün kaldı</Badge>;
+            return <Badge className={`bg-yellow-500 text-white ${validityBadgeClass}`}>{diffDays} gün kaldı</Badge>;
         }
-        return <Badge className="bg-green-600 text-white">{diffDays} gün kaldı</Badge>;
+        return <Badge className={`bg-green-600 text-white ${validityBadgeClass}`}>{diffDays} gün kaldı</Badge>;
     } catch {
-        return <Badge variant="secondary">—</Badge>;
+        return <Badge variant="secondary" className={validityBadgeClass}>—</Badge>;
     }
 };
 
@@ -139,6 +147,7 @@ const ExternalDocumentsModule = () => {
 
     const [trainingModalOpen, setTrainingModalOpen] = useState(false);
     const [trainingForModal, setTrainingForModal] = useState(null);
+    const [externalDocPendingDelete, setExternalDocPendingDelete] = useState(null);
 
     const openLinkedTrainingModal = useCallback(
         async (trainingId) => {
@@ -548,6 +557,31 @@ const ExternalDocumentsModule = () => {
                 onSave={handleTrainingModalSave}
             />
 
+            <AlertDialog open={!!externalDocPendingDelete} onOpenChange={(open) => !open && setExternalDocPendingDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Kaydı silmek istiyor musunuz?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu işlem geri alınamaz. Depolamadaki dosya ve kayıt kalıcı olarak kaldırılır.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (externalDocPendingDelete) {
+                                    handleDelete(externalDocPendingDelete);
+                                    setExternalDocPendingDelete(null);
+                                }
+                            }}
+                        >
+                            Sil
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="flex max-h-[min(92vh,calc(100dvh-1rem))] min-h-0 w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
                     <DialogHeader className="shrink-0 space-y-1.5 px-4 pb-2 pt-4 text-left sm:px-6 sm:pt-6">
@@ -800,124 +834,163 @@ const ExternalDocumentsModule = () => {
                     </div>
                 </div>
 
-                <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
-                    <Table className="min-w-[720px]">
-                        <TableHeader>
-                            <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                <TableHead>Başlık</TableHead>
-                                <TableHead>Kategori</TableHead>
-                                <TableHead>Kaynak / ilişki</TableHead>
-                                <TableHead>Alınma</TableHead>
-                                <TableHead>Geçerlilik</TableHead>
-                                <TableHead>Eğitim</TableHead>
-                                <TableHead className="text-right">İşlemler</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                        Yükleniyor...
-                                    </TableCell>
-                                </TableRow>
-                            ) : filteredRows.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                        Kayıt bulunmuyor.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredRows.map((row) => (
-                                    <TableRow key={row.id} className="hover:bg-muted/30 transition-colors">
-                                        <TableCell className="font-medium max-w-[220px]">
-                                            <div className="truncate">{row.title}</div>
-                                            {row.file_name && (
-                                                <div className="text-xs text-muted-foreground truncate">
-                                                    {row.file_name}
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">{categoryLabel(row.category)}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm max-w-[240px]">
-                                            <div className="truncate">{sourceSummary(row)}</div>
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                                            {row.received_at
-                                                ? format(new Date(row.received_at), 'dd.MM.yyyy', { locale: tr })
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <ValidityStatus validUntil={row.valid_until} />
-                                        </TableCell>
-                                        <TableCell className="text-sm">
-                                            {row.training_required || row.training_id ? (
-                                                row.training ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="gap-1 h-8 max-w-full"
-                                                        title="Eğitim planını aç"
-                                                        onClick={() => openLinkedTrainingModal(row.training.id)}
-                                                    >
-                                                        <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-                                                        <span className="truncate">
-                                                            {row.training.training_code || 'Plan'}
-                                                        </span>
-                                                    </Button>
-                                                ) : (
-                                                    <Badge variant="secondary" className="text-xs">
-                                                        İşleniyor…
-                                                    </Badge>
-                                                )
-                                            ) : (
-                                                <span className="text-muted-foreground">—</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex flex-wrap items-center gap-1 justify-end">
-                                                <Button variant="ghost" size="sm" onClick={() => handleView(row)}>
-                                                    <Eye className="w-4 h-4 mr-1" />
-                                                    Görüntüle
-                                                </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDownload(row)}>
-                                                    <FileDown className="w-4 h-4 mr-1" />
-                                                    İndir
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
-                                                    <Edit className="w-4 h-4" />
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Kaydı silinsin mi?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Bu işlem dosyayı ve kaydı kalıcı olarak kaldırır.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDelete(row)}>
-                                                                Sil
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                <TooltipProvider delayDuration={250}>
+                    <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="data-table document-module-table">
+                                <thead>
+                                    <tr>
+                                        <th>Başlık</th>
+                                        <th>Kategori</th>
+                                        <th>Kaynak / ilişki</th>
+                                        <th>Alınma</th>
+                                        <th>Geçerlilik</th>
+                                        <th>Eğitim</th>
+                                        <th className="text-right">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                                                Yükleniyor...
+                                            </td>
+                                        </tr>
+                                    ) : filteredRows.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                                                Kayıt bulunmuyor.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredRows.map((row) => {
+                                            const hasFile = !!row.file_path;
+                                            return (
+                                                <tr key={row.id}>
+                                                    <td className="font-medium text-foreground">
+                                                        <div>{row.title}</div>
+                                                        {row.file_name && (
+                                                            <div className="text-xs text-muted-foreground truncate max-w-[min(100vw,18rem)]">
+                                                                {row.file_name}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <Badge variant="outline" className="text-xs font-normal px-2 py-0 h-6 text-muted-foreground border-border/80">
+                                                            {categoryLabel(row.category)}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="text-muted-foreground max-w-[14rem] md:max-w-[18rem]">
+                                                        <div className="truncate text-sm">{sourceSummary(row)}</div>
+                                                    </td>
+                                                    <td className="text-muted-foreground text-sm whitespace-nowrap">
+                                                        {row.received_at
+                                                            ? format(new Date(row.received_at), 'dd.MM.yyyy', { locale: tr })
+                                                            : '—'}
+                                                    </td>
+                                                    <td>
+                                                        <ValidityStatus validUntil={row.valid_until} />
+                                                    </td>
+                                                    <td className="text-sm">
+                                                        {row.training_required || row.training_id ? (
+                                                            row.training ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="gap-1 h-8 max-w-[10rem]"
+                                                                    title="Eğitim planını aç"
+                                                                    onClick={() => openLinkedTrainingModal(row.training.id)}
+                                                                >
+                                                                    <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                                                                    <span className="truncate">
+                                                                        {row.training.training_code || 'Plan'}
+                                                                    </span>
+                                                                </Button>
+                                                            ) : (
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    İşleniyor…
+                                                                </Badge>
+                                                            )
+                                                        ) : (
+                                                            <span className="text-muted-foreground">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="align-middle">
+                                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                        disabled={!hasFile}
+                                                                        onClick={() => handleView(row)}
+                                                                        aria-label="Görüntüle"
+                                                                    >
+                                                                        <Eye className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom">Önizle / indir</TooltipContent>
+                                                            </Tooltip>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                        disabled={!hasFile}
+                                                                        onClick={() => handleDownload(row)}
+                                                                        aria-label="İndir"
+                                                                    >
+                                                                        <FileDown className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom">Dosyayı indir</TooltipContent>
+                                                            </Tooltip>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                        aria-label="Diğer işlemler"
+                                                                    >
+                                                                        <MoreVertical className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end" className="w-48">
+                                                                    <DropdownMenuItem
+                                                                        className="cursor-pointer text-sm"
+                                                                        onClick={() => openEdit(row)}
+                                                                    >
+                                                                        <Edit className="mr-2 h-4 w-4" />
+                                                                        Düzenle
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        className="cursor-pointer text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                                        onClick={() => setExternalDocPendingDelete(row)}
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Sil
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </TooltipProvider>
             </div>
         </div>
     );

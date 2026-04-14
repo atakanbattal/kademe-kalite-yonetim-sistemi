@@ -212,10 +212,9 @@ const QuarantineHurdaTutanagiModal = ({
             open={isOpen}
             onOpenChange={setIsOpen}
             title="Karantina — Hurda tutanağı"
-            subtitle="Kalite Yönetim Sistemi"
-            icon={<FileText className="h-6 w-6 text-white" />}
+            subtitle="Karantina Yönetimi"
+            icon={<FileText className="h-5 w-5 text-white" />}
             badge="İmzalı PDF"
-            maxWidth="sm:max-w-5xl"
             rightPanel={rightPanel}
             footerExtra={
                 <Button
@@ -234,7 +233,7 @@ const QuarantineHurdaTutanagiModal = ({
             submitLabel="Kaydet ve tamamla"
             cancelLabel="İptal"
         >
-            <div className="px-8 space-y-6 pb-4">
+            <div className="p-6 space-y-6">
                 <p className="text-sm text-muted-foreground">
                     Aşağıdaki özetteki karantina kaydı için imzalı hurda tutanağı PDF dosyasını yükleyin.
                     İsterseniz önce aynı verilerle standart karantina raporunu yeni sekmede önizleyebilirsiniz.

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { normalizeCostSettingsRows } from '@/lib/utils';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import FileUploader from '@/components/shared/FileUploader';
 import { getFixtureVerificationRules } from '@/lib/fixtureRules';
@@ -77,7 +78,7 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave, supportsImageUp
                 .from('cost_settings')
                 .select('id, unit_name')
                 .order('unit_name', { ascending: true });
-            if (data) setUnits(data);
+            if (data) setUnits(normalizeCostSettingsRows(data));
         };
         fetchUnits();
     }, []);

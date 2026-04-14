@@ -420,7 +420,7 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
                             <th className="p-3 text-left">Parça/Resim</th>
                             <th className="p-3 text-left">Durum</th>
                             <th className="p-3 text-left">Öncelik</th>
-                            <th className="p-3 text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                            <th className="p-3 text-right">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>

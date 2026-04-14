@@ -288,7 +288,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
             let totalQuantity = 0;
 
             const qualityControlUnitCost = getQualityControlUnitCost();
-            const qualityControlUnitName = unitCostSettings?.find(u => 
+            const qualityControlUnitName = unitCostSettings?.find(u =>
                 ['Kalite Kontrol', 'Kalite', 'Kalite Kontrolü', 'Quality Control'].includes(u.unit_name)
             )?.unit_name || 'Kalite Kontrol';
 

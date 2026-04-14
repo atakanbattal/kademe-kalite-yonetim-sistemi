@@ -34,7 +34,15 @@ import {
     subMonths,
 } from 'date-fns';
 import { getStatusBadge, isNCOverdue } from '@/lib/statusUtils';
-import { cn } from '@/lib/utils';
+import { cn, normalizeUnitNameForSettings } from '@/lib/utils';
+
+/** Sorumlu / talep birimi sütununda tek tip yazım; farklı DB yazımlarını aynı satırda birleştirir */
+function bucketUnitLabel(raw) {
+    if (raw == null || String(raw).trim() === '') return 'Belirtilmemiş';
+    const s = String(raw).trim();
+    if (s === 'Belirtilmemiş') return 'Belirtilmemiş';
+    return normalizeUnitNameForSettings(s);
+}
 
 /** Aylık sayı serisi: son 6 ay monotonisi + dönem ortalaması karşılaştırması */
 const getMonthlySeriesTrendInsight = (values) => {
@@ -289,7 +297,17 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
         if (!productionDepartments || productionDepartments.length === 0) {
             return [];
         }
-        return productionDepartments.map(d => d.unit_name).filter(Boolean).sort();
+        const seen = new Set();
+        const out = [];
+        for (const d of productionDepartments) {
+            const label = bucketUnitLabel(d.unit_name);
+            if (!label || label === 'Belirtilmemiş') continue;
+            if (seen.has(label)) continue;
+            seen.add(label);
+            out.push(label);
+        }
+        out.sort((a, b) => a.localeCompare(b, 'tr'));
+        return out;
     }, [productionDepartments]);
     
     const analytics = useMemo(() => {
@@ -329,7 +347,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
             
             const isOverdue = isNCOverdue(rec, now);
             
-            const responsibleDept = rec.department || 'Belirtilmemiş';
+            const responsibleDept = bucketUnitLabel(rec.department);
             if (!deptPerf[responsibleDept]) {
                 deptPerf[responsibleDept] = {
                     open: 0,
@@ -366,7 +384,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
                 }
             }
             
-            const requesterUnit = rec.requesting_unit || 'Belirtilmemiş';
+            const requesterUnit = bucketUnitLabel(rec.requesting_unit);
             if (!requesterContrib[requesterUnit]) {
                 requesterContrib[requesterUnit] = {
                     total: 0,
