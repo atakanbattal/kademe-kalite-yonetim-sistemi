@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
@@ -14,23 +13,41 @@ const DECISION_TYPES = ['Serbest Bırak', 'Sapma Onayı', 'Yeniden İşlem', 'Hu
 /** Sapma modülü + imzalı PDF zorunlu */
 const DECISIONS_REQUIRING_DEVIATION = ['Serbest Bırak', 'Sapma Onayı', 'Yeniden İşlem'];
 
-const QUARANTINE_DEVIATION_FLOW_KEY = 'kademe_qms_quarantine_deviation_flow';
-
-const QuarantineDecisionModal = ({ isOpen, setIsOpen, record, refreshData, onHurdaTutanagiRequest }) => {
-    const navigate = useNavigate();
+const QuarantineDecisionModal = ({
+    isOpen,
+    setIsOpen,
+    record,
+    refreshData,
+    onHurdaTutanagiRequest,
+    onStartDeviationFlow,
+    restoreDraft,
+    onRestoreDraftApplied,
+}) => {
     const { toast } = useToast();
     const [decision, setDecision] = useState('');
     const [quantity, setQuantity] = useState(0);
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const skipNextDefaultResetRef = useRef(false);
 
     useEffect(() => {
-        if (record && isOpen) {
-            setQuantity(record.quantity);
-            setDecision('');
-            setNotes('');
+        if (!record || !isOpen) return;
+        if (restoreDraft) {
+            setQuantity(restoreDraft.quantity ?? record.quantity);
+            setDecision(restoreDraft.decision || '');
+            setNotes(restoreDraft.notes || '');
+            skipNextDefaultResetRef.current = true;
+            onRestoreDraftApplied?.();
+            return;
         }
-    }, [record, isOpen]);
+        if (skipNextDefaultResetRef.current) {
+            skipNextDefaultResetRef.current = false;
+            return;
+        }
+        setQuantity(record.quantity);
+        setDecision('');
+        setNotes('');
+    }, [record, isOpen, restoreDraft, onRestoreDraftApplied]);
 
     const handleSubmit = async () => {
         if (!decision) {
@@ -64,31 +81,26 @@ const QuarantineDecisionModal = ({ isOpen, setIsOpen, record, refreshData, onHur
         }
 
         if (DECISIONS_REQUIRING_DEVIATION.includes(decision)) {
-            try {
-                sessionStorage.setItem(
-                    QUARANTINE_DEVIATION_FLOW_KEY,
-                    JSON.stringify({
-                        quarantineRecordId: record.id,
-                        quantity,
-                        decision,
-                        notes: notes || '',
-                    })
-                );
-            } catch (e) {
+            if (typeof onStartDeviationFlow !== 'function') {
                 toast({
                     variant: 'destructive',
-                    title: 'Oturum hatası',
-                    description: 'Tarayıcı depolamasına yazılamadı. Lütfen tekrar deneyin.',
+                    title: 'Yapılandırma eksik',
+                    description: 'Sapma akışı bağlı değil. Lütfen yöneticiye bildirin.',
                 });
                 return;
             }
             toast({
-                title: 'Sapma modülüne yönlendiriliyorsunuz',
+                title: 'Sapma kaydı',
                 description:
-                    'İmzalı sapma onayı PDF dosyasını sapma kaydına ekleyerek karantina kararını tamamlayın.',
+                    'Sapma formu açılıyor; imzalı PDF ekleyerek karantina kararını tamamlayın. İptal ederseniz bu ekrana dönersiniz.',
+            });
+            onStartDeviationFlow({
+                quarantineRecordId: record.id,
+                quantity,
+                decision,
+                notes: notes || '',
             });
             setIsOpen(false);
-            navigate('/deviation');
             return;
         }
 
@@ -148,7 +160,7 @@ const QuarantineDecisionModal = ({ isOpen, setIsOpen, record, refreshData, onHur
     const submitLabel = (() => {
         if (isSubmitting) return 'Kaydediliyor...';
         if (decision === 'Hurda') return 'Hurda tutanağına devam et';
-        if (DECISIONS_REQUIRING_DEVIATION.includes(decision)) return 'Sapma modülüne git';
+        if (DECISIONS_REQUIRING_DEVIATION.includes(decision)) return 'Karar ver';
         return 'Kararı Kaydet';
     })();
 
@@ -183,8 +195,8 @@ const QuarantineDecisionModal = ({ isOpen, setIsOpen, record, refreshData, onHur
 
                     {DECISIONS_REQUIRING_DEVIATION.includes(decision) && (
                         <div className="text-sm p-3 bg-amber-50 border border-amber-200 text-amber-950 rounded-md">
-                            <strong>Sapma onayı zorunlu:</strong> Sapma Yönetimi açılacak; imzalı sapma onayı PDF eklenmeden karantina
-                            kararı tamamlanmaz.
+                            <strong>Sapma onayı zorunlu:</strong> Karar ver ile sapma kaydı formu bu sayfada açılır; en az bir PDF
+                            (imzalı sapma onayı) ekleyerek kaydı tamamlayın. İptal ederseniz karantina karar ekranına dönersiniz.
                         </div>
                     )}
 

@@ -117,6 +117,62 @@ export const getSourceTypeLabel = (sourceType) => getSourceTypeMeta(sourceType).
 export const getSourceTypeDefaultDeviationType = (sourceType) =>
     getSourceTypeMeta(sourceType).deviationType;
 
+/**
+ * Karantina sapma açıklaması başlığı: lot yoksa parça, NC veya kayıt referansı (asla anlamsız "N/A").
+ */
+export const getQuarantineHeadingSuffix = (details, record = {}) => {
+    const lot = details.lot_no || details.quarantine_number;
+    if (lot != null && String(lot).trim() !== '') {
+        return String(lot).trim();
+    }
+
+    const code = details.part_code != null ? String(details.part_code).trim() : '';
+    const name = details.part_name != null ? String(details.part_name).trim() : '';
+    if (code && name) return `${code} · ${name}`;
+    if (code) return code;
+    if (name) return name;
+
+    const nc = details.nc_number != null ? String(details.nc_number).trim() : '';
+    if (nc) return nc;
+
+    const rid = details.quarantine_record_id ?? details.source_record_id ?? record?.id;
+    if (rid != null && String(rid).trim() !== '') {
+        const s = String(rid).trim();
+        return s.length > 36 ? `Kayıt ${s.slice(0, 8)}…` : `Kayıt ${s}`;
+    }
+
+    return 'Belirtilmemiş';
+};
+
+/**
+ * Sapma kaydı (karantina kaynaklı) için güncel başlık satırı — eski "N/A" metinlerini arayüzde düzeltmek için.
+ */
+export const getQuarantineDeviationHeadingLine = (deviation) => {
+    if (!deviation?.source_record_details || deviation.source_type !== 'quarantine') {
+        return null;
+    }
+    const d = {
+        ...deviation.source_record_details,
+        source_record_id: deviation.source_record_id ?? deviation.source_record_details?.source_record_id,
+        quarantine_record_id:
+            deviation.source_record_id ?? deviation.source_record_details?.quarantine_record_id,
+    };
+    const suffix = getQuarantineHeadingSuffix(d, { id: deviation.source_record_id });
+    return `Karantina Kaydı (${suffix})`;
+};
+
+/** Liste / detayda saklanmış açıklamadaki eski `Karantina Kaydı (N/A)` satırını güncel başlıkla değiştirir. */
+export const fixQuarantineDeviationDescriptionText = (deviation, text) => {
+    if (text == null || text === '') return text;
+    if (deviation?.source_type !== 'quarantine' || !deviation?.source_record_details) {
+        return text;
+    }
+    const line = getQuarantineDeviationHeadingLine(deviation);
+    if (!line) return text;
+    const normalized = String(text).replace(/\\n/g, '\n');
+    return normalized.replace(/^Karantina Kaydı \([^)]*\)/im, line);
+};
+
 export const buildSourceRecordDescription = (record, sourceDetails = {}) => {
     const details = sourceDetails || {};
     const sourceType = record?._source_type || details.source_type;
@@ -318,26 +374,48 @@ export const buildSourceRecordDescription = (record, sourceDetails = {}) => {
     }
 
     if (sourceType === 'quarantine') {
-        detailedDescription = `Karantina Kaydı (${details.lot_no || details.quarantine_number || 'N/A'})\n\n`;
-        detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
-        if (details.part_name) {
-            detailedDescription += `Parça Adı: ${details.part_name}\n`;
+        const q = {
+            ...details,
+            lot_no: details.lot_no ?? record?.lot_no,
+            quarantine_number: details.quarantine_number ?? details.lot_no ?? record?.lot_no,
+            part_code: details.part_code ?? record?.part_code,
+            part_name: details.part_name ?? record?.part_name,
+            quantity: details.quantity ?? record?.quantity,
+            nc_number: details.nc_number ?? record?.nc_number,
+            quarantine_record_id: details.quarantine_record_id ?? details.source_record_id ?? record?.id,
+            source_record_id: details.source_record_id ?? record?.id,
+            source_department: details.source_department ?? record?.source_department,
+            requesting_department: details.requesting_department ?? record?.requesting_department,
+            requesting_person_name: details.requesting_person_name ?? record?.requesting_person_name,
+            description: details.description ?? record?.description,
+            decision: details.decision ?? record?.decision,
+        };
+        const headingSuffix = getQuarantineHeadingSuffix(q, record);
+        detailedDescription = `Karantina Kaydı (${headingSuffix})\n\n`;
+        detailedDescription += `Parça Kodu: ${q.part_code || 'Belirtilmemiş'}\n`;
+        if (q.part_name) {
+            detailedDescription += `Parça Adı: ${q.part_name}\n`;
         }
-        detailedDescription += `Miktar: ${details.quantity || 'N/A'} adet\n`;
-        if (details.source_department) {
-            detailedDescription += `Kaynak Birim: ${details.source_department}\n`;
+        const qty = q.quantity;
+        detailedDescription += `Miktar: ${
+            qty !== null && qty !== undefined && String(qty).trim() !== '' && String(qty).toLowerCase() !== 'n/a'
+                ? `${qty}`
+                : 'Belirtilmemiş'
+        } adet\n`;
+        if (q.source_department) {
+            detailedDescription += `Kaynak Birim: ${q.source_department}\n`;
         }
-        if (details.requesting_department) {
-            detailedDescription += `Talep Eden Birim: ${details.requesting_department}\n`;
+        if (q.requesting_department) {
+            detailedDescription += `Talep Eden Birim: ${q.requesting_department}\n`;
         }
-        if (details.requesting_person_name) {
-            detailedDescription += `Talep Eden Kişi: ${details.requesting_person_name}\n`;
+        if (q.requesting_person_name) {
+            detailedDescription += `Talep Eden Kişi: ${q.requesting_person_name}\n`;
         }
-        if (details.description) {
-            detailedDescription += `\nSebep/Açıklama: ${details.description}\n`;
+        if (q.description) {
+            detailedDescription += `\nSebep/Açıklama: ${q.description}\n`;
         }
-        if (details.decision) {
-            detailedDescription += `Karar: ${details.decision}\n`;
+        if (q.decision) {
+            detailedDescription += `Karar: ${q.decision}\n`;
         }
         detailedDescription += `\nKarantinadaki bu parça için sapma onayı talep edilmektedir.`;
         return detailedDescription;

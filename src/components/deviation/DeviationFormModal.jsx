@@ -431,7 +431,7 @@ const DeviationFormModal = ({
 
         (async () => {
             const { data: qr, error } = await supabase
-                .from('quarantine_records')
+                .from('quarantine_records_api')
                 .select('*')
                 .eq('id', qid)
                 .single();
@@ -444,7 +444,6 @@ const DeviationFormModal = ({
                     title: 'Karantina bulunamadı',
                     description: error?.message || 'Kayıt yüklenemedi.',
                 });
-                onConsumedQuarantineDecision?.();
                 return;
             }
 
@@ -464,6 +463,8 @@ const DeviationFormModal = ({
                     supplier: qr.supplier_name,
                     lot_no: qr.lot_no,
                     quarantine_number: qr.lot_no,
+                    nc_number: qr.nc_number,
+                    quarantine_record_id: qr.id,
                     description: qr.description,
                     source_department: qr.source_department,
                     requesting_department: qr.requesting_department,

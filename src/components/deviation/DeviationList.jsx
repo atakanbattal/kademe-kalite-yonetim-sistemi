@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { fixQuarantineDeviationDescriptionText } from './sourceRecordUtils';
 
 const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCreateNC }) => {
     const [pendingDeleteId, setPendingDeleteId] = useState(null);
@@ -91,7 +92,9 @@ const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCrea
                                         title="Detayları görüntülemek için tıklayın"
                                     >
                                         <td className="font-mono text-primary">{d.request_no}</td>
-                                        <td className="font-medium text-foreground max-w-sm truncate">{d.description}</td>
+                                        <td className="font-medium text-foreground max-w-sm truncate">
+                                            {fixQuarantineDeviationDescriptionText(d, d.description) || d.description || '—'}
+                                        </td>
                                         <td className="text-muted-foreground">{d.source}</td>
                                         <td className="text-muted-foreground">
                                             {d.record_date

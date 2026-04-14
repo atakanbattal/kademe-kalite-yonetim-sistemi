@@ -572,6 +572,8 @@ const buildAutoFillData = (record, sourceType) => {
                     supplier: record.supplier_name || record.supplier?.name,
                     lot_no: record.lot_no,
                     quarantine_number: record.lot_no,
+                    nc_number: record.nc_number,
+                    quarantine_record_id: record.id,
                     description: record.description,
                     source_department: record.source_department,
                     requesting_department: record.requesting_department,

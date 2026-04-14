@@ -9,12 +9,12 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink, ClipboardSignature, Upload } from 'lucide-react';
+import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink, ClipboardSignature, Upload, GitBranch } from 'lucide-react';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeQuarantineAttachments } from '@/lib/quarantineAttachments';
 import { QUARANTINE_DECISION_TYPES } from '@/lib/quarantineDecisionCertificate';
 import { v4 as uuidv4 } from 'uuid';
-import { sanitizeFileName } from '@/lib/utils';
+import { sanitizeFileName, getAttachmentDisplayName } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -32,6 +32,8 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
     const [history, setHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(true);
     const [resolvedUrls, setResolvedUrls] = useState({});
+    const [linkedDeviations, setLinkedDeviations] = useState([]);
+    const [deviationAttUrls, setDeviationAttUrls] = useState({});
     const { toast } = useToast();
 
     const [certDecision, setCertDecision] = useState('');
@@ -69,6 +71,14 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
 
     const attachmentList = useMemo(() => normalizeQuarantineAttachments(record?.attachments), [record?.attachments]);
 
+    const deviationAttachmentsFor = useCallback(
+        (deviationId) => {
+            const dev = linkedDeviations.find((d) => d.id === deviationId);
+            return dev?.deviation_attachments || [];
+        },
+        [linkedDeviations]
+    );
+
     useEffect(() => {
         if (!isOpen || attachmentList.length === 0) {
             setResolvedUrls({});
@@ -88,6 +98,67 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
             fetchHistory();
         }
     }, [isOpen, fetchHistory]);
+
+    useEffect(() => {
+        if (!isOpen || !record?.id) {
+            setLinkedDeviations([]);
+            return;
+        }
+        const deviationIds = [...new Set((history || []).map((h) => h.deviation_id).filter(Boolean))];
+        if (deviationIds.length === 0) {
+            setLinkedDeviations([]);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+                .from('deviations')
+                .select('id, request_no, deviation_attachments(*)')
+                .in('id', deviationIds);
+            if (cancelled) return;
+            if (error) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Sapma ekleri yüklenemedi',
+                    description: error.message,
+                });
+                setLinkedDeviations([]);
+                return;
+            }
+            setLinkedDeviations(data || []);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, record?.id, history, toast]);
+
+    useEffect(() => {
+        if (!linkedDeviations.length) {
+            setDeviationAttUrls({});
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const next = {};
+            for (const dev of linkedDeviations) {
+                const attachments = dev.deviation_attachments;
+                if (!attachments || !Array.isArray(attachments)) continue;
+                for (const att of attachments) {
+                    if (!att?.file_path || !att?.id) continue;
+                    const { data, error } = await supabase.storage
+                        .from('deviation_attachments')
+                        .createSignedUrl(att.file_path, 3600);
+                    if (!error && data?.signedUrl) {
+                        next[att.id] = data.signedUrl;
+                    }
+                }
+            }
+            if (!cancelled) setDeviationAttUrls(next);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [linkedDeviations]);
 
     useEffect(() => {
         if (isOpen && record) {
@@ -383,6 +454,94 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                                             </div>
                                         </div>
                                     )}
+                                    {linkedDeviations.length > 0 && (
+                                        <div className="pt-4 mt-3 border-t border-border/60">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <GitBranch className="w-4 h-4 text-violet-600" />
+                                                <Label className="font-semibold text-foreground text-sm">
+                                                    Sapma kanıt dokümanları
+                                                </Label>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mb-3">
+                                                Karantina kararı için oluşturulan sapma kayıtlarına eklediğiniz dosyalar burada
+                                                görüntülenir.
+                                            </p>
+                                            <div className="space-y-4">
+                                                {linkedDeviations.map((dev) => (
+                                                    <div key={dev.id} className="rounded-lg border border-border/80 bg-muted/20 p-3">
+                                                        <p className="text-xs font-semibold text-foreground mb-2">
+                                                            Sapma talebi:{' '}
+                                                            <span className="font-mono text-primary">{dev.request_no || dev.id}</span>
+                                                        </p>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                            {(dev.deviation_attachments || []).map((att, aidx) => {
+                                                                const url = deviationAttUrls[att.id];
+                                                                const displayName = getAttachmentDisplayName(
+                                                                    att.file_name,
+                                                                    att.file_path
+                                                                );
+                                                                const isImg =
+                                                                    (att.file_type &&
+                                                                        String(att.file_type).startsWith('image/')) ||
+                                                                    /\.(jpe?g|png|gif|webp|bmp)$/i.test(displayName || '');
+                                                                return (
+                                                                    <div
+                                                                        key={att.id || aidx}
+                                                                        className="group rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                                                                    >
+                                                                        <div className="px-2 py-1 border-b border-border/60 bg-violet-50/80 dark:bg-violet-950/30">
+                                                                            <Badge variant="secondary" className="text-[10px]">
+                                                                                Sapma eki
+                                                                            </Badge>
+                                                                        </div>
+                                                                        {isImg && url ? (
+                                                                            <a
+                                                                                href={url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="block"
+                                                                            >
+                                                                                <div className="relative aspect-[4/3] bg-muted">
+                                                                                    <img
+                                                                                        src={url}
+                                                                                        alt={displayName}
+                                                                                        className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                                                                                        loading="lazy"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="px-2.5 py-2 border-t border-border/40">
+                                                                                    <p className="text-[11px] truncate text-muted-foreground font-medium">
+                                                                                        {displayName}
+                                                                                    </p>
+                                                                                </div>
+                                                                            </a>
+                                                                        ) : url ? (
+                                                                            <a
+                                                                                href={url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex items-center gap-2.5 p-3.5 text-sm text-primary hover:bg-primary/5 transition-colors"
+                                                                            >
+                                                                                <FileText className="w-5 h-5 shrink-0" />
+                                                                                <span className="truncate font-medium">
+                                                                                    {displayName || 'Dosya'}
+                                                                                </span>
+                                                                            </a>
+                                                                        ) : (
+                                                                            <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+                                                                                <FileText className="w-4 h-4 shrink-0" />
+                                                                                <span className="truncate">{displayName}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </ScrollArea>
                         </TabsContent>
@@ -450,10 +609,50 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                                                                     </div>
                                                                 )}
                                                                 {h.deviation_id && (
-                                                                    <p className="mt-2 text-xs text-muted-foreground">
-                                                                        Bu işlem sapma modülünde oluşturulan kayıt ve imzalı PDF
-                                                                        ile tamamlandı.
-                                                                    </p>
+                                                                    <div className="mt-2 space-y-2">
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            Bu işlem sapma modülünde oluşturulan kayıt ve eklenen
+                                                                            kanıtlarla tamamlandı.
+                                                                        </p>
+                                                                        {deviationAttachmentsFor(h.deviation_id).length > 0 && (
+                                                                            <div className="flex flex-wrap gap-2">
+                                                                                {deviationAttachmentsFor(h.deviation_id).map(
+                                                                                    (att) => {
+                                                                                        const url = deviationAttUrls[att.id];
+                                                                                        const displayName = getAttachmentDisplayName(
+                                                                                            att.file_name,
+                                                                                            att.file_path
+                                                                                        );
+                                                                                        return url ? (
+                                                                                            <a
+                                                                                                key={att.id}
+                                                                                                href={url}
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                                className="inline-flex max-w-full items-center gap-1 rounded-md border border-border/80 bg-background px-2 py-1 text-xs font-medium text-primary hover:bg-muted/50"
+                                                                                            >
+                                                                                                <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                                                                <span className="truncate">
+                                                                                                    {displayName}
+                                                                                                </span>
+                                                                                                <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                                                                                            </a>
+                                                                                        ) : (
+                                                                                            <span
+                                                                                                key={att.id}
+                                                                                                className="inline-flex max-w-full items-center gap-1 rounded-md border border-dashed px-2 py-1 text-xs text-muted-foreground"
+                                                                                            >
+                                                                                                <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                                                                <span className="truncate">
+                                                                                                    {displayName}
+                                                                                                </span>
+                                                                                            </span>
+                                                                                        );
+                                                                                    }
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                                 {h.decision === 'Hurda' && h.quality_cost_id && (
                                                                     <p className="mt-2 text-xs text-muted-foreground">

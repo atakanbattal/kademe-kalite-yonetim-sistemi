@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
     import { motion } from 'framer-motion';
     import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, PackageX } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
@@ -19,6 +19,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import QuarantineViewModal from '@/components/quarantine/QuarantineViewModal';
     import QuarantineAnalytics from '@/components/quarantine/QuarantineAnalytics';
     import QuarantineReportFilterModal from '@/components/quarantine/QuarantineReportFilterModal';
+    import DeviationFormModal from '@/components/deviation/DeviationFormModal';
     import { useData } from '@/contexts/DataContext';
     import { openPrintableReport } from '@/lib/reportUtils';
     import { cn } from '@/lib/utils';
@@ -46,6 +47,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       const [isReportFilterOpen, setIsReportFilterOpen] = useState(false);
       const [isHurdaTutanagiOpen, setIsHurdaTutanagiOpen] = useState(false);
       const [hurdaTutanagiPayload, setHurdaTutanagiPayload] = useState(null);
+      const [isDeviationModalOpen, setIsDeviationModalOpen] = useState(false);
+      const [quarantineDecisionFinalize, setQuarantineDecisionFinalize] = useState(null);
+      const [decisionRestoreDraft, setDecisionRestoreDraft] = useState(null);
+      const deviationFlowCompletedRef = useRef(false);
       const [selectedRecord, setSelectedRecord] = useState(null);
       const [searchTerm, setSearchTerm] = useState('');
       const [formMode, setFormMode] = useState('new');
@@ -182,8 +187,42 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       
       const handleOpenDecision = (record) => {
         setSelectedRecord(record);
+        setDecisionRestoreDraft(null);
         setIsDecisionOpen(true);
       };
+
+      const handleStartDeviationFlow = useCallback((payload) => {
+        setDecisionRestoreDraft({
+          decision: payload.decision,
+          quantity: payload.quantity,
+          notes: payload.notes || '',
+        });
+        setQuarantineDecisionFinalize(payload);
+        setIsDeviationModalOpen(true);
+      }, []);
+
+      const handleDeviationModalOpenChange = useCallback((open) => {
+        if (open) {
+          setIsDeviationModalOpen(true);
+          return;
+        }
+        const completed = deviationFlowCompletedRef.current;
+        deviationFlowCompletedRef.current = false;
+        setIsDeviationModalOpen(false);
+        setQuarantineDecisionFinalize(null);
+        if (!completed) {
+          setIsDecisionOpen(true);
+        } else {
+          setDecisionRestoreDraft(null);
+        }
+      }, []);
+
+      const handleDeviationConsumed = useCallback(() => {
+        deviationFlowCompletedRef.current = true;
+        setDecisionRestoreDraft(null);
+      }, []);
+
+      const clearDecisionRestoreDraft = useCallback(() => setDecisionRestoreDraft(null), []);
 
       const handleHurdaTutanagiRequest = useCallback((payload) => {
         setHurdaTutanagiPayload(payload);
@@ -292,7 +331,20 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             record={selectedRecord} 
             refreshData={refreshData}
             onHurdaTutanagiRequest={handleHurdaTutanagiRequest}
+            onStartDeviationFlow={handleStartDeviationFlow}
+            restoreDraft={decisionRestoreDraft}
+            onRestoreDraftApplied={clearDecisionRestoreDraft}
           />
+          {isDeviationModalOpen && (
+            <DeviationFormModal
+              isOpen={isDeviationModalOpen}
+              setIsOpen={handleDeviationModalOpenChange}
+              refreshData={refreshData}
+              existingDeviation={null}
+              quarantineDecisionFinalize={quarantineDecisionFinalize}
+              onConsumedQuarantineDecision={handleDeviationConsumed}
+            />
+          )}
           <QuarantineHurdaTutanagiModal
             isOpen={isHurdaTutanagiOpen}
             setIsOpen={(open) => {

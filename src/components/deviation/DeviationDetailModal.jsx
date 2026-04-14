@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { getAttachmentDisplayName } from '@/lib/utils';
-import { getSourceTypeLabel } from './sourceRecordUtils';
+import { getSourceTypeLabel, fixQuarantineDeviationDescriptionText } from './sourceRecordUtils';
 
 const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     const [isPrinting, setIsPrinting] = useState(false);
@@ -55,6 +55,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         
         // Önce literal \\n karakterlerini gerçek satır sonlarına çevir (veritabanından gelen)
         let processedText = text.replace(/\\n/g, '\n');
+        processedText = fixQuarantineDeviationDescriptionText(deviation, processedText) || processedText;
         
         // Tüm key isimleri (sıralı - uzundan kısaya, özel karakterler escape'li değil)
         const allKeyNames = [
@@ -459,14 +460,21 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                     { icon: Building2, label: 'Tedarikçi', value: details.supplier, variant: 'warning' },
                     { icon: Hash, label: 'Kayıt No', value: details.record_no || details.inspection_number },
                 ];
-            case 'quarantine':
+            case 'quarantine': {
+                const lotOrRef =
+                    details.lot_no ||
+                    details.quarantine_number ||
+                    [details.part_code, details.part_name].filter(Boolean).join(' · ') ||
+                    details.nc_number ||
+                    null;
                 return [
-                    { icon: Hash, label: 'Lot No', value: details.lot_no || details.quarantine_number },
+                    { icon: Hash, label: 'Lot / Referans', value: lotOrRef },
                     { icon: Package, label: 'Parça Kodu', value: details.part_code },
                     { icon: Package, label: 'Miktar', value: details.quantity },
                     { icon: Building2, label: 'Kaynak Birim', value: details.source_department },
                     { icon: Building2, label: 'Talep Eden Birim', value: details.requesting_department },
                 ];
+            }
             case 'quality_cost':
                 return [
                     { icon: Package, label: 'Parça Kodu', value: details.part_code },
@@ -683,7 +691,20 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                                     {deviation.source_record_details && (
                                                         <>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                                                                {getSourceInfoCards(deviation.source_type, deviation.source_record_details)
+                                                                {getSourceInfoCards(
+                                                                    deviation.source_type,
+                                                                    deviation.source_type === 'quarantine'
+                                                                        ? {
+                                                                              ...deviation.source_record_details,
+                                                                              part_code:
+                                                                                  deviation.source_record_details
+                                                                                      .part_code ?? deviation.part_code,
+                                                                              part_name:
+                                                                                  deviation.source_record_details
+                                                                                      .part_name ?? deviation.part_name,
+                                                                          }
+                                                                        : deviation.source_record_details
+                                                                )
                                                                     .filter((item) => hasValue(item.value))
                                                                     .map((item) => (
                                                                         <InfoCard
