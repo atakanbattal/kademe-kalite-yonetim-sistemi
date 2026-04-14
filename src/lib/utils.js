@@ -107,8 +107,8 @@ export function getAttachmentDisplayName(fileName, filePath) {
 export function normalizeTurkishForSearch(text) {
     if (!text) return '';
     
-    // Önce NFD ve NFC normalize et (farklı unicode formları için)
-    let normalized = String(text).normalize('NFD').normalize('NFC');
+    // NFKC: önceden birleşmiş Türkçe karakterleri; ardından birleşik nokta vb. (i+U+0307) için
+    let normalized = String(text).normalize('NFKC').normalize('NFC');
     
     // Türkçe karakter dönüşümleri (büyük ve küçük harf)
     const turkishCharMap = {
@@ -135,10 +135,25 @@ export function normalizeTurkishForSearch(text) {
         }
     }
     
+    // Birleşik Unicode işaretleri (ör. i + U+0307); Postgres ILIKE düz "civata" ile eşleşmez
+    result = result.normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC');
+
     // Boşlukları normalize et ve birden fazla boşluğu tek boşluğa indir
     result = result.replace(/\s+/g, ' ').trim();
-    
+
     return result;
+}
+
+/**
+ * PostgREST `.or()` içinde kullanılacak ilike terimini güvenli hale getirir
+ * (%, _, virgül joker / ayırıcı olarak kırılmasın).
+ */
+export function sanitizeTermForIlikeOrFilter(raw) {
+    return String(raw ?? '')
+        .replace(/%/g, '')
+        .replace(/_/g, '')
+        .replace(/,/g, '')
+        .trim();
 }
 
 /**

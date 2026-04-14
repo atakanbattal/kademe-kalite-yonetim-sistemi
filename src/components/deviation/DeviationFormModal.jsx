@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import SourceRecordSelector from './SourceRecordSelector';
 import { buildSourceRecordDescription, DEVIATION_SOURCE_MODULE_OPTIONS } from './sourceRecordUtils';
 import { useData } from '@/contexts/DataContext';
+import { finalizeQuarantineFromDeviation } from '@/lib/quarantineDeviationFinalize';
 
 const DEVIATION_TYPE_OPTIONS = ['Girdi Kontrolü', 'Üretim'];
 
@@ -61,7 +62,14 @@ const extractDeviationSequence = (requestNo, type) => {
     return match ? parseInt(match[1], 10) : null;
 };
 
-const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation }) => {
+const DeviationFormModal = ({
+    isOpen,
+    setIsOpen,
+    refreshData,
+    existingDeviation,
+    quarantineDecisionFinalize = null,
+    onConsumedQuarantineDecision,
+}) => {
     const { toast } = useToast();
     const { products, productCategories } = useData();
     const isEditMode = !!existingDeviation;
@@ -77,7 +85,8 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const [creationMode, setCreationMode] = useState('manual'); // 'manual' veya 'from_record'
     const [selectedSourceRecord, setSelectedSourceRecord] = useState(null);
     const [deviationType, setDeviationType] = useState('Girdi Kontrolü');
-    
+    const lastPrefilledQuarantineIdRef = useRef(null);
+
     // Araç tiplerini products tablosundan çek
     const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
     const vehicleTypes = (products || [])
@@ -403,6 +412,85 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }));
     };
 
+    useEffect(() => {
+        if (!isOpen) {
+            lastPrefilledQuarantineIdRef.current = null;
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || !quarantineDecisionFinalize?.quarantineRecordId || isEditMode) {
+            return;
+        }
+        const qid = quarantineDecisionFinalize.quarantineRecordId;
+        if (lastPrefilledQuarantineIdRef.current === qid) {
+            return;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            const { data: qr, error } = await supabase
+                .from('quarantine_records')
+                .select('*')
+                .eq('id', qid)
+                .single();
+
+            if (cancelled) return;
+
+            if (error || !qr) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Karantina bulunamadı',
+                    description: error?.message || 'Kayıt yüklenemedi.',
+                });
+                onConsumedQuarantineDecision?.();
+                return;
+            }
+
+            const recordWithType = { ...qr, _source_type: 'quarantine' };
+            const autoFill = {
+                source_type: 'quarantine',
+                source_record_id: qr.id,
+                source: 'Karantina',
+                deviation_type: 'Girdi Kontrolü',
+                part_code: qr.part_code || '',
+                created_at: qr.quarantine_date || qr.created_at,
+                source_record_details: {
+                    source_type: 'quarantine',
+                    part_code: qr.part_code,
+                    part_name: qr.part_name,
+                    quantity: qr.quantity,
+                    supplier: qr.supplier_name,
+                    lot_no: qr.lot_no,
+                    quarantine_number: qr.lot_no,
+                    description: qr.description,
+                    source_department: qr.source_department,
+                    requesting_department: qr.requesting_department,
+                    requesting_person_name: qr.requesting_person_name,
+                    decision: qr.decision,
+                },
+            };
+
+            await handleSourceRecordSelect(autoFill, recordWithType);
+            if (cancelled) return;
+
+            lastPrefilledQuarantineIdRef.current = qid;
+            setCreationMode('from_record');
+
+            const block = `\n\n--- Karantina işlem talebi ---\nPlanlanan karar: ${quarantineDecisionFinalize.decision}\nİşlem miktarı: ${quarantineDecisionFinalize.quantity} ${qr.unit || 'adet'}\nKarantina notu: ${quarantineDecisionFinalize.notes || '-'}\n`;
+
+            setFormData((prev) => ({
+                ...prev,
+                description: (prev.description || '') + block,
+            }));
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, quarantineDecisionFinalize, isEditMode]);
+
     const onDrop = useCallback(acceptedFiles => {
         setFiles(prev => [...prev, ...acceptedFiles]);
     }, []);
@@ -481,6 +569,22 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+
+        if (quarantineDecisionFinalize && !isEditMode) {
+            const hasPdf = files.some(
+                (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '')
+            );
+            if (!hasPdf) {
+                toast({
+                    variant: 'destructive',
+                    title: 'İmzalı PDF gerekli',
+                    description:
+                        'Bu karantina kararı için sapma ekinde en az bir PDF yükleyin (imzalı sapma onayı belgesi).',
+                });
+                setIsSubmitting(false);
+                return;
+            }
+        }
 
         const submissionData = { ...formData };
         if (!isEditMode) {
@@ -593,6 +697,8 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 toast({ variant: 'destructive', title: 'Hata!', description: 'Araç bilgileri kaydedilemedi.' });
             }
         }
+
+        let successfulUploads = [];
 
         if (files.length > 0) {
             // Deviation ID kontrolü
@@ -732,7 +838,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             });
             
             const uploadResults = await Promise.all(uploadPromises);
-            const successfulUploads = uploadResults.filter(result => result !== null);
+            successfulUploads = uploadResults.filter(result => result !== null);
             
             if (successfulUploads.length > 0) {
                 console.log(`✅ ${successfulUploads.length} dosya başarıyla yüklendi ve kaydedildi`);
@@ -742,8 +848,59 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 toast({ variant: 'warning', title: 'Kısmi Başarı', description: `${successfulUploads.length}/${files.length} dosya başarıyla yüklendi.` });
             }
         }
+
+        if (quarantineDecisionFinalize && !isEditMode) {
+            const pdfAttachment = successfulUploads.find(
+                (a) =>
+                    (a.file_type && String(a.file_type).includes('pdf')) ||
+                    /\.pdf$/i.test(a.file_name || '')
+            );
+            if (!pdfAttachment) {
+                toast({
+                    variant: 'destructive',
+                    title: 'İmzalı PDF yüklenemedi',
+                    description:
+                        'Karantina kararı için sapma ekinde en az bir PDF yüklenmiş olmalıdır. Lütfen dosyaları kontrol edin.',
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            const { data: signed } = await supabase.storage
+                .from('deviation_attachments')
+                .createSignedUrl(pdfAttachment.file_path, 60 * 60 * 24 * 365 * 2);
+
+            try {
+                await finalizeQuarantineFromDeviation({
+                    quarantineRecordId: quarantineDecisionFinalize.quarantineRecordId,
+                    quantity: quarantineDecisionFinalize.quantity,
+                    decision: quarantineDecisionFinalize.decision,
+                    notes: quarantineDecisionFinalize.notes,
+                    deviationId: deviationData.id,
+                    deviationApprovalUrl: signed?.signedUrl,
+                });
+            } catch (err) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Karantina güncellenemedi',
+                    description:
+                        err?.message ||
+                        'Sapma kaydı oluşturuldu ancak karantina güncellenemedi. Lütfen yöneticiye bildirin.',
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            onConsumedQuarantineDecision?.();
+        }
         
-        toast({ title: 'Başarılı!', description: `Sapma kaydı başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.` });
+        toast({
+            title: 'Başarılı!',
+            description:
+                quarantineDecisionFinalize && !isEditMode
+                    ? `Sapma kaydı oluşturuldu ve karantina kararı uygulandı.`
+                    : `Sapma kaydı başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.`,
+        });
         refreshData();
         setIsOpen(false);
         setIsSubmitting(false);
@@ -849,7 +1006,13 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         <ModernModalLayout
             open={isOpen}
             onOpenChange={setIsOpen}
-            title={isEditMode ? 'Sapma Kaydını Düzenle' : 'Yeni Sapma Kaydı Oluştur'}
+            title={
+                isEditMode
+                    ? 'Sapma Kaydını Düzenle'
+                    : quarantineDecisionFinalize
+                      ? 'Karantina Kararı — Sapma Kaydı'
+                      : 'Yeni Sapma Kaydı Oluştur'
+            }
             subtitle="Sapma Yönetimi"
             icon={<FileText className="h-5 w-5 text-white" />}
             badge={isEditMode ? 'Düzenleme' : 'Yeni'}
@@ -863,11 +1026,30 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             rightPanel={rightPanel}
         >
                 <form id="deviation-form" onSubmit={handleSubmit} className="w-full min-w-0 overflow-x-hidden p-6 grid gap-4 min-h-0">
+                    {quarantineDecisionFinalize && !isEditMode && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-100">
+                            <p className="font-semibold">Karantina ile bağlı sapma</p>
+                            <p className="mt-1 text-xs leading-relaxed">
+                                Bu ekran karantinada seçtiğiniz karar için açıldı. Kaynağı değiştirmeyin. Karantina güncellemesi için{' '}
+                                <strong>en az bir imzalı PDF</strong> eklemeniz zorunludur.
+                            </p>
+                        </div>
+                    )}
                     {/* Oluşturma Modu Seçimi - Sadece yeni kayıt için */}
                     {!isEditMode && (
-                        <Tabs value={creationMode} onValueChange={setCreationMode} className="w-full min-w-0">
+                        <Tabs
+                            value={creationMode}
+                            onValueChange={(v) => {
+                                if (!quarantineDecisionFinalize) setCreationMode(v);
+                            }}
+                            className="w-full min-w-0"
+                        >
                             <TabsList className="grid w-full min-w-0 grid-cols-2">
-                                <TabsTrigger value="manual" className="flex min-w-0 items-center justify-center gap-2 truncate">
+                                <TabsTrigger
+                                    value="manual"
+                                    disabled={!!quarantineDecisionFinalize}
+                                    className="flex min-w-0 items-center justify-center gap-2 truncate"
+                                >
                                     <FileText className="h-4 w-4" />
                                     Manuel Oluştur
                                 </TabsTrigger>
@@ -924,11 +1106,20 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                             <Input id="request_no_from_record" value={formData.request_no || ''} onChange={handleInputChange} required readOnly />
                                         </div>
                                     </div>
-                                    <SourceRecordSelector
-                                        onSelect={handleSourceRecordSelect}
-                                        initialSourceType={formData.source_type}
-                                        initialSourceId={formData.source_record_id}
-                                    />
+                                    {quarantineDecisionFinalize ? (
+                                        <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                                            <p className="font-medium text-foreground">Kaynak: Karantina (otomatik)</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Parça: {formData.part_code || '—'} · Kayıt ID: {String(formData.source_record_id || '').slice(0, 8)}…
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <SourceRecordSelector
+                                            onSelect={handleSourceRecordSelect}
+                                            initialSourceType={formData.source_type}
+                                            initialSourceId={formData.source_record_id}
+                                        />
+                                    )}
                                 </div>
                             </TabsContent>
                         </Tabs>
@@ -1091,6 +1282,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                             onValueChange={(value) => handleSelectChange('source', value)} 
                             value={formData.source || ''} 
                             required
+                            disabled={!!quarantineDecisionFinalize && !isEditMode}
                             key={`source-${formData.source || 'empty'}-${departments.length}-${suppliers.length}`}
                         >
                             <SelectTrigger>
@@ -1116,11 +1308,20 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Belge Ekle</Label>
+                        <Label>
+                            Belge Ekle
+                            {quarantineDecisionFinalize && !isEditMode && (
+                                <span className="text-red-500"> (imzalı sapma onayı PDF zorunlu)</span>
+                            )}
+                        </Label>
                         <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-lg cursor-pointer text-center transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}>
                             <input {...getInputProps()} />
                             <UploadCloud className="w-10 h-10 mx-auto text-muted-foreground" />
-                            <p className="mt-2 text-sm text-muted-foreground">Onaylı sapma formu veya destekleyici dokümanları buraya sürükleyin ya da seçmek için tıklayın.</p>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                {quarantineDecisionFinalize && !isEditMode
+                                    ? 'İmzalı sapma onay PDF dosyasını ekleyin (karantina kararı bu belge olmadan tamamlanmaz).'
+                                    : 'Onaylı sapma formu veya destekleyici dokümanları buraya sürükleyin ya da seçmek için tıklayın.'}
+                            </p>
                         </div>
                         
                         {/* Mevcut attachment'lar (sadece düzenleme modunda) */}

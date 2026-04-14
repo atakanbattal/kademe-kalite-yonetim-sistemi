@@ -3,6 +3,22 @@ import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toCamelCase, getAttachmentDisplayName, formatDateOnlyLocal } from './utils';
 import { normalizeQuarantineAttachments } from './quarantineAttachments';
+import { getQuarantineDecisionCertificateStatement } from './quarantineDecisionCertificate';
+
+/** Lot → parça-KT → KT-yıl-6hex (UUID tam metin olarak gösterilmez) */
+const getQuarantineDocumentNoValue = (record) => {
+	if (!record) return null;
+	const lot = String(record.lot_no || '').trim();
+	if (lot && lot !== '-') return { label: 'Lot / belge no', value: lot };
+	const code = String(record.part_code || '').trim();
+	if (code) return { label: 'Belge no', value: `${code}-KT` };
+	const y = record.quarantine_date
+		? new Date(record.quarantine_date).getFullYear()
+		: new Date().getFullYear();
+	const id = String(record.id || '').replace(/-/g, '');
+	if (id.length >= 6) return { label: 'Takip no', value: `KT-${y}-${id.slice(0, 6).toUpperCase()}` };
+	return null;
+};
 import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
 import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
 
@@ -362,6 +378,11 @@ const getReportTitle = (record, type) => {
 			const qParts = [record.part_code, record.part_name, record.status].filter(Boolean);
 			return qParts.length > 0 ? `Karantina Raporu-${qParts.join('-')}` : `Karantina Raporu-${record.lot_no || record.id || 'Rapor'}`;
 		}
+		case 'quarantine_decision_certificate': {
+			const d = record.quarantine_certificate_decision || 'Karar';
+			const seg = safeReportTitleSegment(d, 20);
+			return `Karantina Karar Tutanağı-${record.part_code || record.lot_no || 'Kayıt'}-${seg}`;
+		}
 		case 'quarantine_list':
 			return 'Genel Karantina Raporu';
 		case 'wps':
@@ -443,6 +464,7 @@ const getFormNumber = (type) => {
 		deviation: 'FR-KAL-024',
 		deviation_list: 'FR-KAL-024-A',
 		quarantine: 'FR-KAL-025',
+		quarantine_decision_certificate: 'FR-KAL-025-KT',
 		quarantine_list: 'FR-KAL-025-A',
 		supplier_audit: 'FR-KAL-026',
 		sheet_metal_entry: 'FR-KAL-027',
@@ -642,12 +664,18 @@ const generateTrainingRecordReportHtml = (record) => {
 		normalizeTrDisplay(a.personnel?.full_name || '').localeCompare(normalizeTrDisplay(b.personnel?.full_name || ''), 'tr')
 	);
 
+	const orgCell = (pr) => {
+		if (!pr) return '—';
+		const parts = [...new Set([pr.department, pr.management_department || pr.unit?.unit_name].filter(Boolean))];
+		return esc(parts.length ? parts.join(' · ') : '—');
+	};
+
 	const participantsRows = participants.length
 		? participants.map((p, index) => `
 			<tr>
 				<td>${index + 1}</td>
 				<td>${esc(p.personnel?.full_name) || '—'}</td>
-				<td>${esc(p.personnel?.unit?.unit_name || p.personnel?.department) || '—'}</td>
+				<td>${orgCell(p.personnel)}</td>
 				<td>${esc(p.status) || '—'}</td>
 				<td class="training-sign-cell"></td>
 			</tr>
@@ -705,7 +733,7 @@ const generateTrainingRecordReportHtml = (record) => {
 					<tr>
 						<th style="width:36px;">#</th>
 						<th>Ad soyad</th>
-						<th style="width:24%;">Birim</th>
+						<th style="width:24%;">Alt birim / üst dep.</th>
 						<th style="width:16%;">Durum</th>
 						<th style="width:22%;">İmza</th>
 					</tr>
@@ -4521,7 +4549,128 @@ const generateManagedNonconformityDetailHtml = (record) => {
 	`;
 };
 
+const getQuarantineCertificatePrintBelgeHtml = (record, esc) => {
+	const d = getQuarantineDocumentNoValue(record);
+	if (!d) return '';
+	return `${d.label}: ${esc(d.value)}`;
+};
+
+/** Karantina karar tutanağı: karar cümlesi + sapma formu ile aynı imza rolleri */
+const buildQuarantineDecisionCertificateHtml = (record) => {
+	const formatDate = (dateStr) => (dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-');
+	const formatDateTime = (dateStr) => (dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-');
+	const esc = (s) =>
+		String(s ?? '')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	const decision = record.quarantine_certificate_decision || '';
+	const statement = getQuarantineDecisionCertificateStatement(decision);
+	const qty = record.quarantine_certificate_quantity;
+	const notes = record.quarantine_certificate_notes;
+	const unit = record.unit || '';
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
+	const belgeHtml = getQuarantineCertificatePrintBelgeHtml(record, esc);
+	const docLine = belgeHtml ? `${belgeHtml}<br>` : '';
+	const qtyLine =
+		qty != null && String(qty).trim() !== ''
+			? `<p style="margin:12px 0 0 0;"><strong>İlgili miktar:</strong> ${esc(qty)} ${esc(unit)}</p>`
+			: '';
+	const notesBlock = notes
+		? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;"><p style="font-size:12px;color:#374151;margin:0 0 6px 0;font-weight:600;">Notlar</p><pre style="white-space:pre-wrap;font-family:inherit;margin:0;font-size:13px;">${esc(notes)}</pre></div>`
+		: '';
+
+	const signatureDeviationStyle = `
+					<div class="signature-box">
+						<p class="role">TALEP EDEN</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">ARGE</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">KALİTE KONTROL<br>VE GÜVENCE</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">FABRİKA MÜDÜRÜ</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">GENEL MÜDÜR</p>
+						<div class="signature-line"></div>
+						<p class="name">Kenan Çelik</p>
+					</div>
+				`;
+
+	return `
+		<div class="report-header quarantine-karar-tut-header">
+			<div class="report-logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
+			</div>
+			<div class="company-title">
+				<h1>KADEME A.Ş.</h1>
+				<p>Kalite Yönetim Sistemi</p>
+			</div>
+			<div class="print-info">
+				${docLine}
+				Rapor tarihi: ${formatDateTime(new Date())}
+			</div>
+		</div>
+
+		<div class="meta-box">
+			<div class="meta-item"><strong>Belge Türü:</strong> Karantina Karar Tutanağı</div>
+			<div class="meta-item"><strong>Karar:</strong> ${esc(decision || '-')}</div>
+			<div class="meta-item"><strong>Revizyon:</strong> ${record.revision || '0'}</div>
+			<div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
+			<div class="meta-item"><strong>Karantina tarihi:</strong> ${formatDate(record.quarantine_date)}</div>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">1. TEMEL BİLGİLER</h2>
+			<table class="info-table">
+				<tbody>
+					<tr><td>Parça Adı</td><td><strong>${esc(record.part_name)}</strong></td></tr>
+					<tr><td>Parça Kodu</td><td>${esc(record.part_code)}</td></tr>
+					<tr><td>Lot / Seri No</td><td>${esc(record.lot_no)}</td></tr>
+					<tr><td>Mevcut miktar (kayıt)</td><td><strong>${esc(record.quantity)} ${esc(unit)}</strong></td></tr>
+					<tr><td>Sebep Olan Birim</td><td>${esc(record.source_department)}</td></tr>
+					<tr><td>Talebi Yapan Birim</td><td>${esc(record.requesting_department)}</td></tr>
+					<tr><td>Talebi Yapan Kişi</td><td>${esc(record.requesting_person_name)}</td></tr>
+					<tr><td>Karantina Açıklaması</td><td><pre style="white-space:pre-wrap;font-family:inherit;">${esc(record.description)}</pre></td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">2. KARAR</h2>
+			<div style="padding: 18px; font-size: 14px; line-height: 1.65; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+				<p style="margin: 0; font-weight: 600; color: #111827;">${esc(statement)}</p>
+				${qtyLine}
+				${notesBlock}
+			</div>
+		</div>
+
+		<div class="section signature-section">
+			<h2 class="section-title dark">İMZA VE ONAY</h2>
+			<div class="signature-area">
+				${signatureDeviationStyle}
+			</div>
+		</div>
+	`;
+};
+
 const generateGenericReportHtml = async (record, type) => {
+	if (type === 'quarantine_decision_certificate') {
+		return buildQuarantineDecisionCertificateHtml(record);
+	}
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
 	const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
 	const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
@@ -4575,7 +4724,8 @@ const generateGenericReportHtml = async (record, type) => {
 			case 'nonconformity': return record.nc_number || record.mdi_no || '-';
 			case 'deviation': return record.request_no || '-';
 			case 'kaizen': return record.kaizen_no || '-';
-			case 'quarantine': return record.lot_no || '-';
+			case 'quarantine':
+				return getQuarantineDocumentNoValue(record)?.value || '-';
 			case 'incoming_inspection': return record.record_no || '-';
 			case 'process_inspection': return record.record_no || '-';
 			case 'incoming_control_plans': return record.part_code || '-';
@@ -5370,9 +5520,15 @@ const generateGenericReportHtml = async (record, type) => {
 					<tr><td>Kaizen Ekibi</td><td>${teamMembers}</td></tr>
 					<tr><td>Süre</td><td>${duration}</td></tr>
 				`;
-			case 'quarantine':
+			case 'quarantine': {
 				const deviationRef = record.deviation_approval_url ? `<tr><td>İlişkili Sapma</td><td>${getDeviationApprovalReference(record.deviation_approval_url)}</td></tr>` : '';
 				const nonConformityRef = record.non_conformity_id ? `<tr><td>İlişkili Uygunsuzluk</td><td>${record.nc_number || 'Uygunsuzluk ID: ' + record.non_conformity_id}</td></tr>` : '';
+				const hurdaKararRows =
+					record.hurda_processed_quantity != null && record.hurda_processed_quantity !== ''
+						? `
+				<tr><td>Hurda işlem miktarı</td><td><strong>${record.hurda_processed_quantity} ${record.unit || ''}</strong></td></tr>
+				${record.hurda_notes ? `<tr><td>Karar notları</td><td><pre style="white-space: pre-wrap; font-family: inherit;">${record.hurda_notes}</pre></td></tr>` : ''}`
+						: '';
 				return `
 				<tr><td>Parça Adı</td><td><strong>${record.part_name}</strong></td></tr>
 				<tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
@@ -5389,9 +5545,11 @@ const generateGenericReportHtml = async (record, type) => {
 				<tr><td>Talebi Yapan Birim</td><td>${record.requesting_department || '-'}</td></tr>
 				<tr><td>Talebi Yapan Kişi</td><td>${record.requesting_person_name || '-'}</td></tr>
 				<tr><td>Karantina Sebebi / Açıklama</td><td><pre style="white-space: pre-wrap; font-family: inherit;">${record.description || '-'}</pre></td></tr>
+				${hurdaKararRows}
 				${deviationRef}
 				${nonConformityRef}
 			`;
+			}
 			case 'incoming_inspection':
 				const defectsHtml = record.defects && record.defects.length > 0
 					? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
@@ -6697,8 +6855,14 @@ const generateGenericReportHtml = async (record, type) => {
 				<p>Kalite Yönetim Sistemi</p>
 			</div>
 			<div class="print-info">
-				Yazdır: ${getDocumentNumber()}<br>
-				Yazdırılma: ${formatDateTime(new Date())}
+				${(() => {
+					const n = getDocumentNumber();
+					if (n != null && String(n).trim() !== '' && String(n) !== '-') {
+						return `Belge no: ${n}<br>`;
+					}
+					return '';
+				})()}
+				Rapor tarihi: ${formatDateTime(new Date())}
 			</div>
 		</div>
 
@@ -7657,6 +7821,52 @@ h3 {
 	page-break-inside: avoid!important;
 }
 			}
+`;
+	} else if (type === 'quarantine_decision_certificate') {
+		reportContentHtml = await generateGenericReportHtml(normalizedRecord, type);
+		cssOverrides = `
+.quarantine-karar-tut-header.report-header {
+	display: grid !important;
+	grid-template-columns: 76px minmax(0, 1fr) minmax(120px, 30%) !important;
+	align-items: center !important;
+	gap: 10px 12px !important;
+}
+.quarantine-karar-tut-header .report-logo {
+	flex: none !important;
+	width: 76px !important;
+}
+.quarantine-karar-tut-header .report-logo img {
+	max-width: 76px !important;
+	height: auto !important;
+}
+.quarantine-karar-tut-header .company-title {
+	min-width: 0 !important;
+	text-align: center !important;
+	padding: 0 6px !important;
+}
+.quarantine-karar-tut-header .company-title h1 {
+	font-size: 15px !important;
+	line-height: 1.2 !important;
+	margin: 0 !important;
+	white-space: normal !important;
+	word-break: normal !important;
+}
+.quarantine-karar-tut-header .company-title p {
+	font-size: 9px !important;
+	line-height: 1.3 !important;
+	margin: 5px 0 0 0 !important;
+	white-space: normal !important;
+}
+.quarantine-karar-tut-header .print-info {
+	white-space: normal !important;
+	font-size: 9px !important;
+	line-height: 1.4 !important;
+	font-weight: 500 !important;
+	text-align: right !important;
+	word-break: break-word !important;
+	overflow-wrap: anywhere !important;
+	max-width: 100% !important;
+}
 `;
 	} else {
 		reportContentHtml = await generateGenericReportHtml(normalizedRecord, type);

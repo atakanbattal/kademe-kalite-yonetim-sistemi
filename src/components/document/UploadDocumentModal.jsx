@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
     import { useDropzone } from 'react-dropzone';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
@@ -16,6 +16,16 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
     import { useData } from '@/contexts/DataContext';
 
     const BUCKET_NAME = 'documents';
+
+    /** documents.department_id → cost_settings(id) FK; yalnızca geçerli UUID ve listedeki id kabul edilir */
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    const CATEGORIES_REQUIRING_DEPARTMENT = [
+        'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar',
+        'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler',
+        'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler',
+        'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar',
+    ];
 
     // Doküman tipine göre klasör adı döndürür
     const getDocumentFolder = (documentType) => {
@@ -51,6 +61,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
         const { user, profile } = useAuth();
         const { personnel: personnelList, unitCostSettings } = useData();
         const isEditMode = !!existingDocument && !isRevisionMode;
+
+        const validCostSettingIds = useMemo(
+            () => new Set((unitCostSettings || []).map((u) => u.id).filter(Boolean)),
+            [unitCostSettings]
+        );
 
         const [formData, setFormData] = useState({});
         const [file, setFile] = useState(null);
@@ -218,7 +233,13 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
         };
 
         const handleSelectChange = (id, value) => {
-            setFormData(prev => ({ ...prev, [id]: value }));
+            setFormData((prev) => {
+                const next = { ...prev, [id]: value };
+                if (id === 'document_type' && !CATEGORIES_REQUIRING_DEPARTMENT.includes(value)) {
+                    next.department_id = null;
+                }
+                return next;
+            });
         };
 
         const handleSubmit = async (e) => {
@@ -239,15 +260,26 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen revizyon nedenini belirtin.' });
                 return;
             }
-            // Belirli kategoriler için birim zorunlu
-            const categoriesRequiringDepartment = [
-                'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 
-                'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 
-                'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 
-                'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'
-            ];
-            if (categoriesRequiringDepartment.includes(formData.document_type) && !formData.department_id) {
-                toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen birim seçiniz.' });
+            const rawDept = formData.department_id;
+            const deptStr = rawDept == null ? '' : String(rawDept).trim();
+            let resolvedDepartmentId = null;
+            if (deptStr && deptStr !== 'undefined' && deptStr !== 'null' && UUID_RE.test(deptStr)) {
+                if (validCostSettingIds.has(deptStr)) {
+                    resolvedDepartmentId = deptStr;
+                } else if ((isEditMode || isRevisionMode) && existingDocument?.department_id === deptStr) {
+                    resolvedDepartmentId = deptStr;
+                }
+            }
+
+            if (CATEGORIES_REQUIRING_DEPARTMENT.includes(formData.document_type) && !resolvedDepartmentId) {
+                const stale = deptStr && UUID_RE.test(deptStr);
+                toast({
+                    variant: 'destructive',
+                    title: 'Eksik Bilgi',
+                    description: stale
+                        ? 'Seçilen birim artık geçerli değil veya listede yok. Sayfayı yenileyip birim seçimini tekrarlayın.'
+                        : 'Lütfen birim seçiniz.',
+                });
                 return;
             }
             setIsSubmitting(true);
@@ -338,7 +370,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     title: formData.title,
                     document_type: formData.document_type,
                     status: 'Yayınlandı',
-                    department_id: formData.department_id || null,
+                    department_id: resolvedDepartmentId,
                     personnel_id: formData.document_type === 'Personel Sertifikaları' ? formData.personnel_id : null,
                     valid_until: formData.valid_until || null,
                     user_id: user.id,
@@ -462,7 +494,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                             </div>
                         )}
 
-                        {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(formData.document_type) && (
+                        {CATEGORIES_REQUIRING_DEPARTMENT.includes(formData.document_type) && (
                             <div>
                                 <Label htmlFor="department_id">Birim <span className="text-red-500">*</span></Label>
                                 <Select

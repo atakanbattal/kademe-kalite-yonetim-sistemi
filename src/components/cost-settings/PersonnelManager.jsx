@@ -97,10 +97,11 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
     const handleUnitChange = (unitId) => {
         const selectedUnit = units.find(u => u.id === unitId);
         const rawName = selectedUnit?.unit_name ?? '';
+        const formatted = rawName ? formatPersonnelModuleField(rawName) : '';
         setFormData(prev => ({
             ...prev,
             unit_id: unitId,
-            department: rawName ? formatPersonnelModuleField(rawName) : '',
+            management_department: formatted,
         }));
     };
 
@@ -154,7 +155,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                     <DialogHeader>
                         <DialogTitle>Önce birim tanımlayın</DialogTitle>
                         <DialogDescription>
-                            Yeni personel eklemek için en az bir organizasyon birimi gerekir. &quot;Birim Maliyetleri&quot; sekmesinden birim ekleyip bu ekrana dönün.
+                            Yeni personel eklemek için en az bir üst departman / müdürlük kaydı gerekir. Ayarlar &gt; Birim sekmesinden ekleyip bu ekrana dönün.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -175,7 +176,7 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                     <DialogDescription className="text-sm leading-relaxed">
                         {isEditMode
                             ? 'Kimlik, birim ve ünvan bilgilerini güncelleyin. Durum &quot;Pasif&quot; ise personel çoğu seçicide görünmez.'
-                            : 'Birimi listeden seçin; birim adı otomatik olarak düzgün yazım (Satınalma, Üretim müdürlüğü) ile dolar. Üst departman ve yaka alanlarını doldurun.'}
+                            : 'Üst departman / müdürlüğü listeden seçin; alt birim (ekip) adını ve yaka bilgisini doldurun.'}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4">
@@ -206,38 +207,38 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2 sm:col-span-2">
-                                    <Label>Birim (maliyet / organizasyon) <span className="text-destructive">*</span></Label>
+                                    <Label>Üst departman / müdürlük (maliyet) <span className="text-destructive">*</span></Label>
                                     <SearchableSelectDialog
                                         options={unitOptions}
                                         value={formData.unit_id || ''}
                                         onChange={handleUnitChange}
-                                        triggerPlaceholder="Listeden birim seçin..."
-                                        dialogTitle="Birim seç"
-                                        searchPlaceholder="Birim ara..."
-                                        notFoundText="Birim bulunamadı."
+                                        triggerPlaceholder="Üst departman veya müdürlük seçin..."
+                                        dialogTitle="Üst departman / müdürlük seç"
+                                        searchPlaceholder="Ara..."
+                                        notFoundText="Kayıt bulunamadı."
                                     />
-                                    <p className="text-xs text-muted-foreground">Seçim, sistemdeki birim adına ve maliyet kaydına bağlanır.</p>
+                                    <p className="text-xs text-muted-foreground">Ayarlar &gt; Birim ile aynı listedir; maliyet ve organizasyon üst düzeyine bağlanır.</p>
                                 </div>
                                 <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="department">Birim adı (görünen)</Label>
+                                    <Label htmlFor="department">Alt birim / ekip (görünen)</Label>
                                     <Input
                                         id="department"
                                         value={formData.department || ''}
                                         onChange={handleChange}
                                         onBlur={handleTitleFieldBlur}
-                                        placeholder="Birim seçince otomatik dolar; gerekirse düzenleyin"
+                                        placeholder="Örn: Kabin hattı, kaynakhane (üst seçimden bağımsız düzenlenebilir)"
                                     />
                                 </div>
                                 <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="management_department">Üst departman / müdürlük</Label>
+                                    <Label htmlFor="management_department">Üst departman (metin özeti)</Label>
                                     <Input
                                         id="management_department"
                                         value={formData.management_department || ''}
                                         onChange={handleChange}
                                         onBlur={handleTitleFieldBlur}
-                                        placeholder="Örn: Üretim müdürlüğü (üst yapı)"
+                                        placeholder="Üst seçimle dolar; gerekirse düzenleyin"
                                     />
-                                    <p className="text-xs text-muted-foreground">PL’deki üst yapı; listede tam metin olarak gösterilir.</p>
+                                    <p className="text-xs text-muted-foreground">Üstteki seçimle aynı olmalı; tabloda ve raporlarda üst yapı olarak görünür.</p>
                                 </div>
                             </div>
                         </section>
@@ -323,20 +324,19 @@ const PersonnelManager = () => {
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        const { error: syncErr } = await supabase.rpc('sync_cost_settings_from_personnel');
+        if (syncErr) console.warn('sync_cost_settings_from_personnel', syncErr);
         const { data: personnelData, error: personnelError } = await supabase.from('personnel').select('*, unit:cost_settings(unit_name)');
         const { data: unitsData, error: unitsError } = await supabase.from('cost_settings').select('*').order('unit_name');
 
         if (personnelError) {
             toast({ variant: 'destructive', title: 'Personel alınamadı!' });
         } else {
-            const mapped = (personnelData || []).map((p) => ({
-                ...p,
-                department: p.department || p.unit?.unit_name,
-            }));
+            const mapped = [...(personnelData || [])];
             mapped.sort(comparePersonnelBySicil);
             setPersonnel(mapped);
         }
-        if (unitsError) toast({ variant: 'destructive', title: 'Birimler alınamadı!' }); else setUnits(unitsData);
+        if (unitsError) toast({ variant: 'destructive', title: 'Üst departman listesi alınamadı!' }); else setUnits(unitsData);
         
         setLoading(false);
     }, [toast]);
@@ -591,7 +591,7 @@ const PersonnelManager = () => {
                             <th className="w-10">S.No</th>
                             <th>Ad soyad</th>
                             <th>Sicil</th>
-                            <th>Birim</th>
+                            <th>Alt birim / ekip</th>
                             <th className="min-w-[220px] max-w-[280px]">Üst departman / müdürlük</th>
                             <th>Yaka</th>
                             <th className="min-w-[160px]">Şirket ünvanı</th>
@@ -619,7 +619,7 @@ const PersonnelManager = () => {
                                 <td className="font-medium">{displayPersonnelTitle(p.full_name) || '—'}</td>
                                 <td className="font-mono text-sm">{p.registration_number || '—'}</td>
                                 <td className="text-sm">
-                                    {displayPersonnelTitle(p.unit?.unit_name || p.department) || '—'}
+                                    {displayPersonnelTitle(p.department) || '—'}
                                 </td>
                                 <td className="text-sm align-top">
                                     {p.management_department ? (

@@ -144,7 +144,7 @@ const PrintableReport = () => {
                                             status,
                                             score,
                                             personnel_id,
-                                            personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                            personnel:personnel_id ( id, full_name, department, management_department, unit:cost_settings ( unit_name ) )
                                         )
                                     `)
                                     .eq('id', tid)
@@ -171,7 +171,7 @@ const PrintableReport = () => {
                                             score,
                                             completed_at,
                                             personnel_id,
-                                            personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                            personnel:personnel_id ( id, full_name, department, management_department, unit:cost_settings ( unit_name ) )
                                         )
                                     `)
                                     .eq('id', tid)
@@ -703,7 +703,7 @@ const PrintableReport = () => {
                                     status,
                                     score,
                                     personnel_id,
-                                    personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                    personnel:personnel_id ( id, full_name, department, management_department, unit:cost_settings ( unit_name ) )
                                 )
                             `)
                             .eq('id', id)
@@ -724,7 +724,7 @@ const PrintableReport = () => {
                                     score,
                                     completed_at,
                                     personnel_id,
-                                    personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                    personnel:personnel_id ( id, full_name, department, management_department, unit:cost_settings ( unit_name ) )
                                 )
                             `)
                             .eq('id', id)

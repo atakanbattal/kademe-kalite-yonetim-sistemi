@@ -279,7 +279,10 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
                                             .map((p) => (
                                                 <SelectItem key={p.id} value={String(p.id)}>
                                                     {p.full_name}
-                                                    {p.unit?.unit_name ? ` — ${p.unit.unit_name}` : p.department ? ` — ${p.department}` : ''}
+                                                    {(() => {
+                                                        const parts = [...new Set([p.department, p.management_department || p.unit?.unit_name].filter(Boolean))];
+                                                        return parts.length ? ` — ${parts.join(' · ')}` : '';
+                                                    })()}
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>

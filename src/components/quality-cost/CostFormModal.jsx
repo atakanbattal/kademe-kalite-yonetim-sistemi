@@ -15,7 +15,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
     import { Badge } from '@/components/ui/badge';
     import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { sanitizeFileName } from '@/lib/utils';
+    import { sanitizeFileName } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const DOCUMENT_TYPES = ['Fatura', 'Teklif', 'Rapor', 'Fotoğraf', 'Test Sonucu', 'Garanti Belgesi', '8D Raporu', 'Diğer'];
@@ -199,7 +199,16 @@ const BUCKET_NAME = 'quality_costs';
         }
     };
 
-    export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost, onCostCreated }) => {
+    export const CostFormModal = ({
+        open,
+        setOpen,
+        refreshCosts,
+        unitCostSettings,
+        materialCostSettings,
+        personnelList,
+        existingCost,
+        onCostCreated,
+    }) => {
         const { toast } = useToast();
         const { user } = useAuth();
         const { products, productCategories, refreshData, refreshProducedVehicles, refreshQualityCosts } = useData();
@@ -389,7 +398,6 @@ const BUCKET_NAME = 'quality_costs';
             }
             setPendingDocuments([]);
         }, [existingCost, isEditMode, open, getInitialFormData]);
-
 
         const handleInputChange = (e) => {
             const { id, value } = e.target;
@@ -1015,6 +1023,7 @@ const BUCKET_NAME = 'quality_costs';
                     } else {
                         toast({ title: 'Başarılı!', description: 'Maliyet kaydı eklendi.' });
                     }
+
                     await refreshCosts();
                     setOpen(false);
                     onCostCreated?.(insertedCost);

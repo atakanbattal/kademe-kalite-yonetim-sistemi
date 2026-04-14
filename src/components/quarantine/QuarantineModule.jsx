@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { motion } from 'framer-motion';
-    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from 'lucide-react';
+    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, PackageX } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -14,12 +14,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { Badge } from '@/components/ui/badge';
     import QuarantineFormModal from '@/components/quarantine/QuarantineFormModal';
     import QuarantineDecisionModal from '@/components/quarantine/QuarantineDecisionModal';
+    import QuarantineHurdaTutanagiModal from '@/components/quarantine/QuarantineHurdaTutanagiModal';
     import CreateNCFromQuarantineModal from '@/components/quarantine/CreateNCFromQuarantineModal';
     import QuarantineViewModal from '@/components/quarantine/QuarantineViewModal';
     import QuarantineAnalytics from '@/components/quarantine/QuarantineAnalytics';
     import QuarantineReportFilterModal from '@/components/quarantine/QuarantineReportFilterModal';
     import { useData } from '@/contexts/DataContext';
     import { openPrintableReport } from '@/lib/reportUtils';
+    import { cn } from '@/lib/utils';
 
     const QUARANTINE_STATUSES = [
       'Karantinada',
@@ -42,6 +44,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       const [isCreateNCOpen, setCreateNCOpen] = useState(false);
       const [isViewOpen, setIsViewOpen] = useState(false);
       const [isReportFilterOpen, setIsReportFilterOpen] = useState(false);
+      const [isHurdaTutanagiOpen, setIsHurdaTutanagiOpen] = useState(false);
+      const [hurdaTutanagiPayload, setHurdaTutanagiPayload] = useState(null);
       const [selectedRecord, setSelectedRecord] = useState(null);
       const [searchTerm, setSearchTerm] = useState('');
       const [formMode, setFormMode] = useState('new');
@@ -180,6 +184,16 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         setSelectedRecord(record);
         setIsDecisionOpen(true);
       };
+
+      const handleHurdaTutanagiRequest = useCallback((payload) => {
+        setHurdaTutanagiPayload(payload);
+        setIsHurdaTutanagiOpen(true);
+      }, []);
+
+      const handleHurdaTutanagiCompleted = useCallback(() => {
+        setHurdaTutanagiPayload(null);
+        refreshData();
+      }, [refreshData]);
       
       const handleOpenCreateNC = (record) => {
         setSelectedRecord(record);
@@ -218,16 +232,26 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         openPrintableReport(reportData, 'quarantine_list', true);
       };
 
-      const getStatusColor = (status) => {
+      const getStatusBadgeClass = (status) => {
         switch (status) {
-          case 'Karantinada': return 'bg-red-100 text-red-800';
-          case 'Yeniden İşlem': return 'bg-blue-100 text-blue-800';
-          case 'Hurda': return 'bg-gray-200 text-gray-800';
-          case 'Onay Bekliyor': return 'bg-yellow-100 text-yellow-800';
-          case 'İade': return 'bg-orange-100 text-orange-800';
-          case 'Serbest Bırakıldı': return 'bg-green-100 text-green-800';
-          case 'Sapma Onaylı': return 'bg-purple-100 text-purple-800';
-          default: return 'bg-gray-100 text-gray-800';
+          case 'Karantinada':
+            return 'border-red-200/80 bg-red-50 text-red-900 dark:bg-red-950/40 dark:text-red-100 dark:border-red-800/50';
+          case 'Yeniden İşlem':
+            return 'border-blue-200/80 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
+          case 'Hurda':
+            return 'border-slate-200 bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100';
+          case 'Onay Bekliyor':
+            return 'border-amber-200/80 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100';
+          case 'İade':
+            return 'border-orange-200/80 bg-orange-50 text-orange-950 dark:bg-orange-950/30';
+          case 'Serbest Bırakıldı':
+            return 'border-emerald-200/80 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/30';
+          case 'Sapma Onaylı':
+            return 'border-violet-200/80 bg-violet-50 text-violet-950 dark:bg-violet-950/30';
+          case 'Tamamlandı':
+            return 'border-teal-200/80 bg-teal-50 text-teal-950 dark:bg-teal-950/30';
+          default:
+            return 'border-border bg-muted text-foreground';
         }
       };
 
@@ -266,13 +290,27 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             isOpen={isDecisionOpen} 
             setIsOpen={setIsDecisionOpen} 
             record={selectedRecord} 
-            refreshData={refreshData} 
+            refreshData={refreshData}
+            onHurdaTutanagiRequest={handleHurdaTutanagiRequest}
+          />
+          <QuarantineHurdaTutanagiModal
+            isOpen={isHurdaTutanagiOpen}
+            setIsOpen={(open) => {
+              setIsHurdaTutanagiOpen(open);
+              if (!open) setHurdaTutanagiPayload(null);
+            }}
+            record={selectedRecord}
+            processedQuantity={hurdaTutanagiPayload?.quantity}
+            decisionNotes={hurdaTutanagiPayload?.notes}
+            onCompleted={handleHurdaTutanagiCompleted}
           />
           <QuarantineViewModal 
             isOpen={isViewOpen} 
             setIsOpen={setIsViewOpen} 
             record={selectedRecord} 
-            onEdit={handleOpenEdit} 
+            onEdit={handleOpenEdit}
+            refreshData={refreshData}
+            onRecordUpdated={(updated) => setSelectedRecord(updated)}
           />
             <CreateNCFromQuarantineModal 
                 isOpen={isCreateNCOpen}
@@ -288,42 +326,73 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             onGenerateReport={handleGenerateReportFromSelection}
           />
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-muted-foreground mt-1">Karantinadaki ürünleri takip edin ve yönetin.</p>
-            </div>
-            <div className="flex items-center gap-2 mt-4 sm:mt-0">
-               <Button variant="outline" onClick={handleOpenReportFilter} disabled={loading || records.length === 0}>
+          <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/30 p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex gap-4 sm:gap-5 min-w-0">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                  <PackageX className="h-7 w-7" aria-hidden />
+                </div>
+                <div className="min-w-0 space-y-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                    Karantina
+                  </h1>
+                  <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
+                    Karantinadaki ürünleri takip edin, karar verin ve kayıtları yönetin.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 shrink-0">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-11 border-border/80 bg-background/80"
+                  onClick={handleOpenReportFilter}
+                  disabled={loading || records.length === 0}
+                >
                   <FileText className="w-4 h-4 mr-2" />
                   Rapor Oluştur
                 </Button>
-               <Button onClick={handleOpenNew}><Plus className="w-4 h-4 mr-2"/>Yeni Karantina Kaydı</Button>
+                <Button size="lg" className="h-11 font-semibold shadow-md shadow-primary/20" onClick={handleOpenNew}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Yeni Karantina Kaydı
+                </Button>
+              </div>
             </div>
           </div>
           
-          <Tabs defaultValue="list" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="list">Kayıt Listesi</TabsTrigger>
-              <TabsTrigger value="analytics">Analiz & İstatistikler</TabsTrigger>
+          <Tabs defaultValue="list" className="w-full space-y-6">
+            <TabsList className="grid w-full max-w-xl grid-cols-2 h-11 items-center rounded-xl bg-muted/60 p-1 text-muted-foreground shadow-inner">
+              <TabsTrigger
+                value="list"
+                className="rounded-lg py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+              >
+                Kayıt listesi
+              </TabsTrigger>
+              <TabsTrigger
+                value="analytics"
+                className="rounded-lg py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all"
+              >
+                Analiz & istatistikler
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="list">
-          <div className="dashboard-widget">
-            <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-                <div className="search-box w-full max-w-sm">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+            <TabsContent value="list" className="mt-0 sm:mt-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
+          <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm overflow-hidden ring-1 ring-border/40">
+            <div className="flex flex-col gap-2 border-b border-border/80 bg-gradient-to-b from-muted/30 to-muted/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
+                <div className="search-box w-full min-w-0 sm:max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input 
                     type="text" 
                     placeholder="Parça kodu, adı veya lot no ara..." 
-                    className="search-input"
+                    className="search-input h-9 border-border/80 bg-background text-sm shadow-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 sm:justify-end">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="relative">
+                      <Button variant="outline" size="sm" className="h-9 border-border/80 bg-background shadow-sm">
                         <Filter className="mr-2 h-4 w-4" />
                         Filtrele
                         {activeFilterCount > 0 && (
@@ -377,103 +446,122 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">{records.length} kayıt</span>
+                  <span className="text-sm tabular-nums text-muted-foreground">
+                    <span className="font-semibold text-foreground">{records.length}</span>
+                    {' '}kayıt
+                  </span>
                 </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="data-table">
+            <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+              <table className="w-full min-w-[880px] border-collapse text-sm">
                 <thead>
-                  <tr>
+                  <tr className="border-b border-border bg-muted/40">
                     <th 
-                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      className="cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground transition-colors first:pl-4 hover:bg-muted/60 sm:px-4"
                       onClick={() => handleSort('quarantine_date')}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-1">
                         Tarih
                         {getSortIcon('quarantine_date')}
                       </div>
                     </th>
                     <th 
-                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      className="cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4 min-w-[200px]"
                       onClick={() => handleSort('part_name')}
                     >
-                      <div className="flex items-center">
-                        Parça Kodu/Adı
+                      <div className="flex items-center gap-1">
+                        Parça / lot
                         {getSortIcon('part_name')}
                       </div>
                     </th>
                     <th 
-                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      className="cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4"
                       onClick={() => handleSort('quantity')}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-1">
                         Miktar
                         {getSortIcon('quantity')}
                       </div>
                     </th>
                     <th 
-                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      className="cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4 min-w-[140px]"
                       onClick={() => handleSort('source_department')}
                     >
-                      <div className="flex items-center">
-                        Sebep Olan Birim
+                      <div className="flex items-center gap-1">
+                        Sebep olan birim
                         {getSortIcon('source_department')}
                       </div>
                     </th>
-                    <th className="whitespace-nowrap">Tedarikçi</th>
+                    <th className="min-w-[120px] whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground sm:px-4">Tedarikçi</th>
                     <th 
-                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      className="cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4"
                       onClick={() => handleSort('status')}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-1">
                         Durum
                         {getSortIcon('status')}
                       </div>
                     </th>
-                    <th>İlişkili Uygunsuzluk</th>
-                    <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                    <th className="min-w-[120px] px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground sm:px-4">Uygunsuzluk</th>
+                    <th className="w-14 px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground last:pr-4 sm:w-16">İşlem</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="8" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
+                    <tr><td colSpan="8" className="border-b border-border/50 p-10 text-center text-muted-foreground">Yükleniyor...</td></tr>
                   ) : records.length === 0 ? (
-                    <tr><td colSpan="8" className="text-center p-8 text-muted-foreground">Kayıt bulunamadı.</td></tr>
+                    <tr><td colSpan="8" className="border-b border-border/50 p-10 text-center text-muted-foreground">Kayıt bulunamadı.</td></tr>
                   ) : (
-                    records.map((item) => (
+                    records.map((item, rowIndex) => (
                       <motion.tr 
                         key={item.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: item.id * 0.05 }}
+                        className="group border-b border-border/50 transition-colors last:border-b-0 hover:bg-muted/40"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.15, delay: Math.min(rowIndex * 0.02, 0.35) }}
                       >
-                        <td className="text-foreground">{new Date(item.quarantine_date).toLocaleDateString('tr-TR')}</td>
-                        <td className="font-medium text-foreground">
-                            <div>{item.part_name}</div>
-                            <div className="text-xs text-muted-foreground">{item.part_code} / {item.lot_no}</div>
+                        <td className="px-3 py-3 align-middle text-foreground first:pl-4 sm:px-4">
+                          <span className="font-medium tabular-nums">{new Date(item.quarantine_date).toLocaleDateString('tr-TR')}</span>
                         </td>
-                        <td className="text-foreground">
+                        <td className="max-w-[min(100vw,20rem)] px-3 py-3 align-middle sm:px-4">
+                            <div className="font-semibold leading-snug text-foreground">{item.part_name}</div>
+                            <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                              {item.part_code && <span className="font-mono">{item.part_code}</span>}
+                              {item.lot_no && <span>· {item.lot_no}</span>}
+                            </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 align-middle tabular-nums text-foreground sm:px-4">
                             {item.status === 'Tamamlandı' && item.initial_quantity ? (
                                 <span className="line-through text-muted-foreground">{item.initial_quantity}</span>
                             ) : (
                                 item.quantity
                             )} {item.unit}
                             {item.status === 'Tamamlandı' && item.initial_quantity && (
-                                <span className="block text-xs text-muted-foreground">Başlangıç: {item.initial_quantity} {item.unit}</span>
+                                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">Başlangıç: {item.initial_quantity} {item.unit}</span>
                             )}
                         </td>
-                        <td className="text-foreground">{item.source_department || 'Belirtilmemiş'}</td>
-                        <td className="text-foreground text-sm max-w-[180px] truncate" title={item.supplier_name || ''}>
-                          {item.supplier_name || '—'}
+                        <td className="max-w-[220px] px-3 py-3 align-middle text-foreground sm:px-4">
+                          <span className="line-clamp-2 text-sm leading-snug">{item.source_department || 'Belirtilmemiş'}</span>
                         </td>
-                        <td>
-                          <span className={`status-indicator ${getStatusColor(item.status)}`}>{item.status}</span>
+                        <td className="max-w-[200px] px-3 py-3 align-middle text-sm sm:px-4" title={item.supplier_name || ''}>
+                          <span className="line-clamp-2 text-muted-foreground">{item.supplier_name || '—'}</span>
                         </td>
-                        <td>
+                        <td className="px-3 py-3 align-middle sm:px-4">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'max-w-[11rem] whitespace-normal px-2.5 py-1 text-left text-xs font-medium leading-snug',
+                              getStatusBadgeClass(item.status)
+                            )}
+                          >
+                            {item.status}
+                          </Badge>
+                        </td>
+                        <td className="max-w-[140px] px-3 py-3 align-middle sm:px-4">
                           {item.non_conformity_id && item.nc_number ? (
                             <Button 
                               variant="link" 
-                              className="p-0 h-auto" 
+                              className="h-auto p-0 text-sm font-medium" 
                               onClick={() => {
                                 if (onOpenNCView && item.non_conformity_id) {
                                   onOpenNCView({ id: item.non_conformity_id, nc_number: item.nc_number });
@@ -481,17 +569,19 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                               }}
                             >
                               {item.nc_number}
-                              <ExternalLink className="w-3 h-3 ml-1" />
+                              <ExternalLink className="ml-1 h-3 w-3 shrink-0" />
                             </Button>
-                          ) : '-'}
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
                         </td>
-                        <td>
+                        <td className="w-14 px-1 py-2 text-center align-middle sm:w-16 sm:px-2">
                             <AlertDialog>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
                                             <span className="sr-only">Menüyü aç</span>
-                                            <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
+                                            <MoreHorizontal className="h-4 w-4 shrink-0" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">

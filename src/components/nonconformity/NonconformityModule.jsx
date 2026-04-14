@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -44,7 +43,6 @@ import {
   normalizeSuggestionDetectionAreas,
   buildSuggestionAreasForRpc,
   clampThresholdPeriodDays,
-  MIN_THRESHOLD_PERIOD_DAYS,
   isCanonicalSuggestionDetectionArea,
 } from '@/lib/nonconformitySuggestionSources';
 
@@ -325,7 +323,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const eligible = records.filter(
       (r) =>
-        r.status === 'Açık' &&
+        !CONVERTED_STATUSES.has(r.status) &&
         !r.source_nc_id &&
         isSuggestionEligibleRecord(r)
     );
@@ -415,13 +413,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     if (!isSuggestionEligibleRecord(record)) return null;
 
     const stored = getStoredSuggestionType(record.status);
-    if (settings?.auto_suggest) {
-      // Hesaplanan öneri öncelikli; yoksa durumdaki "DF/8D Önerildi" (Analiz kartları için)
-      return suggestionMap.get(record.id) ?? stored ?? null;
-    }
-
-    return stored;
-  }, [suggestionMap, settings?.auto_suggest, isSuggestionEligibleRecord]);
+    return suggestionMap.get(record.id) ?? stored ?? null;
+  }, [suggestionMap, isSuggestionEligibleRecord]);
 
   const displayRecordNumberMap = useMemo(
     () => buildNonconformityDisplayNumberMap(records),
@@ -873,13 +866,22 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       const currentStatus = savedRecord.status;
       const isCurrentlySuggested = ['DF Önerildi', '8D Önerildi'].includes(currentStatus);
 
-      if (newStatus && currentStatus !== newStatus && !['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(currentStatus)) {
+      if (
+        newStatus &&
+        currentStatus !== newStatus &&
+        !CONVERTED_STATUSES.has(currentStatus)
+      ) {
         await supabase.from('nonconformity_records')
           .update({ status: newStatus })
           .eq('id', savedRecord.id);
         if (toastConfig) toast({ ...toastConfig, duration: 10000 });
         fetchRecords();
-      } else if (!newStatus && isCurrentlySuggested) {
+      } else if (
+        !newStatus &&
+        isCurrentlySuggested &&
+        !CONVERTED_STATUSES.has(currentStatus) &&
+        currentStatus !== 'Kapatıldı'
+      ) {
         await supabase.from('nonconformity_records')
           .update({ status: 'Açık' })
           .eq('id', savedRecord.id);
@@ -893,7 +895,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }, 500);
   };
 
-  // Dashboard istatistikleri
+  // Dashboard istatistikleri — öneri sayıları yalnızca kapatılmamış / dönüştürülmemiş kayıtlar (tutarlılık)
   const stats = useMemo(() => {
     const summary = records.reduce((acc, record) => {
       acc.total += 1;
@@ -904,9 +906,6 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
       if (record.status === 'Kapatıldı') {
         acc.closed += 1;
-        const sug = getEffectiveSuggestionForStats(record);
-        if (sug === 'DF') acc.dfSuggested += 1;
-        else if (sug === '8D') acc.eightDSuggested += 1;
         return acc;
       }
 
@@ -920,18 +919,17 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       }
 
       const suggestion = getEffectiveSuggestionForStats(record);
+      acc.open += 1;
 
       if (suggestion === 'DF') {
         acc.dfSuggested += 1;
         return acc;
       }
-
       if (suggestion === '8D') {
         acc.eightDSuggested += 1;
         return acc;
       }
 
-      acc.open += 1;
       return acc;
     }, {
       total: 0,
@@ -996,12 +994,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   /** Analiz: gruplara girmeyen ama tekil DF/8D önerisi olan açık kayıtlar */
   const individualSuggestionRecords = useMemo(() => {
-    if (!settings?.auto_suggest) return [];
     const out = [];
     for (let i = 0; i < records.length; i++) {
       const r = records[i];
-      if (r.status !== 'Açık' || r.source_nc_id) continue;
-      if (isNonconformityLinkedToDf8d(r)) continue;
+      if (isNonconformityLinkedToDf8d(r) || CONVERTED_STATUSES.has(r.status)) continue;
+      if (r.source_nc_id) continue;
       if (!isSuggestionEligibleRecord(r)) continue;
       const s = suggestionMap.get(r.id) ?? getStoredSuggestionType(r.status);
       if (s !== 'DF' && s !== '8D') continue;
@@ -1009,7 +1006,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       out.push({ record: r, suggestion: s });
     }
     return out;
-  }, [records, settings?.auto_suggest, suggestionMap, recordGroupMap, isSuggestionEligibleRecord]);
+  }, [records, suggestionMap, recordGroupMap, isSuggestionEligibleRecord]);
 
   /** Analiz: TÜM DF/8D öneri/dönüştürme geçmişi (kapatılmış dahil) */
   const allSuggestedRecords = useMemo(() => {
@@ -1080,15 +1077,84 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     return out;
   }, [records, settings, suggestionMap, partCodeAnalysisData, effectivePeriodDays]);
 
-  const [suggestionDetailTab, setSuggestionDetailTab] = useState('all');
+  /** Dönüştürülmeyi bekleyen (DF/8D henüz açılmamış; Kapatıldı dahil) */
+  const isPendingConversionRow = useCallback((item) => {
+    const r = item.record;
+    return !isNonconformityLinkedToDf8d(r) && !CONVERTED_STATUSES.has(r.status);
+  }, []);
+
+  /**
+   * Bireysel eşik + toplu grup önerisi: gruptaki kayıtlar tek başına allSuggestedRecords'a
+   * düşmeyebilir; bekleyen sayısı ve sekme bu birleşik liste ile uyumludur.
+   */
+  const pendingConversionRows = useMemo(() => {
+    const byId = new Map();
+    allSuggestedRecords.forEach((item) => {
+      if (isPendingConversionRow(item)) {
+        byId.set(item.record.id, item);
+      }
+    });
+    records.forEach((r) => {
+      if (isNonconformityLinkedToDf8d(r) || CONVERTED_STATUSES.has(r.status)) return;
+      if (r.source_nc_id) return;
+      if (!isSuggestionEligibleRecord(r)) return;
+      const g = recordGroupMap.get(r.id);
+      if (!g?.suggestion) return;
+      if (byId.has(r.id)) return;
+      byId.set(r.id, {
+        record: r,
+        suggestion: g.suggestion,
+        reason: `Toplu öneri — ${g.reason}`,
+        linked: getLinkedNcMeta(r),
+        statusLabel: r.status,
+      });
+    });
+    return Array.from(byId.values());
+  }, [records, allSuggestedRecords, isPendingConversionRow, recordGroupMap, isSuggestionEligibleRecord]);
+
+  const pendingConversionCount = pendingConversionRows.length;
+
+  const pendingConversionIdSet = useMemo(
+    () => new Set(pendingConversionRows.map((x) => x.record.id)),
+    [pendingConversionRows]
+  );
+
+  const [suggestionDetailTab, setSuggestionDetailTab] = useState('pending');
+
   const filteredSuggestions = useMemo(() => {
-    if (suggestionDetailTab === 'all') return allSuggestedRecords;
-    if (suggestionDetailTab === '8d') return allSuggestedRecords.filter(s => s.suggestion === '8D');
-    if (suggestionDetailTab === 'df') return allSuggestedRecords.filter(s => s.suggestion === 'DF');
-    if (suggestionDetailTab === 'converted') return allSuggestedRecords.filter(s => CONVERTED_STATUSES.has(s.record.status));
-    if (suggestionDetailTab === 'open') return allSuggestedRecords.filter(s => s.record.status === 'Açık' || s.record.status === 'DF Önerildi' || s.record.status === '8D Önerildi');
-    return allSuggestedRecords;
-  }, [allSuggestedRecords, suggestionDetailTab]);
+    let rows = allSuggestedRecords;
+    if (suggestionDetailTab === '8d') rows = rows.filter(s => s.suggestion === '8D');
+    else if (suggestionDetailTab === 'df') rows = rows.filter(s => s.suggestion === 'DF');
+    else if (suggestionDetailTab === 'converted') rows = rows.filter(s => CONVERTED_STATUSES.has(s.record.status));
+    else if (suggestionDetailTab === 'pending') {
+      rows = pendingConversionRows;
+    }
+
+    const statusRankPending = { '8D Önerildi': 0, 'DF Önerildi': 1, Açık: 2, Kapatıldı: 3 };
+    const sugRank = { '8D': 0, DF: 1 };
+    const dateOf = (x) => new Date(x.record.detection_date || x.record.created_at).getTime();
+
+    return [...rows].sort((a, b) => {
+      if (suggestionDetailTab === 'pending') {
+        const ar = statusRankPending[a.record.status] ?? 99;
+        const br = statusRankPending[b.record.status] ?? 99;
+        if (ar !== br) return ar - br;
+      } else if (suggestionDetailTab === 'all') {
+        const pa = pendingConversionIdSet.has(a.record.id) ? 0 : 1;
+        const pb = pendingConversionIdSet.has(b.record.id) ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+      } else if (suggestionDetailTab === '8d' || suggestionDetailTab === 'df') {
+        const pa = pendingConversionIdSet.has(a.record.id) ? 0 : 1;
+        const pb = pendingConversionIdSet.has(b.record.id) ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+      }
+
+      const as = sugRank[a.suggestion] ?? 2;
+      const bs = sugRank[b.suggestion] ?? 2;
+      if (as !== bs) return as - bs;
+      return dateOf(b) - dateOf(a);
+    });
+  }, [allSuggestedRecords, suggestionDetailTab, pendingConversionRows, pendingConversionIdSet]);
   const [suggestionVisibleCount, setSuggestionVisibleCount] = useState(30);
 
   return (
@@ -1127,7 +1193,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               value={smartGroups.length > 0 ? `${smartGroups.length}` : '0'}
               icon={<Layers className="h-4 w-4" />}
               color="text-amber-600"
-              subtitle={smartGroups.length > 0 ? `${smartGroups.reduce((s, g) => s + g.records.length, 0)} kayıt` : undefined}
+              subtitle={
+                smartGroups.length > 0
+                  ? `${smartGroups.reduce((s, g) => s + g.records.length, 0)} kayıt`
+                  : 'Aynı tespit alanı+kategoride eşik (adet/kayıt)'
+              }
             />
             <StatCard title="Dönüştürülen" value={stats.converted} icon={<ExternalLink className="h-4 w-4" />} color="text-emerald-600" />
             <StatCard title="Kapatılan" value={stats.closed} icon={<FileText className="h-4 w-4" />} color="text-gray-500" />
@@ -1218,7 +1288,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 </thead>
                 <tbody>
                   {filteredRecords.slice(0, visibleCount).map((record) => {
-                    const suggestion = suggestionMap.get(record.id) ?? null;
+                    const suggestion =
+                      suggestionMap.get(record.id) ?? getStoredSuggestionType(record.status);
                     const partCount = record.part_code ? partCodeAnalysisData[record.part_code]?.inPeriod || 0 : 0;
                     const catCount = record.category ? categoryAnalysisData[record.category]?.inPeriod || 0 : 0;
                     const repeatCount = Math.max(partCount, catCount);
@@ -1308,25 +1379,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                 </div>
                               );
                             }
-                            if (record.status === 'Kapatıldı' && suggestion && settings?.auto_suggest) {
-                              return (
-                                <div className="flex flex-col items-start gap-0.5">
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[9px] px-1.5 py-0 ${
-                                      suggestion === '8D'
-                                        ? 'border-red-200 text-red-700 bg-red-50'
-                                        : 'border-indigo-200 text-indigo-700 bg-indigo-50'
-                                    }`}
-                                  >
-                                    {suggestion} önerisi
-                                  </Badge>
-                                  <span className="text-[9px] text-muted-foreground">Analizde korunur</span>
-                                </div>
-                              );
-                            }
                             const group = recordGroupMap.get(record.id);
-                            if (group && settings?.auto_suggest) {
+                            if (group) {
                               const is8D = group.suggestion === '8D';
                               return (
                                 <div className="flex flex-col items-start gap-0.5">
@@ -1348,7 +1402,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                 </div>
                               );
                             }
-                            if (suggestion && settings?.auto_suggest && record.status !== 'Kapatıldı') {
+                            if (suggestion && !CONVERTED_STATUSES.has(record.status)) {
                               return (
                                 <div className="flex flex-col items-start gap-1">
                                   <Button
@@ -1481,16 +1535,82 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <DashboardCard title="Toplam Kayıt" value={stats.total} color="bg-gray-500" />
             <DashboardCard title="Açık Kayıtlar" value={stats.open} color="bg-blue-500" />
-            <DashboardCard title="DF/8D Önerisi" value={stats.dfSuggested + stats.eightDSuggested} color="bg-amber-500" />
+            <DashboardCard
+              title="Bekleyen DF/8D"
+              value={pendingConversionCount}
+              color="bg-amber-500"
+            />
             <DashboardCard title="Dönüştürülen" value={stats.converted} color="bg-green-500" />
           </div>
 
-          <Alert className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
-            <AlertDescription className="text-xs text-amber-900 dark:text-amber-100">
-              Tekrar bazlı DF/8D önerileri, değerlendirme periyodu içindeki kayıt sayısına göre hesaplanır.
-              Periyot en az <strong>{MIN_THRESHOLD_PERIOD_DAYS} gün</strong> olarak uygulanır; çok kısa süre seçildiğinde de tekrarlar görülebilir.
-            </AlertDescription>
-          </Alert>
+          {/* Personel analizi */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-amber-600" />
+                  En Çok Sorumlu Personeller
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Sorumlu oldukları uygunsuzluk sayısına göre</p>
+              </CardHeader>
+              <CardContent>
+                {stats.topResponsiblePersonnel.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Veri yok</p>
+                ) : (
+                  <div className="space-y-3">
+                    {stats.topResponsiblePersonnel.map(([name, count]) => {
+                      const maxCount = stats.topResponsiblePersonnel[0]?.[1] || 1;
+                      const pct = (count / maxCount) * 100;
+                      return (
+                        <div key={name} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium truncate">{name}</span>
+                            <span className="font-semibold text-amber-600 shrink-0 ml-2">{count}</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div className="h-2 rounded-full bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4 text-indigo-600" />
+                  En Çok Tespit Eden Personeller
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Raporladıkları uygunsuzluk sayısına göre</p>
+              </CardHeader>
+              <CardContent>
+                {stats.topDetectedByPersonnel.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Veri yok</p>
+                ) : (
+                  <div className="space-y-3">
+                    {stats.topDetectedByPersonnel.map(([name, count]) => {
+                      const maxCount = stats.topDetectedByPersonnel[0]?.[1] || 1;
+                      const pct = (count / maxCount) * 100;
+                      return (
+                        <div key={name} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium truncate">{name}</span>
+                            <span className="font-semibold text-indigo-600 shrink-0 ml-2">{count}</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div className="h-2 rounded-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* En çok tekrarlayan parça kodları */}
@@ -1584,14 +1704,20 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
                   Hangi uygunsuzluğa, neden DF veya 8D önerildi / dönüştürüldü — tüm geçmiş dahil.
+                  <span className="block mt-1">
+                    <strong>Dönüştürülmeyi bekleyenler</strong>, DF/8D kaydı henüz açılmamış satırlardır (Açık, Kapatıldı, DF/8D önerildi fark etmez).
+                  </span>
                 </p>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {[
                     { key: 'all', label: `Tümü (${allSuggestedRecords.length})` },
+                    {
+                      key: 'pending',
+                      label: `Dönüştürülmeyi bekleyenler (${pendingConversionCount})`,
+                    },
                     { key: '8d', label: `8D (${allSuggestedRecords.filter(s => s.suggestion === '8D').length})` },
                     { key: 'df', label: `DF (${allSuggestedRecords.filter(s => s.suggestion === 'DF').length})` },
                     { key: 'converted', label: `Dönüştürülen (${allSuggestedRecords.filter(s => CONVERTED_STATUSES.has(s.record.status)).length})` },
-                    { key: 'open', label: `Açık/Bekleyen (${allSuggestedRecords.filter(s => s.record.status === 'Açık' || s.record.status === 'DF Önerildi' || s.record.status === '8D Önerildi').length})` },
                   ].map(tab => (
                     <Button
                       key={tab.key}
@@ -1619,10 +1745,14 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         <th className="px-3 py-2 font-medium text-muted-foreground">Neden Önerildi</th>
                         <th className="px-3 py-2 font-medium text-muted-foreground">Durum</th>
                         <th className="px-3 py-2 font-medium text-muted-foreground">Bağlı DF/8D</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground text-right">İşlem</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {filteredSuggestions.slice(0, suggestionVisibleCount).map(({ record, suggestion, reason, linked, statusLabel }) => (
+                      {filteredSuggestions.slice(0, suggestionVisibleCount).map(({ record, suggestion, reason, linked, statusLabel }) => {
+                        const canConvertRow =
+                          !isNonconformityLinkedToDf8d(record) && !CONVERTED_STATUSES.has(record.status);
+                        return (
                         <tr
                           key={record.id}
                           className="hover:bg-muted/30 transition-colors cursor-pointer"
@@ -1668,8 +1798,37 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                               <span className="text-[10px] text-muted-foreground">—</span>
                             )}
                           </td>
+                          <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                            {canConvertRow ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="h-7 text-[10px] gap-1 shrink-0"
+                                title={`${suggestion} aç — onay penceresi`}
+                                onClick={() =>
+                                  openConvertDialog({
+                                    record,
+                                    type: suggestion,
+                                    source: 'suggestion',
+                                    suggestedType: suggestion,
+                                  })
+                                }
+                              >
+                                {suggestion === '8D' ? (
+                                  <AlertOctagon className="h-3 w-3" />
+                                ) : (
+                                  <FileText className="h-3 w-3" />
+                                )}
+                                Dönüştür
+                              </Button>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">—</span>
+                            )}
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1689,7 +1848,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             </Card>
           )}
 
-          {/* Toplu Dönüştürme Önerileri — sadece açık kayıtlardan oluşan gruplar */}
+          {/* Toplu Dönüştürme — DF/8D henüz açılmamış (durumdan bağımsız) kayıtlar */}
           {smartGroups.length > 0 && (
             <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-900/10">
               <CardHeader>
@@ -1698,7 +1857,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                   Toplu Dönüştürme Önerileri ({smartGroups.length} grup — {smartGroups.reduce((s, g) => s + g.records.length, 0)} kayıt)
                 </CardTitle>
                 <p className="text-[11px] text-amber-700/70 dark:text-amber-400/70">
-                  Açık kayıtlar: aynı tespit alanı ve kategorideki uygunsuzluklar gruplandırıldı. Tek seferde toplu DF/8D açarak sistemi verimli kullanın.
+                  DF/8D henüz açılmamış kayıtlar (önerili, kapalı vb. dahil) aynı tespit alanı ve kategoride gruplandı. Tek seferde toplu DF/8D açabilirsiniz.
                 </p>
               </CardHeader>
               <CardContent>
@@ -1776,75 +1935,6 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               </CardContent>
             </Card>
           )}
-
-          {/* Personel analizi */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-amber-600" />
-                  En Çok Sorumlu Personeller
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">Sorumlu oldukları uygunsuzluk sayısına göre</p>
-              </CardHeader>
-              <CardContent>
-                {stats.topResponsiblePersonnel.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Veri yok</p>
-                ) : (
-                  <div className="space-y-3">
-                    {stats.topResponsiblePersonnel.map(([name, count]) => {
-                      const maxCount = stats.topResponsiblePersonnel[0]?.[1] || 1;
-                      const pct = (count / maxCount) * 100;
-                      return (
-                        <div key={name} className="space-y-1">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium truncate">{name}</span>
-                            <span className="font-semibold text-amber-600 shrink-0 ml-2">{count}</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div className="h-2 rounded-full bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4 text-indigo-600" />
-                  En Çok Tespit Eden Personeller
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">Raporladıkları uygunsuzluk sayısına göre</p>
-              </CardHeader>
-              <CardContent>
-                {stats.topDetectedByPersonnel.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Veri yok</p>
-                ) : (
-                  <div className="space-y-3">
-                    {stats.topDetectedByPersonnel.map(([name, count]) => {
-                      const maxCount = stats.topDetectedByPersonnel[0]?.[1] || 1;
-                      const pct = (count / maxCount) * 100;
-                      return (
-                        <div key={name} className="space-y-1">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium truncate">{name}</span>
-                            <span className="font-semibold text-indigo-600 shrink-0 ml-2">{count}</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div className="h-2 rounded-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
         {/* AYARLAR — tam genişlik (dar A4 benzeri sütun yok) */}

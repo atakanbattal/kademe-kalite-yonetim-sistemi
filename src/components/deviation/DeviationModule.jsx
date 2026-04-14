@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+
+const QUARANTINE_DEVIATION_FLOW_KEY = 'kademe_qms_quarantine_deviation_flow';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,6 +25,7 @@ const DeviationModule = ({ onOpenNCForm }) => {
     const { toast } = useToast();
     const { deviations, loading, refreshData } = useData();
     const [isFormOpen, setFormOpen] = useState(false);
+    const [quarantineDecisionFinalize, setQuarantineDecisionFinalize] = useState(null);
     const [isDetailOpen, setDetailOpen] = useState(false);
     const [isApprovalOpen, setApprovalOpen] = useState(false);
     const [isCreateNCOpen, setCreateNCOpen] = useState(false);
@@ -35,6 +38,22 @@ const DeviationModule = ({ onOpenNCForm }) => {
         source: 'all',
         dateRange: { from: null, to: null },
     });
+
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem(QUARANTINE_DEVIATION_FLOW_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (parsed?.quarantineRecordId) {
+                setQuarantineDecisionFinalize(parsed);
+                setActiveTab('list');
+                setFormOpen(true);
+                setSelectedDeviation(null);
+            }
+        } catch {
+            sessionStorage.removeItem(QUARANTINE_DEVIATION_FLOW_KEY);
+        }
+    }, []);
 
     const filteredDeviations = useMemo(() => {
         return deviations.filter(d => {
@@ -105,6 +124,7 @@ const DeviationModule = ({ onOpenNCForm }) => {
     }, [deviations, filters]);
 
     const handleOpenForm = (deviation = null) => {
+        setQuarantineDecisionFinalize(null);
         setSelectedDeviation(deviation);
         setFormOpen(true);
     };
@@ -240,9 +260,20 @@ const DeviationModule = ({ onOpenNCForm }) => {
             {isFormOpen && (
                 <DeviationFormModal
                     isOpen={isFormOpen}
-                    setIsOpen={setFormOpen}
+                    setIsOpen={(open) => {
+                        if (!open) {
+                            setQuarantineDecisionFinalize(null);
+                            sessionStorage.removeItem(QUARANTINE_DEVIATION_FLOW_KEY);
+                        }
+                        setFormOpen(open);
+                    }}
                     refreshData={refreshData}
                     existingDeviation={selectedDeviation}
+                    quarantineDecisionFinalize={quarantineDecisionFinalize}
+                    onConsumedQuarantineDecision={() => {
+                        setQuarantineDecisionFinalize(null);
+                        sessionStorage.removeItem(QUARANTINE_DEVIATION_FLOW_KEY);
+                    }}
                 />
             )}
 

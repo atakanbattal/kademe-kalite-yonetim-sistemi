@@ -25,6 +25,8 @@ export function normalizeQuarantineAttachments(raw) {
                 path: item.path || '',
                 mime_type: item.mime_type || null,
                 public_url: item.public_url || null,
+                kind: item.kind || null,
+                decision: item.decision || null,
             };
         })
         .filter((x) => x.path);

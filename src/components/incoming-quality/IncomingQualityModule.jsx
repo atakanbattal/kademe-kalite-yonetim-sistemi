@@ -18,6 +18,7 @@ import {
   normalizeIncomingPartCode,
   buildControlPlanNormalizedKeySet,
 } from '@/lib/incomingQualityPartCodes';
+import { normalizeTurkishForSearch, sanitizeTermForIlikeOrFilter } from '@/lib/utils';
 import IncomingQualityFolderDownloadModal from '@/components/incoming-quality/IncomingQualityFolderDownloadModal';
 
 const ControlPlanManagement = lazy(() => import('@/components/incoming-quality/ControlPlanManagement'));
@@ -134,9 +135,11 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const buildFilterQuery = useCallback((query, currentFilters) => {
         if (currentFilters.searchTerm && currentFilters.searchTerm.trim()) {
-            const searchTerm = currentFilters.searchTerm.trim();
+            const safe = sanitizeTermForIlikeOrFilter(currentFilters.searchTerm);
+            const normalized = normalizeTurkishForSearch(safe);
+            if (!normalized) return query;
             try {
-                query = query.or(`part_name.ilike.%${searchTerm}%,part_code.ilike.%${searchTerm}%,record_no.ilike.%${searchTerm}%,supplier_name.ilike.%${searchTerm}%`);
+                query = query.ilike('search_text_normalized', `%${normalized}%`);
             } catch (error) {
                 console.error('Search query oluşturma hatası:', error);
             }

@@ -352,6 +352,14 @@ export const DataProvider = ({ children }) => {
         try {
             const newState = {};
 
+            // Personel üst departman havuzu ile cost_settings senkron (Kalite Maliyeti / ayarlar listeleri)
+            try {
+                const { error: syncCsErr } = await supabase.rpc('sync_cost_settings_from_personnel');
+                if (syncCsErr) console.warn('sync_cost_settings_from_personnel', syncCsErr);
+            } catch (e) {
+                console.warn('sync_cost_settings_from_personnel', e);
+            }
+
             // DALGA 0: Minimal veri - arayüz hemen açılsın
             console.time('⚡ Instant data fetch');
             const instantResults = await Promise.allSettled(Object.values(instantPromises));
