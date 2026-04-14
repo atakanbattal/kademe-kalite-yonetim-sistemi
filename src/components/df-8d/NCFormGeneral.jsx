@@ -217,6 +217,17 @@ const NCFormGeneral = ({
         }
     }, [personnel, formData.requesting_person, formData.requesting_unit, setFormData]);
 
+    // Sorumlu kişi ile ilgili birimi hizala (üst departman / birim — kaydet ile aynı kural)
+    useEffect(() => {
+        if (!personnel?.length || !formData.responsible_person || isSupplierNC) return;
+        if (formData.department === 'Tedarikçi' || formData.department === 'Girdi Kalite') return;
+        const selectedPerson = personnel.find((p) => p.full_name === formData.responsible_person);
+        const targetUnit = ncOrganizationalUnitFromPersonnel(selectedPerson);
+        if (selectedPerson && targetUnit && formData.department !== targetUnit) {
+            setFormData((prev) => ({ ...prev, department: targetUnit }));
+        }
+    }, [personnel, formData.responsible_person, formData.department, isSupplierNC, setFormData]);
+
     useEffect(() => {
         const fetchSuppliers = async () => {
             const { data, error } = await supabase

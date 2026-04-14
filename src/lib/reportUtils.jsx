@@ -1,7 +1,7 @@
 import { format, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { toCamelCase, getAttachmentDisplayName } from './utils';
+import { toCamelCase, getAttachmentDisplayName, formatDateOnlyLocal } from './utils';
 import { normalizeQuarantineAttachments } from './quarantineAttachments';
 import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
 
@@ -232,6 +232,32 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 				}
 			}
 
+			if (type === 'training_exam_results' && normalizedRecord.id) {
+				try {
+					const { data: fullTraining, error: trainingFetchError } = await supabase
+						.from('trainings')
+						.select(`
+							*,
+							training_exams (*),
+							training_participants (
+								id,
+								status,
+								score,
+								completed_at,
+								personnel_id,
+								personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+							)
+						`)
+						.eq('id', normalizedRecord.id)
+						.maybeSingle();
+					if (!trainingFetchError && fullTraining) {
+						recordToStore = normalizeRecord(fullTraining);
+					}
+				} catch (trainingErr) {
+					console.warn('Sınav sonuçları eğitim kaydı çekilemedi, gönderilen veri kullanılacak:', trainingErr);
+				}
+			}
+
 			// Veriyi localStorage'a kaydet (zaten normalize edilmiş)
 			const normalizedRecordToStore = recordToStore;
 			localStorage.setItem(storageKey, JSON.stringify(normalizedRecordToStore));
@@ -353,6 +379,15 @@ const getReportTitle = (record, type) => {
 			return record.title
 				? `Eğitim Kayıt Raporu — ${record.title}`
 				: 'Eğitim Kayıt ve Katılım Raporu';
+		case 'training_exam_results': {
+			const code = safeReportTitleSegment(record.training_code || '', 48);
+			const title = safeReportTitleSegment(record.title || 'Eğitim', 120);
+			const sd = formatDateOnlyLocal(record.start_date, 'dd.MM.yyyy') || '';
+			const ed = formatDateOnlyLocal(record.end_date, 'dd.MM.yyyy') || '';
+			const period = sd && ed ? `${sd} – ${ed}` : sd || ed || '';
+			const parts = ['Sınav Sonuçları', code || title, period].filter(Boolean);
+			return parts.join(' — ');
+		}
 		case 'incoming_control_plans':
 			return `Gelen Kontrol Planı-${record.part_code || 'Bilinmiyor'}`;
 		case 'inkr_management':
@@ -418,6 +453,7 @@ const getFormNumber = (type) => {
 		exam_paper: 'FR-EGT-002',
 		polyvalence_matrix: 'FR-EGT-003',
 		training_record: 'FR-EGT-004',
+		training_exam_results: 'FR-EGT-005',
 		dynamic_balance: 'FR-KAL-031',
 		nonconformity_record: 'FR-KAL-032',
 		nonconformity_record_list: 'FR-KAL-032-A',
@@ -596,7 +632,7 @@ const generateTrainingRecordReportHtml = (record) => {
 		const n = normalizeTrDisplay(s);
 		return n === '' ? '—' : escapeHtml(n).replace(/\n/g, '<br>');
 	};
-	const fmtDateLong = (d) => (d ? format(new Date(d), 'dd MMMM yyyy', { locale: tr }) : '—');
+	const fmtDateLong = (d) => formatDateOnlyLocal(d, 'dd MMMM yyyy') || '—';
 
 	const localLogoUrl = getLogoUrl('logo.png');
 	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
@@ -695,6 +731,114 @@ const generateTrainingRecordReportHtml = (record) => {
 					<div class="sub">Ad Soyad ve İmza</div>
 				</div>
 			</div>
+		</div>
+	`;
+};
+
+const generateTrainingExamResultsReportHtml = (record) => {
+	const escapeHtml = (v) => {
+		if (v == null || v === '') return '';
+		return String(v)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	};
+	const normalizeTrDisplay = (v) => {
+		if (v == null || v === '') return '';
+		return String(v)
+			.normalize('NFC')
+			.replace(/\u0069\u0307/g, '\u0069')
+			.replace(/\u0049\u0307/g, '\u0130')
+			.replace(/\u0130\u0307/g, '\u0130');
+	};
+	const esc = (v) => escapeHtml(normalizeTrDisplay(v));
+	const fmtDateLong = (d) => formatDateOnlyLocal(d, 'dd MMMM yyyy') || '—';
+	const fmtDateShort = (d) => formatDateOnlyLocal(d, 'dd.MM.yyyy') || '—';
+
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
+
+	const exams = record.training_exams || [];
+	const exam = exams[0];
+	const participants = [...(record.training_participants || [])].sort((a, b) =>
+		normalizeTrDisplay(a.personnel?.full_name || '').localeCompare(normalizeTrDisplay(b.personnel?.full_name || ''), 'tr')
+	);
+
+	const participantsRows = participants.length
+		? participants.map((p, index) => {
+			let resultCell = esc(p.status) || '—';
+			if (p.status === 'Tamamlandı' && exam && p.score !== null && p.score !== undefined) {
+				resultCell = p.score >= exam.passing_score
+					? '<span style="color:#059669;font-weight:700;">Geçti</span>'
+					: '<span style="color:#dc2626;font-weight:700;">Kaldı</span>';
+			}
+			return `
+			<tr>
+				<td>${index + 1}</td>
+				<td>${esc(p.personnel?.full_name) || '—'}</td>
+				<td>${esc(exam?.title) || '—'}</td>
+				<td>${p.score !== null && p.score !== undefined ? esc(String(p.score)) : '—'}</td>
+				<td>${exam?.passing_score != null ? esc(String(exam.passing_score)) : '—'}</td>
+				<td>${resultCell}</td>
+				<td>${p.completed_at ? fmtDateShort(p.completed_at) : '—'}</td>
+			</tr>`;
+		}).join('')
+		: '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:12px;">Kayıtlı katılımcı yok.</td></tr>';
+
+	const formNo = getFormNumber('training_exam_results');
+
+	return `
+		<div class="report-header training-record-report-header">
+			<div class="report-logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
+			</div>
+			<div class="company-title training-record-company-block">
+				<h1>KADEME A.Ş.</h1>
+				<p class="company-subline">Kalite Yönetim Sistemi</p>
+				<p class="training-record-doc-title">Sınav sonuçları raporu</p>
+			</div>
+			<div class="training-record-header-spec">
+				<div class="training-record-spec-title">Form bilgileri</div>
+				<div class="training-record-spec-row"><span class="spec-k">Doküman no</span><span class="spec-v">${formNo}</span></div>
+				<div class="training-record-spec-row"><span class="spec-k">Eğitim kodu</span><span class="spec-v">${esc(record.training_code) || '—'}</span></div>
+				<div class="training-record-spec-row"><span class="spec-k">Revizyon</span><span class="spec-v">00</span></div>
+				<div class="training-record-spec-row"><span class="spec-k">Sayfa</span><span class="spec-v">1 / 1</span></div>
+			</div>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">1. EĞİTİM TANIMI (AYIRT EDİCİ BİLGİLER)</h2>
+			<table class="info-table">
+				<tbody>
+					<tr><td>Eğitim başlığı</td><td>${esc(record.title) || '—'}</td></tr>
+					<tr><td>Eğitim kodu</td><td>${esc(record.training_code) || '—'}</td></tr>
+					<tr><td>Eğitim başlangıç tarihi</td><td>${fmtDateLong(record.start_date)}</td></tr>
+					<tr><td>Eğitim tamamlanma tarihi</td><td>${fmtDateLong(record.end_date)}</td></tr>
+					<tr><td>Kategori</td><td>${esc(record.category) || '—'}</td></tr>
+					<tr><td>Eğitmen</td><td>${esc(record.instructor) || '—'}</td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">2. SINAV SONUÇLARI</h2>
+			<table class="training-participants-table training-exam-results-table">
+				<thead>
+					<tr>
+						<th style="width:36px;">#</th>
+						<th>Katılımcı</th>
+						<th style="width:22%;">Sınav</th>
+						<th style="width:10%;">Puan</th>
+						<th style="width:10%;">Geçme notu</th>
+						<th style="width:12%;">Sonuç</th>
+						<th style="width:14%;">Tamamlanma</th>
+					</tr>
+				</thead>
+				<tbody>
+					${participantsRows}
+				</tbody>
+			</table>
 		</div>
 	`;
 };
@@ -819,6 +963,11 @@ const trainingRecordReportStyles = `
 		vertical-align: top;
 	}
 	.training-participants-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 6px; }
+	.training-exam-results-table { font-size: 9px; }
+	.training-exam-results-table th:nth-child(4),
+	.training-exam-results-table th:nth-child(5),
+	.training-exam-results-table td:nth-child(4),
+	.training-exam-results-table td:nth-child(5) { text-align: center; }
 	.training-participants-table thead { display: table-header-group; }
 	.training-participants-table thead th { background: #1e40af; color: #fff; padding: 8px; text-align: left; font-weight: 600; }
 	.training-participants-table td { border: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: middle; }
@@ -7220,6 +7369,8 @@ h3 {
 		reportContentHtml = generateWPSReportHtml(record);
 	} else if (type === 'certificate') {
 		reportContentHtml = generateCertificateReportHtml(record);
+	} else if (type === 'training_exam_results') {
+		reportContentHtml = generateTrainingExamResultsReportHtml(normalizedRecord);
 	} else if (type === 'training_record') {
 		reportContentHtml = generateTrainingRecordReportHtml(record);
 	} else if (type === 'exam_paper') {
@@ -7491,7 +7642,7 @@ h3 {
 	const formNumber = getFormNumber(normalizedRecord.report_type || type);
 	const isCertificate = type === 'certificate';
 	const isExam = type === 'exam_paper';
-	const isTrainingRecord = type === 'training_record';
+	const isTrainingRecord = type === 'training_record' || type === 'training_exam_results';
 
 	const defaultStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');

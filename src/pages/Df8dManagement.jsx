@@ -5,11 +5,12 @@ import { useToast } from '@/components/ui/use-toast';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayoutDashboard, List, Plus, FileText } from 'lucide-react';
+import { LayoutDashboard, List, Plus, FileText, FolderDown } from 'lucide-react';
 import NCDashboard from '@/components/df-8d/NCDashboard';
 import NCTable from '@/components/df-8d/NCTable';
 import NCFilters from '@/components/df-8d/NCFilters';
 import NCReportFilterModal from '@/components/df-8d/NCReportFilterModal';
+import Df8dFolderDownloadModal from '@/components/df-8d/Df8dFolderDownloadModal';
 import { RejectModal, ForwardNCModal, InProgressModal, UpdateDueDateModal } from '@/components/df-8d/modals/ActionModals';
 import CloseNCModal from '@/components/df-8d/modals/CloseNCModal';
 import RecordListModal from '@/components/df-8d/modals/RecordListModal';
@@ -18,6 +19,7 @@ import { parseISO, format, differenceInDays, isValid } from 'date-fns';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
+import { canonicalizeNonConformityOrgFields } from '@/lib/departmentCanonicalization';
 
 const getDepartmentName = (department) => {
     const value = String(department || '').trim();
@@ -180,7 +182,17 @@ const buildDepartmentSelectionLabel = (selectedDepartments, availableDepartmentC
 };
 
 const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
-        const { nonConformities, suppliers, refreshData, loading } = useData();
+        const { nonConformities, suppliers, refreshData, loading, unitCostSettings, personnel } = useData();
+
+        const departmentCanonCtx = useMemo(
+            () => ({ unitCostSettings: unitCostSettings || [], personnel: personnel || [] }),
+            [unitCostSettings, personnel]
+        );
+
+        const normalizedNonConformities = useMemo(
+            () => (nonConformities || []).map((r) => canonicalizeNonConformityOrgFields(r, departmentCanonCtx)),
+            [nonConformities, departmentCanonCtx]
+        );
         const { toast } = useToast();
         const [activeTab, setActiveTab] = useState('dashboard');
         const [filters, setFilters] = useState({
@@ -195,6 +207,7 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         
         const [recordListModal, setRecordListModal] = useState({ isOpen: false, title: '', records: [] });
         const [reportModal, setReportModal] = useState({ isOpen: false, reportType: 'list' });
+        const [isFolderDownloadOpen, setFolderDownloadOpen] = useState(false);
 
         const [actionModals, setActionModals] = useState({
             reject: { isOpen: false, record: null },
@@ -217,12 +230,12 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         };
 
         const filteredRecords = useMemo(() => {
-            return filterNonConformityRecords(nonConformities, filters);
-        }, [nonConformities, filters]);
+            return filterNonConformityRecords(normalizedNonConformities, filters);
+        }, [normalizedNonConformities, filters]);
 
         const reportableRecords = useMemo(() => (
-            filterNonConformityRecords(nonConformities, filters, { ignoreDepartment: true })
-        ), [nonConformities, filters]);
+            filterNonConformityRecords(normalizedNonConformities, filters, { ignoreDepartment: true })
+        ), [normalizedNonConformities, filters]);
 
         const handleToggleStatus = async (record) => {
             if (record.status === 'Kapatıldı' || record.status === 'Reddedildi') {
@@ -462,6 +475,18 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
             });
         }, [activeTab, reportableRecords.length, toast]);
 
+        const handleOpenFolderDownloadModal = useCallback(() => {
+            if (reportableRecords.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'İndirmek için en az bir kayıt olmalıdır. Filtreleri gevşetin.',
+                });
+                return;
+            }
+            setFolderDownloadOpen(true);
+        }, [reportableRecords.length, toast]);
+
         const handleGenerateSelectedReport = useCallback(({ selectedDepartments, availableDepartmentCount }) => {
             const selectedDepartmentSet = new Set(selectedDepartments.map((department) => getDepartmentName(department)));
             const selectedRecords = reportableRecords.filter((record) => (
@@ -510,13 +535,18 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                                         <span className="hidden xs:inline">Liste</span>
                                     </TabsTrigger>
                                 </TabsList>
-                                <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    <Button onClick={handleOpenReportModal} size="sm" variant="outline" className="flex-1 sm:flex-none">
+                                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                                    <Button type="button" onClick={handleOpenFolderDownloadModal} size="sm" variant="outline" className="flex-1 sm:flex-none">
+                                        <FolderDown className="mr-1.5 sm:mr-2 h-4 w-4" />
+                                        <span className="hidden xs:inline">Klasör İndir</span>
+                                        <span className="xs:hidden">ZIP</span>
+                                    </Button>
+                                    <Button type="button" onClick={handleOpenReportModal} size="sm" variant="outline" className="flex-1 sm:flex-none">
                                         <FileText className="mr-1.5 sm:mr-2 h-4 w-4" />
                                         <span className="hidden xs:inline">Rapor Al</span>
                                         <span className="xs:hidden">Rapor</span>
                                     </Button>
-                                    <Button onClick={onAddNC} size="sm" className="flex-1 sm:flex-none">
+                                    <Button type="button" onClick={onAddNC} size="sm" className="flex-1 sm:flex-none">
                                         <Plus className="mr-1.5 sm:mr-2 h-4 w-4" />
                                         <span className="hidden xs:inline">Yeni Kayıt</span>
                                         <span className="xs:hidden">Ekle</span>
@@ -559,6 +589,12 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                     records={reportableRecords}
                     reportType={reportModal.reportType}
                     onGenerate={handleGenerateSelectedReport}
+                />
+
+                <Df8dFolderDownloadModal
+                    isOpen={isFolderDownloadOpen}
+                    setIsOpen={setFolderDownloadOpen}
+                    records={reportableRecords}
                 />
 
                 {actionModals.reject.isOpen && (

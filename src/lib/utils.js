@@ -1,5 +1,23 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { format, isValid } from 'date-fns';
+import { tr } from 'date-fns/locale';
+
+/**
+ * Postgres `date` veya `YYYY-MM-DD` string için UTC kayması olmadan takvim günü.
+ * Tam ISO zaman damgaları için yerel saat diliminde formatlar.
+ */
+export function formatDateOnlyLocal(value, pattern = 'dd.MM.yyyy') {
+	if (value == null || value === '') return null;
+	const s = typeof value === 'string' ? value.trim() : '';
+	if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+		const [y, mo, d] = s.split('-').map(Number);
+		const dt = new Date(y, mo - 1, d);
+		return isValid(dt) ? format(dt, pattern, { locale: tr }) : null;
+	}
+	const dt = value instanceof Date ? value : new Date(value);
+	return isValid(dt) ? format(dt, pattern, { locale: tr }) : null;
+}
 
 export function cn(...inputs) {
 	return twMerge(clsx(inputs));

@@ -43,7 +43,7 @@ BEGIN
         
         -- Eğer birim bazlı bulunamazsa, ekipmanı kullanan personellere bak
         IF v_responsible_personnel_id IS NULL THEN
-            SELECT ea.personnel_id INTO v_responsible_personnel_id
+            SELECT ea.assigned_personnel_id INTO v_responsible_personnel_id
             FROM equipment_assignments ea
             WHERE ea.equipment_id = NEW.equipment_id 
               AND ea.is_active = true

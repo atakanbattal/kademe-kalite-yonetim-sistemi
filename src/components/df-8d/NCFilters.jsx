@@ -13,29 +13,40 @@ const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
 
     useEffect(() => {
         const fetchDepartments = async () => {
-            // Fetch departments from cost_settings table (daha güvenilir)
+            const names = new Set();
+
             const { data: costSettingsData, error: costError } = await supabase
                 .from('cost_settings')
                 .select('unit_name')
                 .order('unit_name');
 
             if (!costError && costSettingsData) {
-                const departmentNames = [...new Set(costSettingsData.map(d => d.unit_name).filter(Boolean))].sort();
-                setDepartments(['all', ...departmentNames]);
-            } else {
-                // Fallback: personnel tablosundan al
-                const { data, error } = await supabase
-                    .from('personnel')
-                    .select('department')
-                    .neq('department', null);
-
-                if (!error && data) {
-                    const departmentNames = [...new Set(data.map(d => d.department))].sort();
-                    setDepartments(['all', ...departmentNames]);
-                } else {
-                    setDepartments(['all']);
-                }
+                costSettingsData.forEach((d) => {
+                    if (d.unit_name && String(d.unit_name).trim()) names.add(String(d.unit_name).trim());
+                });
             }
+
+            const { data: persData, error: persError } = await supabase
+                .from('personnel')
+                .select('department, management_department');
+
+            if (!persError && persData) {
+                persData.forEach((p) => {
+                    if (p.department && String(p.department).trim()) names.add(String(p.department).trim());
+                    if (p.management_department && String(p.management_department).trim()) {
+                        names.add(String(p.management_department).trim());
+                    }
+                });
+            }
+
+            if (names.size === 0 && !costError && costSettingsData?.length) {
+                costSettingsData.forEach((d) => {
+                    if (d.unit_name && String(d.unit_name).trim()) names.add(String(d.unit_name).trim());
+                });
+            }
+
+            const departmentNames = [...names].sort((a, b) => a.localeCompare(b, 'tr'));
+            setDepartments(['all', ...departmentNames]);
         };
         fetchDepartments();
     }, []);

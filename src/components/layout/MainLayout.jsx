@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
 import { openPrintableReport as openPrintableReportUtil } from '@/lib/reportUtils';
 import { cn } from '@/lib/utils';
+import { canonicalizeDepartmentName } from '@/lib/departmentCanonicalization';
 import { getAuditNavigationAction } from '@/lib/auditDeepLink';
 
 // Components (her zaman gerekli - lazy loading yok)
@@ -145,7 +146,7 @@ const MainLayout = () => {
     const [ncViewState, setNcViewState] = useState({ isOpen: false, record: null });
     const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
 
-    const { refreshData } = useData();
+    const { refreshData, unitCostSettings, personnel } = useData();
 
     useEffect(() => {
         const path = location.pathname.split('/')[1] || DEFAULT_MODULE;
@@ -346,7 +347,12 @@ const MainLayout = () => {
             uploadedFilePaths = [...(formData.attachments || []), ...newPaths];
         }
 
-        const { id, created_at, updated_at, nc_number: old_nc_number, personnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, closing_date, responsible_person_details, requesting_person_details, supplier_name, ...dbData } = formData;
+        const { id, created_at, updated_at, nc_number: old_nc_number, personnel: _omitFormPersonnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, closing_date, responsible_person_details, requesting_person_details, supplier_name, ...dbData } = formData;
+
+        const deptCanonCtx = { unitCostSettings: unitCostSettings || [], personnel: personnel || [] };
+        if (dbData.department) dbData.department = canonicalizeDepartmentName(dbData.department, deptCanonCtx);
+        if (dbData.requesting_unit) dbData.requesting_unit = canonicalizeDepartmentName(dbData.requesting_unit, deptCanonCtx);
+        if (dbData.forwarded_unit) dbData.forwarded_unit = canonicalizeDepartmentName(dbData.forwarded_unit, deptCanonCtx);
 
         dbData.attachments = uploadedFilePaths;
         const fieldsToNullify = ['cost_date', 'measurement_unit', 'part_location', 'quantity', 'scrap_weight', 'rework_duration', 'quality_control_duration'];

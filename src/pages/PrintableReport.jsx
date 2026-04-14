@@ -157,6 +157,33 @@ const PrintableReport = () => {
                                 console.warn('Eğitim tam kayıt yenilenemedi:', trFetchErr);
                             }
                         }
+                        else if (type === 'training_exam_results' && (recordData?.id || id)) {
+                            const tid = recordData?.id || id;
+                            try {
+                                const { data: fullTraining, error: trErr } = await supabase
+                                    .from('trainings')
+                                    .select(`
+                                        *,
+                                        training_exams (*),
+                                        training_participants (
+                                            id,
+                                            status,
+                                            score,
+                                            completed_at,
+                                            personnel_id,
+                                            personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                        )
+                                    `)
+                                    .eq('id', tid)
+                                    .maybeSingle();
+                                if (!trErr && fullTraining) {
+                                    recordData = fullTraining;
+                                    console.log('✅ Sınav sonuçları raporu tam veri ile güncellendi');
+                                }
+                            } catch (trFetchErr) {
+                                console.warn('Sınav sonuçları eğitim kaydı yenilenemedi:', trFetchErr);
+                            }
+                        }
                         // ÖNEMLİ: Nonconformity için attachments ve closing_attachments kontrolü
                         // localStorage'dan gelen veride bu alanlar undefined olabilir
                         else if (type === 'nonconformity' && id) {
@@ -675,6 +702,27 @@ const PrintableReport = () => {
                                     id,
                                     status,
                                     score,
+                                    personnel_id,
+                                    personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                )
+                            `)
+                            .eq('id', id)
+                            .maybeSingle();
+                        recordData = trainingRow;
+                        queryError = trainingError;
+                        break;
+                    }
+                    case 'training_exam_results': {
+                        const { data: trainingRow, error: trainingError } = await supabase
+                            .from('trainings')
+                            .select(`
+                                *,
+                                training_exams (*),
+                                training_participants (
+                                    id,
+                                    status,
+                                    score,
+                                    completed_at,
                                     personnel_id,
                                     personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
                                 )

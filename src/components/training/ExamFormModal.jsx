@@ -136,7 +136,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                     <div key={q.id || qIndex} className="p-4 border rounded-lg space-y-3 bg-muted/20 relative">
                                         <div className="flex justify-between items-center">
                                             <Label className="font-semibold">Soru {qIndex + 1}</Label>
-                                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground hover:text-destructive" onClick={() => removeQuestion(qIndex)}><X className="h-4 w-4" /></Button>
+                                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground hover:text-destructive" onClick={() => removeQuestion(qIndex)}><X className="h-4 w-4" /></Button>
                                         </div>
                                         <Textarea placeholder="Soru metni" value={q.question_text} onChange={e => handleQuestionChange(qIndex, 'question_text', e.target.value)} />
                                         <div className="grid grid-cols-2 gap-4">
@@ -152,10 +152,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                                             {q.options.map((opt, oIndex) => (
                                                 <div key={oIndex} className="flex items-center gap-2">
                                                     <Input placeholder={`Seçenek ${String.fromCharCode(65 + oIndex)}`} value={opt.text} onChange={e => handleOptionChange(qIndex, oIndex, e.target.value)} autoFormat={false} />
-                                                    <Button variant="ghost" size="icon" onClick={() => removeOption(qIndex, oIndex)}><X className="h-4 w-4 text-destructive/50 hover:text-destructive" /></Button>
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(qIndex, oIndex)}><X className="h-4 w-4 text-destructive/50 hover:text-destructive" /></Button>
                                                 </div>
                                             ))}
-                                            <Button size="sm" variant="outline" onClick={() => addOption(qIndex)}>Seçenek Ekle</Button>
+                                            <Button type="button" size="sm" variant="outline" onClick={() => addOption(qIndex)}>Seçenek Ekle</Button>
                                         </div>
                                         
                                         <Select value={q.correct_answer} onValueChange={v => handleQuestionChange(qIndex, 'correct_answer', v)}>

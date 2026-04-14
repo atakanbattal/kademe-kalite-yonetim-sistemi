@@ -234,7 +234,7 @@ BEGIN
             SELECT array_agg(DISTINCT u.id) INTO v_responsible_user_id
             FROM auth.users u
             JOIN personnel p ON p.email = u.email
-            JOIN equipment_assignments ea ON ea.personnel_id = p.id
+            JOIN equipment_assignments ea ON ea.assigned_personnel_id = p.id
             WHERE ea.equipment_id = NEW.equipment_id AND ea.is_active = true;
         END IF;
         
