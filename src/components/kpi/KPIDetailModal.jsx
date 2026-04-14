@@ -22,7 +22,9 @@ import { Save, Trash2, TrendingUp } from 'lucide-react';
 
 const KPIDetailModal = ({ kpi, open, setOpen, refreshKpis }) => {
     const { toast } = useToast();
-    const [targetValue, setTargetValue] = useState(kpi?.target_value || '');
+    const [targetValue, setTargetValue] = useState(
+        kpi?.target_value != null && kpi.target_value !== '' ? String(kpi.target_value) : ''
+    );
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {

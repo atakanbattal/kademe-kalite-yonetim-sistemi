@@ -128,8 +128,9 @@ export function BenchmarkCriteriaRadar({ radarItems, criteria, scores }) {
 
     if (!data.length) {
         return (
-            <div className="flex h-[320px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-                Radar için en az iki kriter ve skor gerekir. Otomatik kriterler kayıt sonrası oluşur.
+            <div className="flex h-[320px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground px-4 text-center">
+                Kriter veya alternatif verisi eksik. Karşılaştırma ekranı yüklendiğinde otomatik kriterler oluşturulur;
+                oluşmazsa Kriterler / Matris sekmesinden ekleyin.
             </div>
         );
     }
@@ -186,8 +187,8 @@ export function BenchmarkOverviewHero({ winner, itemCount, criteriaCount, hasRad
     if (!itemCount) {
         return (
             <div className="rounded-xl border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
-                Karşılaştırmak için alternatif ekleyin. İsterseniz önce kayıt ekranından veri girin; otomatik kriterler
-                oluşur.
+                Karşılaştırmak için en az bir alternatif ekleyin. Kayıt formunda alternatif alanları doldurulduğunda
+                karşılaştırma açıldığında otomatik kriterler üretilebilir.
             </div>
         );
     }

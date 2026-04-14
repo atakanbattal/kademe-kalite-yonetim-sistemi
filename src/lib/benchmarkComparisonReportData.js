@@ -1,4 +1,4 @@
-import { computeBenchmarkItemScores } from '@/lib/benchmarkScoring';
+import { computeBenchmarkItemScores, syncAutoBenchmarkCriteria } from '@/lib/benchmarkScoring';
 import { buildAutoProsConsInserts } from '@/lib/benchmarkAutoProsCons';
 
 function mergeSyntheticProsCons(prosConsData, inserts) {
@@ -33,8 +33,32 @@ export async function fetchBenchmarkComparisonReportPayload(supabase, benchmarkI
     if (itemsRes.error) throw itemsRes.error;
     if (criteriaRes.error) throw criteriaRes.error;
 
-    const items = itemsRes.data || [];
-    const criteria = criteriaRes.data || [];
+    let items = itemsRes.data || [];
+    let criteria = (criteriaRes.data || []).map((row) => ({
+        ...row,
+        include_in_matrix: row.include_in_matrix !== false,
+    }));
+
+    const matrixCount = criteria.filter((c) => c.include_in_matrix !== false).length;
+    if (items.length >= 2 && matrixCount < 2) {
+        try {
+            await syncAutoBenchmarkCriteria(supabase, benchmarkId);
+            const { data: critAfter, error: critErr } = await supabase
+                .from('benchmark_criteria')
+                .select('*')
+                .eq('benchmark_id', benchmarkId)
+                .order('order_index');
+            if (!critErr && critAfter?.length) {
+                criteria = critAfter.map((row) => ({
+                    ...row,
+                    include_in_matrix: row.include_in_matrix !== false,
+                }));
+            }
+        } catch (e) {
+            console.warn('Rapor: otomatik kriter senkronu atlandı', e);
+        }
+    }
+
     const itemIds = items.map((i) => i.id);
 
     let scoresData = [];

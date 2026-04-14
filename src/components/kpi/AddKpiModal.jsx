@@ -37,7 +37,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
             name,
             description,
             data_source: dataSource,
-            target_value: targetValue ? parseFloat(targetValue) : null,
+            target_value: String(targetValue ?? '').trim() !== '' ? parseFloat(String(targetValue).trim()) : null,
             target_direction: targetDirection,
             unit: unit || null,
             current_value: 0,

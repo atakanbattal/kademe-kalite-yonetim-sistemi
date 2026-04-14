@@ -18,6 +18,212 @@ const shortCritLabel = (name, max = 22) => {
     return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 };
 
+const RADAR_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+
+/** Matrise dahil kriterler (ekrandaki profil ile uyumlu) */
+function getMatrixCriteria(criteria) {
+    return (criteria || []).filter((c) => c.include_in_matrix !== false);
+}
+
+/**
+ * PDF/yazdırma uyumlu statik SVG radar (normalize skor 0–100).
+ */
+function buildRadarSvgHtml({ matrixCriteria, displayItems, scores }) {
+    const n = Math.min(matrixCriteria.length, 12);
+    const m = Math.min(displayItems.length, 5);
+    if (n < 2 || m < 2) {
+        return `<div class="radar-placeholder">Radar grafiği için matriste en az iki kriter ve en az iki alternatif olmalıdır. Kriterler doldurulduğunda profil burada görünür.</div>`;
+    }
+
+    const cx = 200;
+    const cy = 200;
+    const R = 150;
+    const angles = [];
+    for (let i = 0; i < n; i++) {
+        angles.push(-Math.PI / 2 + (2 * Math.PI * i) / n);
+    }
+
+    let circles = '';
+    for (let g = 1; g <= 4; g++) {
+        const r = (R * g) / 4;
+        circles += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="1"/>`;
+    }
+
+    let axes = '';
+    for (let i = 0; i < n; i++) {
+        const x2 = cx + R * Math.cos(angles[i]);
+        const y2 = cy + R * Math.sin(angles[i]);
+        axes += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#cbd5e1" stroke-width="1"/>`;
+    }
+
+    const polygons = displayItems
+        .map((item, idx) => {
+            const pts = [];
+            for (let i = 0; i < n; i++) {
+                const c = matrixCriteria[i];
+                const key = `${item.id}_${c.id}`;
+                const v = scores[key]?.normalized_score ?? 0;
+                const t = Math.max(0, Math.min(100, Number(v))) / 100;
+                const x = cx + R * t * Math.cos(angles[i]);
+                const y = cy + R * t * Math.sin(angles[i]);
+                pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+            }
+            const col = RADAR_COLORS[idx % RADAR_COLORS.length];
+            return `<polygon points="${pts.join(' ')}" fill="${col}" fill-opacity="0.12" stroke="${col}" stroke-width="2"/>`;
+        })
+        .join('');
+
+    let labels = '';
+    for (let i = 0; i < n; i++) {
+        const xl = cx + (R + 22) * Math.cos(angles[i]);
+        const yl = cy + (R + 22) * Math.sin(angles[i]);
+        const name = shortCritLabel(matrixCriteria[i].criterion_name, 18);
+        labels += `<text x="${xl}" y="${yl}" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="#334155">${escapeHtml(name)}</text>`;
+    }
+
+    const legend = displayItems
+        .map((item, idx) => {
+            const col = RADAR_COLORS[idx % RADAR_COLORS.length];
+            return `<span class="radar-legend-item"><span class="radar-swatch" style="background:${col};"></span>${escapeHtml(item.item_name)}</span>`;
+        })
+        .join('');
+
+    return `<div class="radar-section">
+        <svg class="radar-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" width="100%" height="280" aria-hidden="true">${circles}${axes}${polygons}${labels}</svg>
+        <div class="radar-legend">${legend}</div>
+        <p class="radar-caption">Eksenler matris kriterlerine göre normalize edilmiş skoru (0–100) gösterir; merkeze yakınlık düşük, çembere yakınlık yüksek performans anlamına gelir.</p>
+    </div>`;
+}
+
+function numOrNull(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Her raporda görünen yönetici özeti — önerilen alternatif ve gerekçe maddeleri.
+ */
+function buildExecutiveSummaryHtml({ sortedItems, matrixCriteria, scores, itemScores }) {
+    const items = sortedItems || [];
+    if (items.length === 0) {
+        return `<div class="exec-summary"><p class="exec-lead">Bu benchmark için henüz alternatif kaydı bulunmuyor; karşılaştırma ve özet üretilemedi.</p></div>`;
+    }
+
+    const first = items[0];
+    const second = items[1];
+    const avg1 = itemScores[first.id]?.average ?? 0;
+    const title = escapeHtml(first.item_name);
+    const avgStr = Number(avg1).toFixed(1);
+
+    if (items.length === 1) {
+        return `<div class="exec-summary">
+            <div class="exec-verdict exec-verdict--single">
+                <div class="exec-verdict-label">Değerlendirilen alternatif</div>
+                <div class="exec-verdict-name">${title}</div>
+                <p class="exec-verdict-sub">Yalnızca tek alternatif kayıtlı olduğu için <strong>karşılaştırmalı bir &quot;seçim&quot; sıralaması yapılamamıştır</strong>. Aşağıdaki isim, mevcut tek seçeneği ifade eder; ağırlıklı skor: <strong>${avgStr}</strong>/100.</p>
+            </div>
+            <p class="exec-lead">İkinci bir alternatif eklendiğinde bu bölümde <strong>önerilen alternatif</strong> matris skorlarına göre tek satırda belirtilecektir.</p>
+        </div>`;
+    }
+
+    const gap = second ? (avg1 - (itemScores[second.id]?.average ?? 0)) : 0;
+    const secondTitle = second ? escapeHtml(second.item_name) : '';
+    const avg2 = second ? (itemScores[second.id]?.average ?? 0) : 0;
+
+    const critDiffs = [];
+    for (const c of matrixCriteria) {
+        const s1 = scores[`${first.id}_${c.id}`]?.normalized_score;
+        const s2 = second ? scores[`${second.id}_${c.id}`]?.normalized_score : null;
+        const n1 = numOrNull(s1);
+        const n2 = numOrNull(s2);
+        if (n1 == null || n2 == null) continue;
+        const w = Number(c.weight) || 0;
+        const diff = n1 - n2;
+        critDiffs.push({ c, diff, weighted: Math.abs(diff) * w });
+    }
+    critDiffs.sort((a, b) => b.weighted - a.weighted);
+    const topWins = critDiffs.filter((x) => x.diff > 0.5).slice(0, 4);
+    const topLosses = critDiffs.filter((x) => x.diff < -0.5).slice(0, 2);
+
+    const bullets = [];
+    if (topWins.length) {
+        bullets.push(
+            `<li><strong>${title}</strong>, şu kriterlerde <strong>${secondTitle}</strong> alternatifine göre belirgin üstünlük göstermektedir: ${topWins
+                .map((x) => `<em>${escapeHtml(x.c.criterion_name)}</em> (+${x.diff.toFixed(1)} puan)`)
+                .join(', ')}.</li>`
+        );
+    }
+    if (topLosses.length) {
+        bullets.push(
+            `<li>Dikkat: <strong>${secondTitle}</strong> şu alanlarda daha güçlü görünmektedir: ${topLosses
+                .map((x) => `<em>${escapeHtml(x.c.criterion_name)}</em> (${x.diff.toFixed(1)} puan)`)
+                .join(', ')}. Risk kabulü veya ek şartlar değerlendirilmelidir.</li>`
+        );
+    }
+
+    const price1 = numOrNull(first.unit_price);
+    const price2 = second ? numOrNull(second.unit_price) : null;
+    const q1 = numOrNull(first.quality_score);
+    const q2 = second ? numOrNull(second.quality_score) : null;
+    const d1 = numOrNull(first.delivery_time_days);
+    const d2 = second ? numOrNull(second.delivery_time_days) : null;
+
+    if (price1 != null && price2 != null && price2 !== 0) {
+        const pct = ((price2 - price1) / price2) * 100;
+        if (Math.abs(pct) >= 1) {
+            if (pct > 0) {
+                bullets.push(
+                    `<li><strong>Maliyet:</strong> Birim fiyat açısından <strong>${title}</strong>, diğerine kıyasla yaklaşık <strong>%${Math.abs(pct).toFixed(1)}</strong> daha uygun görünmektedir (ham veri tablosuna bakınız).</li>`
+                );
+            } else {
+                bullets.push(
+                    `<li><strong>Maliyet:</strong> Birim fiyat açısından <strong>${secondTitle}</strong> daha düşük; toplam skorda ağırlıklı kriterler bu farkı telafi etmiş olabilir.</li>`
+                );
+            }
+        }
+    }
+
+    if (q1 != null && q2 != null) {
+        const dq = q1 - q2;
+        if (Math.abs(dq) >= 2) {
+            bullets.push(
+                `<li><strong>Kalite / teknik puan:</strong> Kayıtlı kalite skorlarına göre fark <strong>${dq > 0 ? '+' : ''}${dq.toFixed(1)}</strong> puan (${title} vs ${secondTitle}).</li>`
+            );
+        }
+    }
+
+    if (d1 != null && d2 != null) {
+        const dd = d2 - d1;
+        if (Math.abs(dd) >= 1) {
+            bullets.push(
+                `<li><strong>Teslimat süresi:</strong> ${dd > 0 ? `${title} yaklaşık <strong>${Math.abs(dd).toFixed(0)}</strong> gün daha erken teslimat vaadi taşımaktadır.` : `${secondTitle} teslimat süresi olarak daha avantajlı görünmektedir.`}</li>`
+            );
+        }
+    }
+
+    const gapText =
+        gap >= 3
+            ? `Skor farkı (<strong>${gap.toFixed(1)}</strong> puan) belirgin; birinci sıra istatistiksel olarak güçlü bir tercih önerisi sunar.`
+            : gap >= 1
+              ? `Skor farkı (<strong>${gap.toFixed(1)}</strong> puan) sınırlı; nihai seçimde maliyet, risk ve tedarikçi güvenilirliği gibi matris dışı unsurlar gözden geçirilmelidir.`
+              : `Birinci ve ikinci alternatif toplam skoru birbirine çok yakın (<strong>${avgStr}</strong> vs <strong>${Number(avg2).toFixed(1)}</strong>); karar için ek kriter veya pilot / numune doğrulaması önerilir.`;
+
+    const listHtml = bullets.length ? `<ul class="exec-bullets">${bullets.join('')}</ul>` : '';
+    const nAlt = items.length;
+
+    return `<div class="exec-summary">
+        <div class="exec-verdict">
+            <div class="exec-verdict-label">Karar özeti — bu analize göre önerilen alternatif</div>
+            <div class="exec-verdict-name">${title}</div>
+            <p class="exec-verdict-sub">Bu raporda yer alan <strong>${nAlt} alternatif</strong> arasında, matris ve ağırlıklı toplam skor sonucunda <strong>${title}</strong> <strong>öncelikli olarak önerilen (1. sıradaki) alternatif</strong> olarak belirlenmiştir. Toplam skor: <strong>${avgStr}</strong>/100.</p>
+        </div>
+        <p class="exec-lead">Sıralama netliği: <strong>1. ${title}</strong> (<strong>${avgStr}</strong>/100) · <strong>2. ${secondTitle}</strong> (<strong>${Number(avg2).toFixed(1)}</strong>/100). ${gapText}</p>
+        ${listHtml}
+        <p class="exec-note">Özet; matristeki normalize skorlar ve kayıtlı sayısal alanlara dayanır. Satın alma veya teknik onay öncesi sözleşme şartları, garanti ve referanslar doğrulanmalıdır.</p>
+    </div>`;
+}
+
 /** Kademe QMS yazdırma şablonu ile uyumlu benchmark karşılaştırma raporu (PDF / yazdır). */
 export async function generateBenchmarkComparisonReportHtml({
     benchmark,
@@ -35,6 +241,20 @@ export async function generateBenchmarkComparisonReportHtml({
         const scoreA = itemScores[a.id]?.average || 0;
         const scoreB = itemScores[b.id]?.average || 0;
         return scoreB - scoreA;
+    });
+
+    const matrixCriteria = getMatrixCriteria(criteria);
+    const radarItems = sortedItems.slice(0, 5);
+    const executiveSummaryHtml = buildExecutiveSummaryHtml({
+        sortedItems,
+        matrixCriteria,
+        scores,
+        itemScores,
+    });
+    const radarHtml = buildRadarSvgHtml({
+        matrixCriteria,
+        displayItems: radarItems,
+        scores,
     });
 
     const formatValue = (item, key) => {
@@ -95,7 +315,7 @@ export async function generateBenchmarkComparisonReportHtml({
             : '';
 
     const matrixBlock =
-        criteria.length > 0
+        matrixCriteria.length > 0
             ? `
     <div class="section section-matrix">
         <h2 class="section-title section-title-strip blue">DETAYLI KARŞILAŞTIRMA MATRİSİ</h2>
@@ -104,7 +324,7 @@ export async function generateBenchmarkComparisonReportHtml({
             <thead>
                 <tr>
                     <th class="col-alt">Alternatif</th>
-                    ${criteria
+                    ${matrixCriteria
                         .map(
                             (c) =>
                                 `<th class="col-crit" title="${escapeHtml(c.criterion_name)} (${escapeHtml(String(c.weight))}%)"><span class="crit-name">${escapeHtml(shortCritLabel(c.criterion_name))}</span><span class="crit-w">(${escapeHtml(String(c.weight))}%)</span></th>`
@@ -116,7 +336,7 @@ export async function generateBenchmarkComparisonReportHtml({
             <tbody>
                 ${sortedItems
                     .map((item) => {
-                        const cells = criteria
+                        const cells = matrixCriteria
                             .map((criterion) => {
                                 const key = `${item.id}_${criterion.id}`;
                                 const score = scores[key];
@@ -276,6 +496,16 @@ export async function generateBenchmarkComparisonReportHtml({
             <div class="meta-item"><strong>Onay durumu:</strong> ${escapeHtml(benchmark?.approval_status || '—')}</div>
         </div>
 
+        <div class="section section-exec">
+            <h2 class="section-title section-title-strip blue">YÖNETİCİ ÖZETİ — TERCİH GEREKÇESİ</h2>
+            ${executiveSummaryHtml}
+        </div>
+
+        <div class="section section-radar">
+            <h2 class="section-title section-title-strip blue">KRİTER PROFİLİ (RADAR)</h2>
+            ${radarHtml}
+        </div>
+
         <div class="section">
             <h2 class="section-title section-title-strip blue">GENEL SIRALAMA</h2>
             <table class="results-table">
@@ -401,7 +631,97 @@ body {
 .meta-item { font-size: 10px; color: #374151; }
 .meta-item strong { color: #1f2937; }
 .section { margin-bottom: 10px; page-break-inside: auto; }
+.section-exec,
+.section-radar {
+    page-break-inside: avoid;
+}
 .section-matrix { page-break-inside: auto; }
+.exec-summary {
+    font-size: 10px;
+    line-height: 1.45;
+    color: #334155;
+}
+.exec-verdict {
+    border: 2px solid #1e40af;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+}
+.exec-verdict--single {
+    border-color: #64748b;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+.exec-verdict-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #1e40af;
+    margin-bottom: 6px;
+}
+.exec-verdict--single .exec-verdict-label { color: #475569; }
+.exec-verdict-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.25;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #bfdbfe;
+    padding-bottom: 8px;
+}
+.exec-verdict--single .exec-verdict-name {
+    border-bottom-color: #e2e8f0;
+}
+.exec-verdict-sub {
+    font-size: 10px;
+    margin: 0;
+    color: #334155;
+    line-height: 1.5;
+}
+.exec-summary .exec-lead { margin: 0 0 8px 0; }
+.exec-bullets { margin: 8px 0 8px 18px; padding: 0; }
+.exec-bullets li { margin-bottom: 6px; }
+.exec-note {
+    font-size: 9px;
+    color: #64748b;
+    margin: 10px 0 0 0;
+    font-style: italic;
+}
+.radar-section { text-align: center; page-break-inside: avoid; }
+.radar-svg { max-width: 400px; margin: 0 auto; display: block; }
+.radar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    justify-content: center;
+    margin-top: 8px;
+    font-size: 9px;
+}
+.radar-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.radar-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.radar-caption {
+    font-size: 8px;
+    color: #64748b;
+    margin: 8px auto 0;
+    max-width: 520px;
+    text-align: center;
+}
+.radar-placeholder {
+    font-size: 9px;
+    color: #64748b;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    text-align: center;
+}
 .section-title {
     font-size: 11px; font-weight: 700; padding: 6px 10px; border-radius: 4px; margin-bottom: 8px;
     text-transform: uppercase; letter-spacing: 0.4px; page-break-after: avoid;

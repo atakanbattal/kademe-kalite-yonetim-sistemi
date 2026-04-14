@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
     TrendingUp, TrendingDown, Minus, ShieldAlert, Factory, Truck,
     Users, FileText, Wrench, GraduationCap, BarChart3, Target,
     AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
-import { KPI_CATEGORIES } from './kpi-definitions';
+import { KPI_CATEGORIES, getAutoKpiDisplayMeta } from './kpi-definitions';
 
 const CATEGORY_ICONS = {
     quality: ShieldAlert,
@@ -45,7 +45,8 @@ const formatValue = (value, unit) => {
 };
 
 const KPICard = ({ kpi, onCardClick }) => {
-    const category = kpi.category || 'default';
+    const display = useMemo(() => getAutoKpiDisplayMeta(kpi), [kpi]);
+    const category = display.category || kpi.category || 'default';
     const styles = CATEGORY_STYLES[category] || CATEGORY_STYLES.default;
     const catDef = KPI_CATEGORIES.find(c => c.id === category);
     const CategoryIcon = CATEGORY_ICONS[category] || Target;
@@ -53,23 +54,29 @@ const KPICard = ({ kpi, onCardClick }) => {
     const current = parseFloat(kpi.current_value);
     const target = parseFloat(kpi.target_value);
     const hasData = !isNaN(current) && kpi.current_value !== null;
-    const hasTarget = !isNaN(target) && kpi.target_value !== null && kpi.target_value !== 0;
+    const hasTarget = !isNaN(target) && kpi.target_value != null;
+
+    const targetDir = display.target_direction ?? 'decrease';
 
     // Hedef durumu
     const isOnTarget = hasData && hasTarget
-        ? kpi.target_direction === 'decrease'
+        ? targetDir === 'decrease'
             ? current <= target
             : current >= target
         : null;
 
     // Progress yüzdesi (0-100)
     let progressPct = 0;
-    if (hasData && hasTarget && target !== 0) {
-        if (kpi.target_direction === 'decrease') {
-            // Azalt: current/target → hedef 0'a yaklaşmak (target/current)
+    if (hasData && hasTarget) {
+        if (target === 0) {
+            if (targetDir === 'decrease') {
+                progressPct = current <= 0 ? 100 : 0;
+            } else {
+                progressPct = current >= 0 ? 100 : 0;
+            }
+        } else if (targetDir === 'decrease') {
             progressPct = Math.min(100, Math.max(0, (target / Math.max(current, 0.001)) * 100));
         } else {
-            // Artır: current/target
             progressPct = Math.min(100, Math.max(0, (current / target) * 100));
         }
     }
@@ -131,10 +138,10 @@ const KPICard = ({ kpi, onCardClick }) => {
                         </div>
                         <div className="min-w-0">
                             <p className="text-[10px] font-medium text-muted-foreground truncate">
-                                {catDef?.label || kpi.data_source}
+                                {catDef?.label || display.data_source}
                             </p>
                             <h3 className="text-sm font-semibold text-foreground leading-tight line-clamp-2 mt-0.5">
-                                {kpi.name}
+                                {display.name}
                             </h3>
                         </div>
                     </div>
@@ -190,7 +197,7 @@ const KPICard = ({ kpi, onCardClick }) => {
             {/* Alt bilgi: oto/manuel */}
             <div className={`px-4 py-1.5 border-t border-border/50 flex items-center justify-between ${kpi.is_auto ? 'bg-muted/30' : 'bg-background'}`}>
                 <span className="text-[10px] text-muted-foreground truncate max-w-[75%]">
-                    {kpi.data_source}
+                    {display.data_source}
                 </span>
                 <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${kpi.is_auto ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                     {kpi.is_auto ? 'Otomatik' : 'Manuel'}

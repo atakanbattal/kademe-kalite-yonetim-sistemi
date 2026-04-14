@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, RefreshCw, Search, CheckCircle2, AlertCircle,
-    TrendingUp, BarChart3, Target, Zap, Clock, FileSpreadsheet, Presentation,
+    TrendingUp, BarChart3, Target, Zap, Clock, FileSpreadsheet, Presentation, Filter,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,11 +12,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import AddKpiModal from '@/components/kpi/AddKpiModal';
 import KPIDetailModalEnhanced from '@/components/kpi/KPIDetailModalEnhanced';
 import KPICard from '@/components/kpi/KPICard';
+import KpiReportSelectModal from '@/components/kpi/KpiReportSelectModal';
 import { useData } from '@/contexts/DataContext';
-import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
+import { KPI_CATEGORIES, getAutoKpiDisplayMeta } from '@/components/kpi/kpi-definitions';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { supabase } from '@/lib/customSupabaseClient';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { buildKpiReportPerformanceFromMonthly, getKpiMeetsTarget } from '@/lib/kpiReportStats';
 
 // =====================================================
 // Summary Card - üst istatistik kartları
@@ -47,6 +50,8 @@ const KPIModule = ({ onOpenNCForm }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [lastSyncTime, setLastSyncTime] = useState(null);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportGenerating, setReportGenerating] = useState(false);
 
     // Sayfa açıldığında otomatik KPI'ları güncelle + aylık veri backfill
     useEffect(() => {
@@ -69,11 +74,17 @@ const KPIModule = ({ onOpenNCForm }) => {
         }
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
-            list = list.filter(k =>
-                k.name?.toLowerCase().includes(term) ||
-                k.data_source?.toLowerCase().includes(term) ||
-                k.description?.toLowerCase().includes(term)
-            );
+            list = list.filter((k) => {
+                const d = getAutoKpiDisplayMeta(k);
+                return (
+                    d.name?.toLowerCase().includes(term) ||
+                    k.name?.toLowerCase().includes(term) ||
+                    d.data_source?.toLowerCase().includes(term) ||
+                    k.data_source?.toLowerCase().includes(term) ||
+                    d.description?.toLowerCase().includes(term) ||
+                    k.description?.toLowerCase().includes(term)
+                );
+            });
         }
         return list;
     }, [kpis, activeCategory, searchTerm]);
@@ -90,16 +101,18 @@ const KPIModule = ({ onOpenNCForm }) => {
     // Özet istatistikler
     const summaryStats = useMemo(() => {
         const withTarget = kpis.filter(k =>
-            k.current_value !== null && k.target_value !== null && parseFloat(k.target_value) !== 0
+            k.current_value !== null && k.target_value != null
         );
         const onTarget = withTarget.filter(k => {
             const c = parseFloat(k.current_value), t = parseFloat(k.target_value);
-            return k.target_direction === 'decrease' ? c <= t : c >= t;
+            const dir = getAutoKpiDisplayMeta(k).target_direction ?? 'decrease';
+            return dir === 'decrease' ? c <= t : c >= t;
         });
         const noData = kpis.filter(k => k.current_value === null || k.current_value === undefined);
         const critical = withTarget.filter(k => {
             const c = parseFloat(k.current_value), t = parseFloat(k.target_value);
-            const ok = k.target_direction === 'decrease' ? c <= t : c >= t;
+            const dir = getAutoKpiDisplayMeta(k).target_direction ?? 'decrease';
+            const ok = dir === 'decrease' ? c <= t : c >= t;
             if (ok || t === 0) return false;
             return Math.abs((c - t) / t * 100) > 20;
         });
@@ -119,34 +132,78 @@ const KPIModule = ({ onOpenNCForm }) => {
         setDetailModalOpen(true);
     };
 
-    const handleKpiListReport = useCallback(() => {
-        if (filteredKpis.length === 0) {
-            toast({ variant: 'destructive', title: 'Rapor', description: 'Listelenecek KPI bulunmuyor.' });
+    /** Rapor modalında varsayılan: mevcut ekran filtresindeki KPI’lar */
+    const defaultReportSelectedIds = useMemo(
+        () => filteredKpis.map((k) => k.id),
+        [filteredKpis]
+    );
+
+    const runKpiListReport = useCallback(async (kpiList) => {
+        if (!kpiList?.length) {
+            toast({ variant: 'destructive', title: 'Rapor', description: 'En az bir KPI seçin.' });
             return;
         }
-        const filterParts = [
-            activeCategory !== 'all' ? `Kategori: ${activeCategory}` : '',
-            searchTerm.trim() ? `Arama: ${searchTerm.trim()}` : '',
-        ].filter(Boolean);
-        openPrintableReport(
-            {
-                id: `kpi-list-${Date.now()}`,
-                title: 'KPI Listesi Raporu',
-                items: filteredKpis.map((k) => ({
-                    name: k.name,
-                    category: k.category,
+        setReportGenerating(true);
+        try {
+            const ids = kpiList.map((k) => k.id);
+            const monthlyByKpi = new Map();
+            const { data: monthlyRows, error } = await supabase
+                .from('kpi_monthly_data')
+                .select('kpi_id, year, month, actual_value')
+                .in('kpi_id', ids);
+            if (error) throw error;
+            for (const row of monthlyRows || []) {
+                if (!monthlyByKpi.has(row.kpi_id)) monthlyByKpi.set(row.kpi_id, []);
+                monthlyByKpi.get(row.kpi_id).push(row);
+            }
+
+            const items = kpiList.map((k) => {
+                const d = getAutoKpiDisplayMeta(k);
+                const catId = d.category ?? k.category;
+                const category_label = KPI_CATEGORIES.find((c) => c.id === catId)?.label
+                    ?? (catId && catId !== 'default' ? String(catId) : 'Genel');
+                const rows = monthlyByKpi.get(k.id) || [];
+                const perf = buildKpiReportPerformanceFromMonthly(
+                    rows,
+                    d.target_direction ?? k.target_direction ?? 'decrease',
+                    k.unit
+                );
+                return {
+                    name: d.name,
+                    category: catId,
+                    category_label,
                     target_value: k.target_value,
                     current_value: k.current_value,
                     unit: k.unit,
-                    data_source: k.data_source,
-                    is_auto: k.is_auto,
-                })),
-                filterInfo: filterParts.length ? filterParts.join(' · ') : undefined,
-            },
-            'kpi_list',
-            true
-        );
-    }, [filteredKpis, activeCategory, searchTerm, toast]);
+                    target_direction: d.target_direction ?? k.target_direction ?? 'decrease',
+                    performance_lines: perf.performance_lines,
+                    meets_target: getKpiMeetsTarget(k),
+                };
+            });
+
+            const filterParts = [`Seçilen: ${kpiList.length} KPI`];
+            openPrintableReport(
+                {
+                    id: `kpi-list-${Date.now()}`,
+                    title: 'KPI Performans Raporu (Yönetim Özeti)',
+                    items,
+                    filterInfo: filterParts.join(' · '),
+                },
+                'kpi_list',
+                true
+            );
+            setReportModalOpen(false);
+            toast({ title: 'Rapor hazır', description: 'Yeni sekmede açıldı.' });
+        } catch (e) {
+            toast({
+                variant: 'destructive',
+                title: 'Rapor',
+                description: e?.message || 'Rapor oluşturulamadı.',
+            });
+        } finally {
+            setReportGenerating(false);
+        }
+    }, [toast]);
 
     const handleManualRefresh = useCallback(async () => {
         setIsRefreshing(true);
@@ -187,6 +244,14 @@ const KPIModule = ({ onOpenNCForm }) => {
                     onOpenNCForm={onOpenNCForm}
                 />
             )}
+            <KpiReportSelectModal
+                open={reportModalOpen}
+                onOpenChange={setReportModalOpen}
+                kpis={kpis}
+                defaultSelectedIds={defaultReportSelectedIds}
+                onConfirm={runKpiListReport}
+                isGenerating={reportGenerating}
+            />
 
             {/* ── Başlık ve butonlar ── */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -209,7 +274,18 @@ const KPIModule = ({ onOpenNCForm }) => {
                         <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                         {isRefreshing ? 'Güncelleniyor…' : 'Tümünü Yenile'}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleKpiListReport} disabled={loading || filteredKpis.length === 0}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            if (kpis.length === 0) {
+                                toast({ variant: 'destructive', title: 'Rapor', description: 'Önce en az bir KPI ekleyin.' });
+                                return;
+                            }
+                            setReportModalOpen(true);
+                        }}
+                        disabled={loading || kpis.length === 0}
+                    >
                         <FileSpreadsheet className="w-4 h-4 mr-2" /> Rapor Al
                     </Button>
                     <Button variant="outline" size="sm" asChild>

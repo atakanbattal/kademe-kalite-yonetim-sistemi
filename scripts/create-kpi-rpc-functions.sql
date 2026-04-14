@@ -302,13 +302,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Ortalama Tedarikçi Skoru
+-- Ortalama Tedarikçi Skoru (onaylı tedarikçi başına son dönem skor kartı)
 CREATE OR REPLACE FUNCTION get_avg_supplier_score()
 RETURNS NUMERIC AS $$
 DECLARE
     v_avg_score NUMERIC;
 BEGIN
-    SELECT AVG(final_score) INTO v_avg_score FROM supplier_scores;
+    WITH latest AS (
+        SELECT DISTINCT ON (ss.supplier_id)
+            ss.supplier_id,
+            ss.final_score
+        FROM supplier_scores ss
+        ORDER BY ss.supplier_id, ss.period DESC NULLS LAST, ss.created_at DESC
+    )
+    SELECT AVG(l.final_score) INTO v_avg_score
+    FROM latest l
+    INNER JOIN suppliers s ON s.id = l.supplier_id AND s.status = 'Onaylı';
     RETURN COALESCE(ROUND(v_avg_score, 2), 0);
 END;
 $$ LANGUAGE plpgsql;
@@ -395,12 +404,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Tamamlanmış Eğitim Sayısı
+-- Tamamlanmış Eğitim Sayısı (Türkçe + İngilizce durum)
 CREATE OR REPLACE FUNCTION get_completed_trainings_count()
 RETURNS INTEGER AS $$
 BEGIN
-    RETURN (SELECT COUNT(*)::INTEGER FROM trainings 
-            WHERE status = 'Tamamlandı');
+    RETURN (SELECT COUNT(*)::INTEGER FROM trainings
+            WHERE status IN ('Tamamlandı', 'Tamamlandi', 'Completed'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -690,4 +699,37 @@ BEGIN
             WHERE current_status IN ('Completed', 'Tamamlandı'));
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================
+-- EKİPMAN — Kalibrasyon gecikmesi (ekipman başına son kayıt)
+-- ============================================
+CREATE OR REPLACE FUNCTION get_calibration_due_count()
+RETURNS INTEGER AS $$
+  WITH latest AS (
+    SELECT DISTINCT ON (ec.equipment_id)
+      ec.equipment_id,
+      ec.next_calibration_date,
+      ec.is_active
+    FROM equipment_calibrations ec
+    ORDER BY ec.equipment_id, ec.calibration_date DESC NULLS LAST, ec.created_at DESC NULLS LAST
+  )
+  SELECT COUNT(*)::INTEGER
+  FROM latest l
+  JOIN equipments e ON e.id = l.equipment_id
+  WHERE e.status IS DISTINCT FROM 'Hurdaya Ayrıldı'
+    AND (l.is_active IS NULL OR l.is_active = true)
+    AND l.next_calibration_date IS NOT NULL
+    AND l.next_calibration_date < CURRENT_DATE;
+$$ LANGUAGE sql STABLE;
+
+-- ============================================
+-- İÇ TETKİK — Son 30 günde tamamlanan
+-- ============================================
+CREATE OR REPLACE FUNCTION get_completed_internal_audits_30d_count()
+RETURNS INTEGER AS $$
+  SELECT COUNT(*)::INTEGER
+  FROM audits
+  WHERE status = 'Tamamlandı'
+    AND COALESCE(updated_at, created_at) >= (CURRENT_TIMESTAMP - INTERVAL '30 days');
+$$ LANGUAGE sql STABLE;
 

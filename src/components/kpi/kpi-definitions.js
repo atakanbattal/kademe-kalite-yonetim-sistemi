@@ -218,7 +218,7 @@ export const predefinedKpis = [
     {
         id: 'avg_supplier_score',
         name: 'Ortalama Tedarikçi Skoru',
-        description: 'Tüm tedarikçilerin ortalama kalite skoru.',
+        description: 'Onaylı tedarikçiler için tamamlanan denetimlerin (denetim planı skoru) ortalaması.',
         unit: ' puan', target_direction: 'increase',
         data_source: 'Tedarikçi Kalite Yönetimi', rpc_name: 'get_avg_supplier_score',
         category: 'supplier',
@@ -304,11 +304,11 @@ export const predefinedKpis = [
         category: 'document',
     },
     {
-        id: 'open_internal_audit_count',
-        name: 'Açık İç Tetkik Sayısı',
-        description: 'Henüz tamamlanmamış iç tetkiklerin sayısı.',
-        unit: ' adet', target_direction: 'decrease',
-        data_source: 'İç Tetkik Yönetimi', rpc_name: 'get_open_internal_audit_count',
+        id: 'completed_internal_audits_30d_count',
+        name: 'Tamamlanan İç Tetkik (30 Gün)',
+        description: 'Son 30 gün içinde tamamlanan iç tetkik sayısı (operasyonel performans).',
+        unit: ' adet', target_direction: 'increase',
+        data_source: 'İç Tetkik Yönetimi', rpc_name: 'get_completed_internal_audits_30d_count',
         category: 'document',
     },
     {
@@ -326,7 +326,7 @@ export const predefinedKpis = [
     {
         id: 'calibration_due_count',
         name: 'Kalibrasyonu Gecikmiş Ekipman',
-        description: 'Kalibrasyon tarihi geçmiş ekipmanların sayısı.',
+        description: 'Aktif ekipmanlar için son geçerli kalibrasyon kaydına göre süresi dolmuş (gecikmiş) sayısı.',
         unit: ' adet', target_direction: 'decrease',
         data_source: 'Ekipman & Kalibrasyon', rpc_name: 'get_calibration_due_count',
         category: 'equipment',
@@ -386,7 +386,7 @@ export const predefinedKpis = [
     {
         id: 'completed_trainings_count',
         name: 'Tamamlanmış Eğitim Sayısı',
-        description: 'Başarıyla tamamlanmış eğitim sayısı.',
+        description: 'Durumu tamamlanmış eğitim kayıtlarının toplam sayısı (Türkçe/İngilizce durumlar dahil).',
         unit: ' adet', target_direction: 'increase',
         data_source: 'Eğitim Yönetimi', rpc_name: 'get_completed_trainings_count',
         category: 'hr',
@@ -520,3 +520,49 @@ export const predefinedKpis = [
         category: 'management',
     },
 ];
+
+/** Eski otomatik KPI id → güncel şablon id (DB satırı henüz migrate edilmediyse) */
+const LEGACY_AUTO_KPI_ID_MAP = {
+    open_internal_audit_count: 'completed_internal_audits_30d_count',
+};
+
+/** auto_kpi_id → şablon KPI (tek kaynak) */
+const PREDEFINED_KPI_BY_AUTO_ID = Object.fromEntries(
+    predefinedKpis.map((k) => [k.id, k])
+);
+
+/**
+ * Otomatik KPI kartlarında DB’de kalmış eski/çift isimleri önlemek için
+ * predefinedKpis ile ad, açıklama, veri kaynağı, kategori ve hedef yönünü eşitler.
+ * (target_direction DB’de eski kaldığında En iyi/En kötü ay ve hedef karşılaştırması yanlış oluyordu.)
+ */
+export function getAutoKpiDisplayMeta(kpi) {
+    const fallbackDir = kpi?.target_direction ?? 'decrease';
+    if (!kpi?.is_auto || !kpi?.auto_kpi_id) {
+        return {
+            name: kpi?.name ?? '',
+            description: kpi?.description,
+            data_source: kpi?.data_source,
+            category: kpi?.category,
+            target_direction: fallbackDir,
+        };
+    }
+    const templateId = LEGACY_AUTO_KPI_ID_MAP[kpi.auto_kpi_id] ?? kpi.auto_kpi_id;
+    const def = PREDEFINED_KPI_BY_AUTO_ID[templateId];
+    if (!def) {
+        return {
+            name: kpi.name,
+            description: kpi.description,
+            data_source: kpi.data_source,
+            category: kpi.category,
+            target_direction: fallbackDir,
+        };
+    }
+    return {
+        name: def.name,
+        description: def.description,
+        data_source: def.data_source,
+        category: def.category ?? kpi.category,
+        target_direction: def.target_direction ?? fallbackDir,
+    };
+}

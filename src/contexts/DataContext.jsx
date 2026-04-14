@@ -722,7 +722,7 @@ export const DataProvider = ({ children }) => {
         }
     }, [session]);
 
-    // KPI'ları yenile — kpis.target_value null ise kpi_monthly_data'dan bu ayın hedefini kullan
+    // KPI'ları yenile — kpis.target_value yalnızca null/undefined ise kpi_monthly_data'dan bu ayın hedefini kullan (0 geçerli hedeftir)
     const refreshKpis = useCallback(async () => {
         if (!session) return;
         try {
@@ -753,7 +753,7 @@ export const DataProvider = ({ children }) => {
             });
 
             const kpis = kpisRaw.map(k => {
-                const needsFallback = (k.target_value == null || parseFloat(k.target_value) === 0) && monthlyTargetByKpi[k.id] != null;
+                const needsFallback = k.target_value == null && monthlyTargetByKpi[k.id] != null;
                 return needsFallback ? { ...k, target_value: monthlyTargetByKpi[k.id] } : k;
             });
 
@@ -859,7 +859,9 @@ export const DataProvider = ({ children }) => {
             'expired_document_count': 'get_expired_document_count',
             'open_deviation_count': 'get_open_deviation_count',
             'calibration_due_count': 'get_calibration_due_count',
-            'open_internal_audit_count': 'get_open_internal_audit_count',
+            'completed_internal_audits_30d_count': 'get_completed_internal_audits_30d_count',
+            /** @deprecated DB migrate edilene kadar eski satırlar */
+            'open_internal_audit_count': 'get_completed_internal_audits_30d_count',
             'open_supplier_nc_count': 'get_open_supplier_nc_count',
             'active_suppliers_count': 'get_active_suppliers_count',
             'avg_supplier_score': 'get_avg_supplier_score',

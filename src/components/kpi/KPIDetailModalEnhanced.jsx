@@ -22,7 +22,7 @@ import {
 import { format, subMonths } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KPI_CATEGORIES, KPI_UNIT_OPTIONS } from './kpi-definitions';
+import { KPI_CATEGORIES, KPI_UNIT_OPTIONS, getAutoKpiDisplayMeta } from './kpi-definitions';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (v, decimals = 2) =>
@@ -146,6 +146,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     const [selectedNcType, setSelectedNcType] = useState('DF');
     const [kpiLinkedNcs, setKpiLinkedNcs] = useState([]);
 
+    const displayMeta = useMemo(() => getAutoKpiDisplayMeta(kpi), [kpi]);
+    const targetDir = displayMeta.target_direction ?? 'decrease';
+
     const runBackfillAndLoad = useCallback(async () => {
         if (!kpi?.is_auto) return;
         setIsBackfilling(true);
@@ -259,9 +262,10 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                 });
             }));
             const nowKey = `${currentYear}-${currentMonth}`;
-            const syncVal = editingTargets[nowKey] || entries[0]?.[1];
-            if (syncVal && !isNaN(parseFloat(syncVal))) {
-                await supabase.from('kpis').update({ target_value: parseFloat(syncVal) }).eq('id', kpi.id);
+            const syncVal = editingTargets[nowKey] ?? entries[0]?.[1];
+            const syncNum = syncVal != null && String(syncVal).trim() !== '' ? parseFloat(syncVal) : NaN;
+            if (Number.isFinite(syncNum)) {
+                await supabase.from('kpis').update({ target_value: syncNum }).eq('id', kpi.id);
             }
             toast({ title: 'Kaydedildi!', description: `${entries.length} aylık hedef güncellendi.` });
             setEditingTargets({});
@@ -328,17 +332,17 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             source_kpi_id: kpi.id,
             source_kpi_year: currentYear,
             source_kpi_month: currentMonth,
-            title: `[KPI] ${kpi.name} - Hedef Tutturulamadı`,
+            title: `[KPI] ${displayMeta.name} - Hedef Tutturulamadı`,
             description: [
                 `Kaynak: KPI Yönetimi`,
-                `KPI Adı: ${kpi.name}`,
+                `KPI Adı: ${displayMeta.name}`,
                 `Kategori: ${catMeta.label}`,
                 `Mevcut Değer: ${fmt(kpiCurrent)}${kpi.unit || ''}`,
                 `Hedef Değer: ${hasTarget ? `${fmt(kpiTarget)}${kpi.unit || ''}` : 'Belirsiz'}`,
                 deviationTxt,
-                `Hedef Yönü: ${kpi.target_direction === 'decrease' ? 'Düşük daha iyi' : 'Yüksek daha iyi'}`,
-                kpi.description ? `\nKPI Açıklaması: ${kpi.description}` : '',
-                kpi.data_source ? `Veri Kaynağı: ${kpi.data_source}` : '',
+                `Hedef Yönü: ${targetDir === 'decrease' ? 'Düşük daha iyi' : 'Yüksek daha iyi'}`,
+                displayMeta.description ? `\nKPI Açıklaması: ${displayMeta.description}` : '',
+                displayMeta.data_source ? `Veri Kaynağı: ${displayMeta.data_source}` : '',
             ].filter(Boolean).join('\n'),
             type: selectedNcType,
             category: catMeta.label,
@@ -380,18 +384,22 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     }, [kpi, currentMonthData]);
 
     const hasData   = kpiCurrent != null;
-    const hasTarget = kpiTarget != null && kpiTarget !== 0;
+    const hasTarget = kpiTarget != null;
 
     const progressPct = useMemo(() => {
-        if (!hasData || !hasTarget || kpiTarget === 0) return 0;
-        if (kpi?.target_direction === 'decrease') return Math.min(100, (kpiTarget / kpiCurrent) * 100);
+        if (!hasData || !hasTarget) return 0;
+        if (kpiTarget === 0) {
+            if (targetDir === 'decrease') return kpiCurrent <= 0 ? 100 : 0;
+            return kpiCurrent >= 0 ? 100 : 0;
+        }
+        if (targetDir === 'decrease') return Math.min(100, (kpiTarget / kpiCurrent) * 100);
         return Math.min(100, (kpiCurrent / kpiTarget) * 100);
-    }, [kpiCurrent, kpiTarget, hasData, hasTarget, kpi]);
+    }, [kpiCurrent, kpiTarget, hasData, hasTarget, targetDir]);
 
     const isOnTarget = useMemo(() => {
         if (!hasData || !hasTarget) return null;
-        return kpi?.target_direction === 'decrease' ? kpiCurrent <= kpiTarget : kpiCurrent >= kpiTarget;
-    }, [hasData, hasTarget, kpiCurrent, kpiTarget, kpi]);
+        return targetDir === 'decrease' ? kpiCurrent <= kpiTarget : kpiCurrent >= kpiTarget;
+    }, [hasData, hasTarget, kpiCurrent, kpiTarget, targetDir]);
 
     const deviation = useMemo(() => {
         if (!hasData || !hasTarget || kpiTarget === 0) return null;
@@ -411,8 +419,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         ? (Math.abs(deviation || 0) > 20 ? '#ef4444' : '#f97316')
         : '#6366f1';
 
-    const catFromDef = KPI_CATEGORIES.find(c => c.id === kpi?.category);
-const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2ff', label: catFromDef?.label || kpi?.category || 'KPI' };
+    const displayCategory = displayMeta.category || kpi?.category;
+    const catFromDef = KPI_CATEGORIES.find(c => c.id === displayCategory);
+    const catMeta   = categoryMeta[displayCategory] || { color: '#6366f1', bg: '#eef2ff', label: catFromDef?.label || displayCategory || 'KPI' };
     const trendInfo = TREND_LABELS[smartSuggestion?.trend] || TREND_LABELS.unknown;
 
     const pendingCount  = Object.keys(editingTargets).filter(k => editingTargets[k].trim() !== '').length;
@@ -435,7 +444,7 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
                 sm:left-3 sm:top-3
             " style={{ transform: 'none', width: 'calc(100vw - 16px)', height: 'calc(100vh - 16px)', maxWidth: 'none', maxHeight: 'none' }} hideCloseButton>
                 <DialogHeader className="sr-only">
-                    <DialogTitle>KPI Detay: {kpi?.name}</DialogTitle>
+                    <DialogTitle>KPI Detay: {displayMeta.name}</DialogTitle>
                 </DialogHeader>
 
                 {/* ── HEADER ─────────────────────────────────────────────── */}
@@ -464,9 +473,9 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
                                         </span>
                                     )}
                                 </div>
-                                <h1 className="text-xl font-bold text-white leading-tight">{kpi.name}</h1>
-                                {kpi.description && (
-                                    <p className="text-xs text-white/60 mt-0.5 max-w-2xl">{kpi.description}</p>
+                                <h1 className="text-xl font-bold text-white leading-tight">{displayMeta.name}</h1>
+                                {displayMeta.description && (
+                                    <p className="text-xs text-white/60 mt-0.5 max-w-2xl">{displayMeta.description}</p>
                                 )}
                             </div>
                         </div>
@@ -482,12 +491,12 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
                             {
                                 label: 'Mevcut Değer',
                                 value: hasData ? `${fmt(kpiCurrent)}${kpi.unit || ''}` : '—',
-                                sub: kpi.data_source,
+                                sub: displayMeta.data_source,
                             },
                             {
                                 label: 'Hedef Değer',
                                 value: hasTarget ? `${fmt(kpiTarget)}${kpi.unit || ''}` : 'Belirsiz',
-                                sub: kpi.target_direction === 'decrease' ? '↓ Düşük daha iyi' : '↑ Yüksek daha iyi',
+                                sub: targetDir === 'decrease' ? '↓ Düşük daha iyi' : '↑ Yüksek daha iyi',
                             },
                             {
                                 label: 'Bu Ay Sapma',
@@ -667,7 +676,7 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                             <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
                                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Veri Kaynağı</p>
-                                                <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{kpi.data_source || '—'}</p>
+                                                <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{displayMeta.data_source || '—'}</p>
                                             </div>
                                             <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
                                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Birim</p>
@@ -690,7 +699,7 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
                                             </div>
                                             <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
                                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Hedef Yönü</p>
-                                                <p className="text-sm font-semibold text-foreground mt-0.5">{kpi.target_direction === 'decrease' ? '↓ Düşük' : '↑ Yüksek'}</p>
+                                                <p className="text-sm font-semibold text-foreground mt-0.5">{targetDir === 'decrease' ? '↓ Düşük' : '↑ Yüksek'}</p>
                                             </div>
                                             <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
                                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Kategori</p>
@@ -731,7 +740,7 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle>KPI'yi Sil</AlertDialogTitle>
                                                             <AlertDialogDescription>
-                                                                <strong>{kpi.name}</strong> ve tüm aylık verisi kalıcı olarak silinecek.
+                                                                <strong>{displayMeta.name}</strong> ve tüm aylık verisi kalıcı olarak silinecek.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
@@ -874,9 +883,10 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
 
                                     {hasActualData && (() => {
                                         const actuals = monthlyData.filter(d => d.actual != null).map(d => parseFloat(d.actual));
+                                        if (actuals.length === 0) return null;
                                         const avg = actuals.reduce((s, v) => s + v, 0) / actuals.length;
-                                        const best  = kpi.target_direction === 'decrease' ? Math.min(...actuals) : Math.max(...actuals);
-                                        const worst = kpi.target_direction === 'decrease' ? Math.max(...actuals) : Math.min(...actuals);
+                                        const best  = targetDir === 'decrease' ? Math.min(...actuals) : Math.max(...actuals);
+                                        const worst = targetDir === 'decrease' ? Math.max(...actuals) : Math.min(...actuals);
                                         return (
                                             <div className="grid grid-cols-3 gap-4">
                                                 {[
@@ -975,7 +985,7 @@ const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2f
                                                         const dev  = !isNaN(tNum) && tNum !== 0 && aNum != null
                                                             ? (aNum - tNum) / Math.abs(tNum) * 100 : null;
                                                         const good = dev === null ? null
-                                                            : kpi.target_direction === 'decrease' ? dev <= 0 : dev >= 0;
+                                                            : targetDir === 'decrease' ? dev <= 0 : dev >= 0;
                                                         return (
                                                             <tr key={i}
                                                                 className={`border-b last:border-0 transition-colors

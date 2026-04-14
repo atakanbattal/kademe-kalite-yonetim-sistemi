@@ -44,7 +44,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Info, HelpCircle } from 'lucide-react';
-import { computeBenchmarkItemScores } from '@/lib/benchmarkScoring';
+import { computeBenchmarkItemScores, syncAutoBenchmarkCriteria } from '@/lib/benchmarkScoring';
 import { fetchBenchmarkComparisonReportPayload } from '@/lib/benchmarkComparisonReportData';
 import { buildAutoProsConsInserts, replaceAutoProsConsInSupabase } from '@/lib/benchmarkAutoProsCons';
 import { generateBenchmarkComparisonReportHtml } from '@/lib/benchmarkComparisonReportHtml';
@@ -158,6 +158,27 @@ const BenchmarkComparison = ({
                 ...row,
                 include_in_matrix: row.include_in_matrix !== false,
             }));
+
+            /** Matriste en az 2 kriter yoksa (çoğu kayıtta sadece alternatifler var) otomatik kriter+skor üret */
+            const matrixCountInitial = criteriaData.filter((c) => c.include_in_matrix !== false).length;
+            if (itemsData.length >= 2 && matrixCountInitial < 2) {
+                try {
+                    await syncAutoBenchmarkCriteria(supabase, benchmark.id);
+                    const { data: critAfter, error: critAfterErr } = await supabase
+                        .from('benchmark_criteria')
+                        .select('*')
+                        .eq('benchmark_id', benchmark.id)
+                        .order('order_index');
+                    if (!critAfterErr && critAfter?.length) {
+                        criteriaData = critAfter.map((row) => ({
+                            ...row,
+                            include_in_matrix: row.include_in_matrix !== false,
+                        }));
+                    }
+                } catch (syncErr) {
+                    console.warn('Otomatik kriter senkronu atlandı:', syncErr);
+                }
+            }
 
             setItems(itemsData);
             setCriteria(criteriaData);
@@ -317,6 +338,25 @@ const BenchmarkComparison = ({
     const radarCompareItems = useMemo(() => itemsSortedByScore.slice(0, 5), [itemsSortedByScore]);
 
     const showRadar = matrixCriteria.length >= 2 && radarCompareItems.length >= 2;
+
+    /** Radar boşsa kullanıcıya net sebep (otomatik kriter oluşmadıysa / alternatif eksik) */
+    const radarEmptyExplanation = useMemo(() => {
+        if (items.length < 2) {
+            return 'Radar için en az iki alternatif gerekir. Alternatifler sekmesinden ekleyin.';
+        }
+        if (matrixCriteria.length < 2) {
+            return (
+                <>
+                    Matriste en az <strong className="text-foreground">2 kriter</strong> olmalı. İki alternatifiniz
+                    varken sistem otomatik kriter üretmeyi dener; üretim için her iki alternatifte de ortak doldurulmuş
+                    alanlar (ör. birim fiyat, kalite puanı, teslimat süresi) gerekir. Otomatik oluşmadıysa{' '}
+                    <strong className="text-foreground">Kriterler</strong> sekmesinden kriter ekleyip{' '}
+                    <strong className="text-foreground">Matris</strong> sekmesinde puanları girin.
+                </>
+            );
+        }
+        return null;
+    }, [items.length, matrixCriteria.length]);
 
     // Handlers for Items
     const handleAddItem = () => {
@@ -1022,10 +1062,8 @@ const BenchmarkComparison = ({
                                                 scores={scores}
                                             />
                                         ) : (
-                                            <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed bg-muted/20 px-4 text-center text-sm text-muted-foreground">
-                                                Radar için en az <strong className="mx-1 text-foreground">2 kriter</strong> ve{' '}
-                                                <strong className="mx-1 text-foreground">2 alternatif</strong> gerekir. Kayıtta otomatik
-                                                kriter üretimi kullanıldıysa burada görünür; yoksa Kriterler sekmesinden ekleyin.
+                                            <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground leading-relaxed">
+                                                {radarEmptyExplanation}
                                             </div>
                                         )}
                                     </CardContent>

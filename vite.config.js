@@ -251,6 +251,15 @@ export default defineConfig({
 			},
 		},
 	},
+	// Safari / iframe: node_modules/.vite/deps/*.js.map istekleri "access control" ile düşebilir
+	optimizeDeps: {
+		esbuildOptions: {
+			sourcemap: false,
+		},
+	},
+	css: {
+		devSourcemap: false,
+	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
 		alias: {

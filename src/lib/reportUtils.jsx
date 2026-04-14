@@ -4,6 +4,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { toCamelCase, getAttachmentDisplayName, formatDateOnlyLocal } from './utils';
 import { normalizeQuarantineAttachments } from './quarantineAttachments';
 import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
+import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -419,7 +420,7 @@ const getReportTitle = (record, type) => {
 				? `${record.categoryName} Listesi`
 				: 'Doküman Listesi Raporu';
 		case 'kpi_list':
-			return record.title || 'KPI Listesi Raporu';
+			return record.title || 'KPI Performans Raporu';
 		case 'leak_test_list':
 			return record.title || 'Sızdırmazlık Test Listesi Raporu';
 		case 'process_inspection_list':
@@ -2129,28 +2130,50 @@ const generateListReportHtml = (record, type) => {
 			${record.filterInfo ? `<p><strong>Filtre:</strong> ${record.filterInfo}</p>` : ''}
 		`;
 	} else if (type === 'kpi_list') {
-		title = record.title || 'KPI Listesi Raporu';
-		headers = ['KPI Adı', 'Kategori', 'Hedef', 'Güncel Değer', 'Birim', 'Veri Kaynağı', 'Otomatik'];
-		rowsHtml = (record.items || []).map((k) => {
+		title = record.title || 'KPI Performans Raporu';
+		const kpiCategoryLabel = (cat) => {
+			const id = cat != null && String(cat).trim() !== '' ? String(cat).trim() : null;
+			const found = KPI_CATEGORIES.find((c) => c.id === id);
+			return found ? found.label : (id && id !== 'default' ? id : 'Genel');
+		};
+		const targetDirLabel = (dir) => (dir === 'decrease' ? 'Düşük değer tercih edilir' : 'Yüksek değer tercih edilir');
+		headers = ['KPI Adı', 'Kategori', 'Hedef', 'Güncel Değer', 'Birim', 'Hedef Yönü', 'Performans özeti (12 ay)'];
+		const kpiItems = record.items || [];
+		rowsHtml = kpiItems.map((k) => {
 			const cur = k.current_value != null && k.current_value !== '' ? String(k.current_value) : '—';
 			const tgt = k.target_value != null && k.target_value !== '' ? String(k.target_value) : '—';
-			const unit = k.unit || '—';
-			const auto = k.is_auto ? 'Evet' : 'Hayır';
+			const unit = (k.unit && String(k.unit).trim()) ? String(k.unit).trim() : '—';
+			const catTr = k.category_label ? String(k.category_label) : kpiCategoryLabel(k.category);
+			const dir = k.target_direction === 'increase' || k.target_direction === 'decrease' ? k.target_direction : 'decrease';
+			const lines = Array.isArray(k.performance_lines) && k.performance_lines.length > 0
+				? k.performance_lines
+				: (k.performance_summary ? [String(k.performance_summary)] : ['—']);
+			const perfCell = lines.map((line) => escapeHtml(line)).join('<br/>');
 			return `
 				<tr>
 					<td style="font-weight: 600;">${escapeHtml(k.name || '-')}</td>
-					<td>${escapeHtml(k.category || 'default')}</td>
+					<td>${escapeHtml(catTr)}</td>
 					<td style="text-align: right;">${escapeHtml(tgt)}</td>
 					<td style="text-align: right;">${escapeHtml(cur)}</td>
 					<td>${escapeHtml(unit)}</td>
-					<td style="font-size: 0.85em;">${escapeHtml(k.data_source || '-')}</td>
-					<td style="text-align: center;">${auto}</td>
+					<td style="font-size: 0.9em;">${escapeHtml(targetDirLabel(dir))}</td>
+					<td style="font-size: 0.88em; line-height: 1.45;">${perfCell}</td>
 				</tr>
 			`;
 		}).join('');
+		const perfOk = kpiItems.filter((i) => i.meets_target === true).length;
+		const perfGap = kpiItems.filter((i) => i.meets_target === false).length;
+		const perfUndecided = kpiItems.filter((i) => i.meets_target !== true && i.meets_target !== false).length;
+		const eksikPart = perfUndecided > 0 ? `, ${perfUndecided} tanımsız` : '';
 		summaryHtml = `
-			<p><strong>Toplam KPI:</strong> ${totalCount}</p>
-			${record.filterInfo ? `<p><strong>Filtre:</strong> ${escapeHtml(record.filterInfo)}</p>` : ''}
+			<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;">
+				<p style="margin: 0; font-size: 13px; color: #334155; line-height: 1.5;">
+					<strong>${totalCount}</strong> KPI —
+					<span style="color:#15803d;">${perfOk} uygun</span>,
+					<span style="color:#b91c1c;">${perfGap} sapma</span>${eksikPart}
+				</p>
+			</div>
+			${record.filterInfo ? `<p style="margin:0 0 8px 0; font-size: 12px; color: #64748b;">${escapeHtml(record.filterInfo)}</p>` : ''}
 		`;
 	} else if (type === 'leak_test_list') {
 		title = record.title || 'Sızdırmazlık Test Listesi Raporu';
