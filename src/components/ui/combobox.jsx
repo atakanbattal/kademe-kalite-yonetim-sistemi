@@ -49,11 +49,8 @@
                     <CommandItem
                       key={option.value}
                       value={option.label}
-                      onSelect={(currentLabel) => {
-                        const selected = options.find(opt => opt.label.toLowerCase() === currentLabel.toLowerCase());
-                        if (selected) {
-                            onChange(selected.value === value ? "" : selected.value);
-                        }
+                      onSelect={() => {
+                        onChange(option.value === value ? "" : option.value);
                         setOpen(false);
                       }}
                     >

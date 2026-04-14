@@ -789,20 +789,25 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} controlPlanMissingCount={controlPlanMissingCount} periodLabel={dashboardPeriodLabel} />
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                <Button type="button" variant="outline" className="gap-2 sm:self-end" onClick={() => setIsFolderDownloadOpen(true)}>
-                    <Download className="h-4 w-4" />
-                    Klasör İndir
-                </Button>
-            </div>
-
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
+                <div className="flex flex-col gap-3 border-b border-border/60 bg-muted/25 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="text-sm font-semibold text-foreground">Operasyonel süreçler</p>
+                        <p className="text-xs text-muted-foreground">Girdi kalite muayenesi, malzeme girişleri, kontrol planları, INKR ve stok riski</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => setIsFolderDownloadOpen(true)}>
+                        <Download className="h-4 w-4" />
+                        Klasör indir
+                    </Button>
+                </div>
+                <div className="p-3 sm:p-4">
             <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="inspections">Muayene Kayıtları</TabsTrigger>
-                    <TabsTrigger value="sheet-metal">Sac Malzemeler</TabsTrigger>
-                    <TabsTrigger value="control-plans">Kontrol Planları</TabsTrigger>
-                    <TabsTrigger value="inkr">INKR Yönetimi</TabsTrigger>
-                    <TabsTrigger value="stock-risk">Stok Risk Kontrolleri</TabsTrigger>
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg border border-border/50 bg-muted/30 p-1 sm:grid-cols-3 lg:grid-cols-5">
+                    <TabsTrigger value="inspections" className="rounded-md text-xs sm:text-sm px-2 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Muayene kayıtları</TabsTrigger>
+                    <TabsTrigger value="sheet-metal" className="rounded-md text-xs sm:text-sm px-2 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Sac malzemeler</TabsTrigger>
+                    <TabsTrigger value="control-plans" className="rounded-md text-xs sm:text-sm px-2 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Kontrol planları</TabsTrigger>
+                    <TabsTrigger value="inkr" className="rounded-md text-xs sm:text-sm px-2 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">INKR</TabsTrigger>
+                    <TabsTrigger value="stock-risk" className="rounded-md text-xs sm:text-sm px-2 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Stok risk</TabsTrigger>
                 </TabsList>
                 <TabsContent value="inspections">
                     <IncomingInspectionList
@@ -866,6 +871,8 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     )}
                 </TabsContent>
             </Tabs>
+                </div>
+            </div>
 
             {isFormOpen && (
                 <Suspense fallback={null}>

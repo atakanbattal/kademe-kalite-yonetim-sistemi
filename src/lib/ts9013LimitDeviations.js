@@ -67,6 +67,19 @@ const MATRICES = {
     2: LIMIT_DEVIATION_CLASS_2_MM,
 };
 
+/**
+ * Nominal alanındaki Ø, φ, mm vb. önek/son ekleri atlayıp ilk ondalık sayıyı döndürür.
+ * Örn. "Ø158" → 158, " 12,5 mm " → 12.5
+ */
+export function parseNumericNominalMm(input) {
+    if (input == null) return NaN;
+    const s = String(input).trim();
+    if (s === '') return NaN;
+    const m = s.match(/-?\d+(?:[.,]\d+)?/);
+    if (!m) return NaN;
+    return parseFloat(m[0].replace(',', '.'));
+}
+
 /** Combobox / tolerance_class: S1 → 1, S2 → 2 */
 export function ts9013QualityClassFromToleranceClass(toleranceClass) {
     const s = String(toleranceClass || '').trim();

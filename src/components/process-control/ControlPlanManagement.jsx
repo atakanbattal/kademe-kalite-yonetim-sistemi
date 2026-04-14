@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
     lookupTs9013LimitDeviationMm,
     normalizeLegacyTs9013StandardItem,
+    parseNumericNominalMm,
     ts9013QualityClassFromToleranceClass,
 } from '@/lib/ts9013LimitDeviations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -88,7 +89,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             return { ...currentItem };
         }
 
-        const nominal = parseFloat(String(nominal_value).replace(',', '.'));
+        const nominal = parseNumericNominalMm(nominal_value);
         if (isNaN(nominal)) {
              return { ...currentItem };
         }
@@ -272,7 +273,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             <td className="p-2 align-top min-w-[120px]">
                 <Input 
                     type="text" 
-                    placeholder="Örn: M8, 15.5, OK" 
+                    placeholder={isTs9013 ? 'Sayısal boyut: 158 veya Ø158' : 'Örn: M8, 15.5, OK'} 
                     value={item.nominal_value || ''} 
                     onChange={(e) => handleFieldChange('nominal_value', e.target.value)} 
                     maxLength="50"
@@ -492,7 +493,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 }
                 if (isDimensional && item.standard_class?.startsWith('TS 9013')) {
                     const t = parseFloat(String(item.sheet_thickness_mm ?? '').replace(',', '.'));
-                    const nom = parseFloat(String(item.nominal_value ?? '').replace(',', '.'));
+                    const nom = parseNumericNominalMm(item.nominal_value);
                     const q = ts9013QualityClassFromToleranceClass(item.tolerance_class);
                     if (isNaN(t) || t <= 0 || isNaN(nom) || !q) return true;
                     if (lookupTs9013LimitDeviationMm(t, nom, q) === null) return true;

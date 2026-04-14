@@ -7,7 +7,7 @@ import {
     ExternalLink, Printer
 } from 'lucide-react';
 import BenchmarkDocumentUpload from './BenchmarkDocumentUpload';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -392,6 +392,7 @@ const BenchmarkDetail = ({
                 className="!fixed !inset-0 !left-0 !top-0 z-50 !m-0 flex h-[100dvh] !max-h-[100dvh] w-full !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none border-0 p-0 shadow-xl sm:!max-h-[100dvh]"
                 hideCloseButton
             >
+                <DialogTitle className="sr-only">{benchmark.title}</DialogTitle>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-4 py-4 sm:px-6 sm:py-5 flex flex-wrap items-center justify-between gap-3 text-white shrink-0">
                     <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                         <div className="bg-white/20 p-2.5 rounded-lg shrink-0"><TrendingUp className="h-5 w-5 text-white" /></div>

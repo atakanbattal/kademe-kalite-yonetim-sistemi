@@ -19,6 +19,7 @@ import { useDropzone } from 'react-dropzone';
 import {
     lookupTs9013LimitDeviationMm,
     normalizeLegacyTs9013StandardItem,
+    parseNumericNominalMm,
     ts9013QualityClassFromToleranceClass,
 } from '@/lib/ts9013LimitDeviations';
 import {
@@ -220,7 +221,7 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
             return { ...currentItem };
         }
 
-        const nominal = parseFloat(String(nominal_value).replace(',', '.'));
+        const nominal = parseNumericNominalMm(nominal_value);
         if (isNaN(nominal)) {
             return { ...currentItem };
         }
@@ -738,7 +739,7 @@ const ProcessInkrFormModal = ({
                 const isDimensional = selectedEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(selectedEquipment.label);
                 if (!isDimensional) return false;
                 const t = parseFloat(String(item.sheet_thickness_mm ?? '').replace(',', '.'));
-                const nom = parseFloat(String(item.nominal_value ?? '').replace(',', '.'));
+                const nom = parseNumericNominalMm(item.nominal_value);
                 const q = ts9013QualityClassFromToleranceClass(item.tolerance_class);
                 if (isNaN(t) || t <= 0 || isNaN(nom) || !q) return true;
                 return lookupTs9013LimitDeviationMm(t, nom, q) === null;

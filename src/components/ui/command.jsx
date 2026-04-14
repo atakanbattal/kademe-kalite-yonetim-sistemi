@@ -83,19 +83,13 @@ const CommandItem = React.forwardRef(({ className, onClick, onSelect, ...props }
     if (onClick) {
       onClick(e);
     }
-    // Trigger onSelect if provided
-    if (onSelect) {
-      onSelect();
-    }
+    // Selection is handled by cmdk via `onSelect` on CommandPrimitive.Item — do not call `onSelect()` here
+    // (calling it with no args breaks handlers that expect the item value, e.g. combobox label matching).
   };
 
   const handleClick = (e) => {
-    // Also handle regular click events
     if (onClick) {
       onClick(e);
-    }
-    if (onSelect && !e.defaultPrevented) {
-      onSelect();
     }
   };
 
