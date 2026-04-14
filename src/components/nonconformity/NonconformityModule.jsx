@@ -397,11 +397,13 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     if (!record || isNonconformityLinkedToDf8d(record)) return null;
     if (!isSuggestionEligibleRecord(record)) return null;
 
+    const stored = getStoredSuggestionType(record.status);
     if (settings?.auto_suggest) {
-      return suggestionMap.get(record.id) ?? null;
+      // Hesaplanan öneri öncelikli; yoksa durumdaki "DF/8D Önerildi" (Analiz kartları için)
+      return suggestionMap.get(record.id) ?? stored ?? null;
     }
 
-    return getStoredSuggestionType(record.status);
+    return stored;
   }, [suggestionMap, settings?.auto_suggest, isSuggestionEligibleRecord]);
 
   const displayRecordNumberMap = useMemo(
@@ -974,6 +976,23 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const activeConvertType = convertDialog.selectedType || convertDialog.suggestedType;
   const is8DConversion = activeConvertType === '8D';
 
+  /** Analiz: gruplara girmeyen ama tekil DF/8D önerisi olan açık kayıtlar */
+  const individualSuggestionRecords = useMemo(() => {
+    if (!settings?.auto_suggest) return [];
+    const out = [];
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+      if (r.status !== 'Açık' || r.source_nc_id) continue;
+      if (isNonconformityLinkedToDf8d(r)) continue;
+      if (!isSuggestionEligibleRecord(r)) continue;
+      const s = suggestionMap.get(r.id) ?? getStoredSuggestionType(r.status);
+      if (s !== 'DF' && s !== '8D') continue;
+      if (recordGroupMap.has(r.id)) continue;
+      out.push({ record: r, suggestion: s });
+    }
+    return out;
+  }, [records, settings?.auto_suggest, suggestionMap, recordGroupMap, isSuggestionEligibleRecord]);
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="list" className="w-full">
@@ -1385,19 +1404,23 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     {stats.topParts.map(([code, count], i) => {
                       const maxCount = stats.topParts[0]?.[1] || 1;
                       const pct = (count / maxCount) * 100;
-                      const isOverDf = settings && count >= (settings.df_threshold || 3);
-                      const isOver8d = settings && count >= (settings.eight_d_threshold || 5);
+                      const inPeriod = partCodeAnalysisData[code]?.inPeriod ?? 0;
+                      const isOverDf = settings && inPeriod >= (settings.df_threshold || 3);
+                      const isOver8d = settings && inPeriod >= (settings.eight_d_threshold || 5);
 
                       return (
                         <div key={code} className="space-y-1">
                           <div className="flex items-center justify-between text-sm">
                             <span className="font-mono font-medium">{code}</span>
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold">{count}</span>
+                              <span className="font-semibold" title="Tüm açık kayıtlar (toplam)">{count}</span>
                               {isOver8d && <Badge variant="destructive" className="text-[9px] px-1.5 py-0">8D</Badge>}
                               {isOverDf && !isOver8d && <Badge className="text-[9px] px-1.5 py-0 bg-blue-600">DF</Badge>}
                             </div>
                           </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Son {settings?.threshold_period_days ?? 30} günde tekrar: <strong>{inPeriod}</strong> (eşikler buna göre)
+                          </p>
                           <div className="w-full bg-muted rounded-full h-2">
                             <div
                               className={`h-2 rounded-full transition-all ${isOver8d ? 'bg-red-500' : isOverDf ? 'bg-blue-500' : 'bg-amber-400'}`}
@@ -1445,6 +1468,50 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               </CardContent>
             </Card>
           </div>
+
+          {individualSuggestionRecords.length > 0 && (
+            <Card className="border-indigo-200 bg-indigo-50/40 dark:bg-indigo-950/20">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-indigo-600" />
+                  Tekil DF/8D önerileri ({individualSuggestionRecords.length})
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Toplu grup önerisine düşmeyen; adet veya seçili dönemdeki tekrar nedeniyle önerilen açık kayıtlar. Kayıtlar sekmesinden dönüştürebilirsiniz.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {individualSuggestionRecords.slice(0, 24).map(({ record, suggestion }) => (
+                    <Button
+                      key={record.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-[11px] font-mono gap-1"
+                      onClick={() => {
+                        setDetailRecord({
+                          ...record,
+                          display_record_number: getDisplayRecordNumber(record),
+                        });
+                        setIsDetailOpen(true);
+                      }}
+                    >
+                      <Badge variant={suggestion === '8D' ? 'destructive' : 'default'} className="text-[9px] px-1.5 py-0">
+                        {suggestion}
+                      </Badge>
+                      {getDisplayRecordNumber(record)}
+                    </Button>
+                  ))}
+                </div>
+                {individualSuggestionRecords.length > 24 && (
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    +{individualSuggestionRecords.length - 24} kayıt daha…
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Personel analizi */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
