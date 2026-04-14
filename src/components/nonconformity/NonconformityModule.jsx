@@ -79,6 +79,11 @@ const getStoredSuggestionType = (status) => {
   return null;
 };
 
+/** DF/8D otomatik önerisi yalnızca Proses Kontrol (muayene) kaynaklı kayıtlar için — Üretilen Araçlar vb. otomatik kaynaklar hariç */
+const PROCESS_CONTROL_DETECTION_AREA = 'Proses İçi Kontrol';
+const isProcessControlNonconformityRecord = (r) =>
+  r?.detection_area === PROCESS_CONTROL_DETECTION_AREA;
+
 const INITIAL_CONVERT_DIALOG = {
   open: false,
   record: null,
@@ -247,7 +252,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const partAnalysis = {};
     const catAnalysis = {};
-    const activeRecords = records.filter(r => r.status !== 'Kapatıldı' && !isNonconformityLinkedToDf8d(r));
+    const activeRecords = records.filter(
+      (r) =>
+        !isNonconformityLinkedToDf8d(r) &&
+        isProcessControlNonconformityRecord(r)
+    );
 
     for (let i = 0; i < activeRecords.length; i++) {
       const record = activeRecords[i];
@@ -277,8 +286,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const dfQtyThreshold = settings?.df_quantity_threshold ?? 10;
     const eightDQtyThreshold = settings?.eight_d_quantity_threshold ?? 20;
 
-    const eligible = records.filter(r =>
-      r.status === 'Açık' && !r.source_nc_id
+    const eligible = records.filter(
+      (r) =>
+        r.status === 'Açık' &&
+        !r.source_nc_id &&
+        isProcessControlNonconformityRecord(r)
     );
 
     const buckets = {};
@@ -342,6 +354,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     for (let i = 0; i < records.length; i++) {
       const r = records[i];
       if (isNonconformityLinkedToDf8d(r)) { map.set(r.id, null); continue; }
+      if (!isProcessControlNonconformityRecord(r)) { map.set(r.id, null); continue; }
       const dfQtyThreshold = settings?.df_quantity_threshold ?? 10;
       const eightDQtyThreshold = settings?.eight_d_quantity_threshold ?? 20;
       const dfThreshold = settings?.df_threshold ?? 3;
@@ -362,6 +375,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   const getEffectiveSuggestionForStats = useCallback((record) => {
     if (!record || isNonconformityLinkedToDf8d(record)) return null;
+    if (!isProcessControlNonconformityRecord(record)) return null;
 
     if (settings?.auto_suggest) {
       return suggestionMap.get(record.id) ?? null;
@@ -762,6 +776,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     fetchRecords();
 
     if (!settings?.auto_suggest || !savedRecord) return;
+    if (!isProcessControlNonconformityRecord(savedRecord)) return;
 
     setTimeout(async () => {
       const dfQtyThreshold = settings.df_quantity_threshold || 10;
@@ -848,6 +863,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
       if (record.status === 'Kapatıldı') {
         acc.closed += 1;
+        const sug = getEffectiveSuggestionForStats(record);
+        if (sug === 'DF') acc.dfSuggested += 1;
+        else if (sug === '8D') acc.eightDSuggested += 1;
         return acc;
       }
 
@@ -884,11 +902,18 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       critical: 0,
     });
 
-    // En çok tekrarlayan parça kodları (Üretilen araçlar modülünden gelen seri/şasi numaralarını hariç tut)
+    // En çok tekrarlayan parça kodları (yalnızca Proses İçi Kontrol; kapalı kayıtlar dahil — DF/8D öneri eşikleriyle uyumlu)
     const partCounts = {};
-    records.filter(r => r.part_code && r.status !== 'Kapatıldı' && r.detection_area !== 'Üretilen Araçlar').forEach(r => {
-      partCounts[r.part_code] = (partCounts[r.part_code] || 0) + 1;
-    });
+    records
+      .filter(
+        (r) =>
+          r.part_code &&
+          isProcessControlNonconformityRecord(r) &&
+          !isNonconformityLinkedToDf8d(r)
+      )
+      .forEach((r) => {
+        partCounts[r.part_code] = (partCounts[r.part_code] || 0) + 1;
+      });
     const topParts = Object.entries(partCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
@@ -1145,6 +1170,23 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                 </div>
                               );
                             }
+                            if (record.status === 'Kapatıldı' && suggestion && settings?.auto_suggest) {
+                              return (
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[9px] px-1.5 py-0 ${
+                                      suggestion === '8D'
+                                        ? 'border-red-200 text-red-700 bg-red-50'
+                                        : 'border-indigo-200 text-indigo-700 bg-indigo-50'
+                                    }`}
+                                  >
+                                    {suggestion} önerisi
+                                  </Badge>
+                                  <span className="text-[9px] text-muted-foreground">Analizde korunur</span>
+                                </div>
+                              );
+                            }
                             const group = recordGroupMap.get(record.id);
                             if (group && settings?.auto_suggest) {
                               const is8D = group.suggestion === '8D';
@@ -1168,7 +1210,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                 </div>
                               );
                             }
-                            if (suggestion && settings?.auto_suggest) {
+                            if (suggestion && settings?.auto_suggest && record.status !== 'Kapatıldı') {
                               return (
                                 <div className="flex flex-col items-start gap-1">
                                   <Button
