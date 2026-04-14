@@ -13,6 +13,8 @@ import {
   DEFAULT_SUGGESTION_DETECTION_AREAS,
   normalizeSuggestionDetectionAreas,
   parseSuggestionAreasForSave,
+  clampThresholdPeriodDays,
+  MIN_THRESHOLD_PERIOD_DAYS,
 } from '@/lib/nonconformitySuggestionSources';
 
 const NonconformitySettings = ({ onSaved }) => {
@@ -43,6 +45,7 @@ const NonconformitySettings = ({ onSaved }) => {
       if (data) {
         setSettings({
           ...data,
+          threshold_period_days: clampThresholdPeriodDays(data.threshold_period_days),
           suggestion_include_detection_areas: normalizeSuggestionDetectionAreas(
             data.suggestion_include_detection_areas
           ),
@@ -80,7 +83,7 @@ const NonconformitySettings = ({ onSaved }) => {
       const updateData = {
         df_threshold: parseInt(settings.df_threshold) || 3,
         eight_d_threshold: parseInt(settings.eight_d_threshold) || 5,
-        threshold_period_days: parseInt(settings.threshold_period_days) || 30,
+        threshold_period_days: clampThresholdPeriodDays(settings.threshold_period_days),
         df_quantity_threshold: parseInt(settings.df_quantity_threshold) || 10,
         eight_d_quantity_threshold: parseInt(settings.eight_d_quantity_threshold) || 20,
         auto_suggest: settings.auto_suggest,
@@ -108,6 +111,7 @@ const NonconformitySettings = ({ onSaved }) => {
       } else {
         setSettings({
           ...result.data,
+          threshold_period_days: clampThresholdPeriodDays(result.data.threshold_period_days),
           suggestion_include_detection_areas: normalizeSuggestionDetectionAreas(
             result.data.suggestion_include_detection_areas
           ),
@@ -298,12 +302,12 @@ const NonconformitySettings = ({ onSaved }) => {
           <div className="space-y-3 p-4 rounded-lg border">
             <Label className="text-sm font-semibold">Değerlendirme Periyodu</Label>
             <p className="text-xs text-muted-foreground">
-              Eşik hesaplaması için kaç günlük süre dikkate alınsın?
+              Eşik hesaplaması için kaç günlük süre dikkate alınsın? (En az {MIN_THRESHOLD_PERIOD_DAYS} gün; daha kısa değerler kayıtta buna yükseltilir.)
             </p>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
-                min="1"
+                min={MIN_THRESHOLD_PERIOD_DAYS}
                 max="365"
                 value={settings.threshold_period_days}
                 onChange={(e) => setSettings(prev => ({ ...prev, threshold_period_days: e.target.value }))}

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -42,6 +43,9 @@ import {
 import {
   normalizeSuggestionDetectionAreas,
   buildSuggestionAreasForRpc,
+  clampThresholdPeriodDays,
+  MIN_THRESHOLD_PERIOD_DAYS,
+  isCanonicalSuggestionDetectionArea,
 } from '@/lib/nonconformitySuggestionSources';
 
 const severityColors = {
@@ -135,8 +139,15 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   const isSuggestionEligibleRecord = useCallback(
     (r) => {
-      const a = r?.detection_area;
-      return !!a && suggestionDetectionAreasSet.has(a);
+      const a = String(r?.detection_area ?? '').trim();
+      if (!a) {
+        return suggestionDetectionAreasSet.has('Proses İçi Kontrol');
+      }
+      if (isCanonicalSuggestionDetectionArea(a)) {
+        return suggestionDetectionAreasSet.has(a);
+      }
+      // Hat Sonu Kontrol, Girdi KK vb. listede olmayan kurumsal etiketler — analizde tamamen dışlanmasın
+      return true;
     },
     [suggestionDetectionAreasSet]
   );
@@ -200,6 +211,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     if (data) {
       setSettings({
         ...data,
+        threshold_period_days: clampThresholdPeriodDays(data.threshold_period_days),
         suggestion_include_detection_areas: normalizeSuggestionDetectionAreas(
           data.suggestion_include_detection_areas
         ),
@@ -263,10 +275,15 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     return () => { isCancelled = true; clearTimeout(timerId); };
   }, [authLoading, fetchRecords, profile?.full_name, toast, user]);
 
+  const effectivePeriodDays = useMemo(
+    () => clampThresholdPeriodDays(settings?.threshold_period_days),
+    [settings?.threshold_period_days]
+  );
+
   const { partCodeAnalysisData, categoryAnalysisData } = useMemo(() => {
     if (!records.length) return { partCodeAnalysisData: {}, categoryAnalysisData: {} };
 
-    const periodDays = settings?.threshold_period_days || 30;
+    const periodDays = effectivePeriodDays;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - periodDays);
 
@@ -296,7 +313,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }
 
     return { partCodeAnalysisData: partAnalysis, categoryAnalysisData: catAnalysis };
-  }, [records, settings, isSuggestionEligibleRecord]);
+  }, [records, effectivePeriodDays, isSuggestionEligibleRecord]);
 
   const smartGroups = useMemo(() => {
     if (!records.length) return [];
@@ -825,9 +842,10 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
       // 2) Tekrar bazlı kontrol (adet eşiğini geçmediyse)
       if (!newStatus && savedRecord.part_code) {
+        const periodDays = clampThresholdPeriodDays(settings?.threshold_period_days);
         const { data: recurrence } = await supabase.rpc('check_part_code_recurrence', {
           p_part_code: savedRecord.part_code,
-          p_period_days: settings.threshold_period_days || 30,
+          p_period_days: periodDays,
           p_detection_areas: buildSuggestionAreasForRpc(settings?.suggestion_include_detection_areas),
         });
 
@@ -838,14 +856,14 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             toastConfig = {
               variant: 'destructive',
               title: '8D Önerisi',
-              description: `"${savedRecord.part_code}" parça kodunda ${settings.threshold_period_days} gün içinde ${count} kayıt tespit edildi. 8D açılması önerilir!`,
+              description: `"${savedRecord.part_code}" parça kodunda ${periodDays} gün içinde ${count} kayıt tespit edildi. 8D açılması önerilir!`,
             };
           } else if (count >= (settings.df_threshold || 3)) {
             newStatus = 'DF Önerildi';
             toastConfig = {
               variant: 'warning',
               title: 'DF Önerisi (Tekrar)',
-              description: `"${savedRecord.part_code}" parça kodunda ${settings.threshold_period_days} gün içinde ${count} kayıt tespit edildi. DF açılması önerilir!`,
+              description: `"${savedRecord.part_code}" parça kodunda ${periodDays} gün içinde ${count} kayıt tespit edildi. DF açılması önerilir!`,
             };
           }
         }
@@ -992,6 +1010,86 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }
     return out;
   }, [records, settings?.auto_suggest, suggestionMap, recordGroupMap, isSuggestionEligibleRecord]);
+
+  /** Analiz: TÜM DF/8D öneri/dönüştürme geçmişi (kapatılmış dahil) */
+  const allSuggestedRecords = useMemo(() => {
+    const dfQtyThr = settings?.df_quantity_threshold ?? 10;
+    const eightDQtyThr = settings?.eight_d_quantity_threshold ?? 20;
+    const dfThr = settings?.df_threshold ?? 3;
+    const eightDThr = settings?.eight_d_threshold ?? 5;
+
+    const out = [];
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+
+      let suggestion = null;
+      let reason = '';
+      const linked = getLinkedNcMeta(r);
+
+      if (CONVERTED_STATUSES.has(r.status)) {
+        suggestion = r.status === '8D Açıldı' ? '8D' : 'DF';
+        reason = `Dönüştürüldü → ${linked?.nc_number || suggestion}`;
+      } else if (r.status === 'DF Önerildi' || r.status === '8D Önerildi') {
+        suggestion = r.status === '8D Önerildi' ? '8D' : 'DF';
+        const pc = r.part_code ? (partCodeAnalysisData[r.part_code]?.inPeriod ?? 0) : 0;
+        if (r.quantity >= eightDQtyThr) reason = `Adet: ${r.quantity} (eşik: ${eightDQtyThr})`;
+        else if (r.quantity >= dfQtyThr) reason = `Adet: ${r.quantity} (eşik: ${dfQtyThr})`;
+        else if (pc >= eightDThr) reason = `Tekrar: ${pc}× / ${effectivePeriodDays} gün (eşik: ${eightDThr})`;
+        else if (pc >= dfThr) reason = `Tekrar: ${pc}× / ${effectivePeriodDays} gün (eşik: ${dfThr})`;
+        else reason = 'Durum bazlı öneri';
+      } else if (r.status === 'Kapatıldı') {
+        const calc = suggestionMap.get(r.id);
+        if (calc) {
+          suggestion = calc;
+          const pc = r.part_code ? (partCodeAnalysisData[r.part_code]?.inPeriod ?? 0) : 0;
+          if (r.quantity >= eightDQtyThr) reason = `Adet: ${r.quantity}`;
+          else if (r.quantity >= dfQtyThr) reason = `Adet: ${r.quantity}`;
+          else if (pc >= dfThr) reason = `Tekrar: ${pc}× / ${effectivePeriodDays} gün`;
+          else reason = 'Hesaplama bazlı';
+        }
+      } else {
+        const calc = suggestionMap.get(r.id);
+        if (calc) {
+          suggestion = calc;
+          const pc = r.part_code ? (partCodeAnalysisData[r.part_code]?.inPeriod ?? 0) : 0;
+          if (r.quantity >= eightDQtyThr) reason = `Adet: ${r.quantity} (eşik: ${eightDQtyThr})`;
+          else if (r.quantity >= dfQtyThr) reason = `Adet: ${r.quantity} (eşik: ${dfQtyThr})`;
+          else if (pc >= eightDThr) reason = `Tekrar: ${pc}× / ${effectivePeriodDays} gün (eşik: ${eightDThr})`;
+          else if (pc >= dfThr) reason = `Tekrar: ${pc}× / ${effectivePeriodDays} gün (eşik: ${dfThr})`;
+          else reason = 'Eşik hesaplaması';
+        }
+      }
+
+      if (!suggestion) continue;
+
+      out.push({
+        record: r,
+        suggestion,
+        reason,
+        linked,
+        statusLabel: r.status,
+      });
+    }
+
+    out.sort((a, b) => {
+      const order = { '8D': 0, 'DF': 1 };
+      if ((order[a.suggestion] ?? 2) !== (order[b.suggestion] ?? 2))
+        return (order[a.suggestion] ?? 2) - (order[b.suggestion] ?? 2);
+      return new Date(b.record.detection_date || b.record.created_at) - new Date(a.record.detection_date || a.record.created_at);
+    });
+    return out;
+  }, [records, settings, suggestionMap, partCodeAnalysisData, effectivePeriodDays]);
+
+  const [suggestionDetailTab, setSuggestionDetailTab] = useState('all');
+  const filteredSuggestions = useMemo(() => {
+    if (suggestionDetailTab === 'all') return allSuggestedRecords;
+    if (suggestionDetailTab === '8d') return allSuggestedRecords.filter(s => s.suggestion === '8D');
+    if (suggestionDetailTab === 'df') return allSuggestedRecords.filter(s => s.suggestion === 'DF');
+    if (suggestionDetailTab === 'converted') return allSuggestedRecords.filter(s => CONVERTED_STATUSES.has(s.record.status));
+    if (suggestionDetailTab === 'open') return allSuggestedRecords.filter(s => s.record.status === 'Açık' || s.record.status === 'DF Önerildi' || s.record.status === '8D Önerildi');
+    return allSuggestedRecords;
+  }, [allSuggestedRecords, suggestionDetailTab]);
+  const [suggestionVisibleCount, setSuggestionVisibleCount] = useState(30);
 
   return (
     <div className="space-y-4">
@@ -1387,6 +1485,13 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             <DashboardCard title="Dönüştürülen" value={stats.converted} color="bg-green-500" />
           </div>
 
+          <Alert className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+            <AlertDescription className="text-xs text-amber-900 dark:text-amber-100">
+              Tekrar bazlı DF/8D önerileri, değerlendirme periyodu içindeki kayıt sayısına göre hesaplanır.
+              Periyot en az <strong>{MIN_THRESHOLD_PERIOD_DAYS} gün</strong> olarak uygulanır; çok kısa süre seçildiğinde de tekrarlar görülebilir.
+            </AlertDescription>
+          </Alert>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* En çok tekrarlayan parça kodları */}
             <Card>
@@ -1419,7 +1524,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                             </div>
                           </div>
                           <p className="text-[10px] text-muted-foreground">
-                            Son {settings?.threshold_period_days ?? 30} günde tekrar: <strong>{inPeriod}</strong> (eşikler buna göre)
+                            Son {effectivePeriodDays} günde tekrar: <strong>{inPeriod}</strong> (eşikler buna göre)
                           </p>
                           <div className="w-full bg-muted rounded-full h-2">
                             <div
@@ -1469,46 +1574,205 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             </Card>
           </div>
 
-          {individualSuggestionRecords.length > 0 && (
-            <Card className="border-indigo-200 bg-indigo-50/40 dark:bg-indigo-950/20">
+          {/* DF/8D Öneri Detayları — TÜM kayıtlar (kapatılmış dahil) */}
+          {allSuggestedRecords.length > 0 && (
+            <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-indigo-600" />
-                  Tekil DF/8D önerileri ({individualSuggestionRecords.length})
+                  <AlertOctagon className="h-4 w-4 text-amber-600" />
+                  DF/8D Öneri Detayları ({allSuggestedRecords.length} kayıt)
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Toplu grup önerisine düşmeyen; adet veya seçili dönemdeki tekrar nedeniyle önerilen açık kayıtlar. Kayıtlar sekmesinden dönüştürebilirsiniz.
+                  Hangi uygunsuzluğa, neden DF veya 8D önerildi / dönüştürüldü — tüm geçmiş dahil.
                 </p>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {individualSuggestionRecords.slice(0, 24).map(({ record, suggestion }) => (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {[
+                    { key: 'all', label: `Tümü (${allSuggestedRecords.length})` },
+                    { key: '8d', label: `8D (${allSuggestedRecords.filter(s => s.suggestion === '8D').length})` },
+                    { key: 'df', label: `DF (${allSuggestedRecords.filter(s => s.suggestion === 'DF').length})` },
+                    { key: 'converted', label: `Dönüştürülen (${allSuggestedRecords.filter(s => CONVERTED_STATUSES.has(s.record.status)).length})` },
+                    { key: 'open', label: `Açık/Bekleyen (${allSuggestedRecords.filter(s => s.record.status === 'Açık' || s.record.status === 'DF Önerildi' || s.record.status === '8D Önerildi').length})` },
+                  ].map(tab => (
                     <Button
-                      key={record.id}
-                      type="button"
-                      variant="outline"
+                      key={tab.key}
+                      variant={suggestionDetailTab === tab.key ? 'default' : 'outline'}
                       size="sm"
-                      className="h-8 text-[11px] font-mono gap-1"
-                      onClick={() => {
-                        setDetailRecord({
-                          ...record,
-                          display_record_number: getDisplayRecordNumber(record),
-                        });
-                        setIsDetailOpen(true);
-                      }}
+                      className="h-7 text-[11px]"
+                      onClick={() => { setSuggestionDetailTab(tab.key); setSuggestionVisibleCount(30); }}
                     >
-                      <Badge variant={suggestion === '8D' ? 'destructive' : 'default'} className="text-[9px] px-1.5 py-0">
-                        {suggestion}
-                      </Badge>
-                      {getDisplayRecordNumber(record)}
+                      {tab.label}
                     </Button>
                   ))}
                 </div>
-                {individualSuggestionRecords.length > 24 && (
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    +{individualSuggestionRecords.length - 24} kayıt daha…
-                  </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/50 text-left">
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Öneri</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Kayıt No</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Parça Kodu</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Kategori</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Açıklama</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Adet</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Neden Önerildi</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Durum</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Bağlı DF/8D</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {filteredSuggestions.slice(0, suggestionVisibleCount).map(({ record, suggestion, reason, linked, statusLabel }) => (
+                        <tr
+                          key={record.id}
+                          className="hover:bg-muted/30 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setDetailRecord({ ...record, display_record_number: getDisplayRecordNumber(record) });
+                            setIsDetailOpen(true);
+                          }}
+                        >
+                          <td className="px-3 py-2">
+                            <Badge
+                              className={`text-[10px] px-1.5 py-0 ${suggestion === '8D' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}
+                            >
+                              {suggestion}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">
+                            {getDisplayRecordNumber(record)}
+                          </td>
+                          <td className="px-3 py-2 font-mono whitespace-nowrap">{record.part_code || '—'}</td>
+                          <td className="px-3 py-2 max-w-[120px] truncate">{record.category || '—'}</td>
+                          <td className="px-3 py-2 max-w-[200px] truncate text-muted-foreground">{record.description?.substring(0, 60) || '—'}</td>
+                          <td className="px-3 py-2 text-center">{record.quantity || 1}</td>
+                          <td className="px-3 py-2">
+                            <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">{reason}</span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${statusColors[statusLabel] || ''}`}>
+                              {statusLabel}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {linked ? (
+                              <span
+                                className="text-[10px] text-primary underline cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onOpenNCView && record.source_nc_id) onOpenNCView({ id: record.source_nc_id });
+                                }}
+                              >
+                                {linked.nc_number || `${linked.type} kaydı`}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredSuggestions.length > suggestionVisibleCount && (
+                  <div className="p-3 border-t text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setSuggestionVisibleCount(prev => prev + 50)}
+                    >
+                      Daha fazla göster ({filteredSuggestions.length - suggestionVisibleCount} kalan)
+                    </Button>
+                  </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Toplu Dönüştürme Önerileri — sadece açık kayıtlardan oluşan gruplar */}
+          {smartGroups.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-900/10">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                  <Layers className="h-4 w-4" />
+                  Toplu Dönüştürme Önerileri ({smartGroups.length} grup — {smartGroups.reduce((s, g) => s + g.records.length, 0)} kayıt)
+                </CardTitle>
+                <p className="text-[11px] text-amber-700/70 dark:text-amber-400/70">
+                  Açık kayıtlar: aynı tespit alanı ve kategorideki uygunsuzluklar gruplandırıldı. Tek seferde toplu DF/8D açarak sistemi verimli kullanın.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {smartGroups.map(group => {
+                    const is8D = group.suggestion === '8D';
+                    const sevEntries = Object.entries(group.severities).sort((a, b) => b[1] - a[1]);
+
+                    return (
+                      <div key={group.key} className="rounded-lg bg-white dark:bg-background border overflow-hidden">
+                        <div className={`flex items-center justify-between p-3 ${
+                          is8D ? 'bg-red-50/50 dark:bg-red-950/20' : 'bg-blue-50/50 dark:bg-blue-950/20'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            {is8D ? (
+                              <AlertOctagon className="h-5 w-5 text-red-600 shrink-0" />
+                            ) : (
+                              <Layers className="h-5 w-5 text-blue-600 shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm">{group.category}</p>
+                              <p className="text-xs text-muted-foreground">{group.detection_area}</p>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <span className="text-xs font-medium">{group.records.length} kayıt</span>
+                                <span className="text-xs text-muted-foreground">•</span>
+                                <span className="text-xs text-muted-foreground">{group.totalQuantity} toplam adet</span>
+                                {sevEntries.map(([sev, cnt]) => (
+                                  <Badge key={sev} variant="outline" className={`text-[9px] px-1.5 py-0 ${severityColors[sev] || ''}`}>
+                                    {sev} ({cnt})
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0 ml-3">
+                            <Badge className={`text-xs ${is8D ? 'bg-red-600' : 'bg-blue-600'}`}>
+                              {group.suggestion} Önerilir
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">{group.reason}</span>
+                          </div>
+                        </div>
+                        <div className="divide-y max-h-48 overflow-y-auto">
+                          {group.records.slice(0, 10).map(record => (
+                            <div key={record.id} className="flex items-center justify-between px-3 py-1.5 text-xs hover:bg-muted/20 transition-colors">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <span className="font-mono text-muted-foreground shrink-0">{getDisplayRecordNumber(record)}</span>
+                                <span className="truncate text-foreground">{record.description?.substring(0, 50)}</span>
+                                <Badge className={`text-[9px] shrink-0 ${severityColors[record.severity] || ''}`}>{record.severity}</Badge>
+                                <span className="text-muted-foreground shrink-0">x{record.quantity || 1}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {group.records.length > 10 && (
+                            <div className="px-3 py-1.5 text-[10px] text-muted-foreground text-center">
+                              ... ve {group.records.length - 10} kayıt daha
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3 border-t bg-muted/30">
+                          <Button
+                            size="sm"
+                            className={`w-full h-8 text-xs font-bold gap-1.5 ${
+                              is8D ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
+                            onClick={() => setGroupConvertDialog({ open: true, group, selectedType: group.suggestion })}
+                          >
+                            <Layers className="w-3.5 h-3.5" />
+                            Toplu {group.suggestion} Aç — {group.records.length} kayıt birleştir
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1581,95 +1845,6 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               </CardContent>
             </Card>
           </div>
-
-          {/* Akıllı gruplandırma uyarıları */}
-          {smartGroups.length > 0 && (
-            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-900/10">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2 text-amber-800 dark:text-amber-300">
-                  <Layers className="h-4 w-4" />
-                  Toplu Dönüştürme Önerileri ({smartGroups.length} grup — {smartGroups.reduce((s, g) => s + g.records.length, 0)} kayıt)
-                </CardTitle>
-                <p className="text-[11px] text-amber-700/70 dark:text-amber-400/70">
-                  Aynı tespit alanı ve kategorideki uygunsuzluklar gruplandırıldı. Tek seferde toplu DF/8D açarak sistemi verimli kullanın.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {smartGroups.map(group => {
-                    const is8D = group.suggestion === '8D';
-                    const hasCritical = group.severities['Kritik'] > 0;
-                    const sevEntries = Object.entries(group.severities).sort((a, b) => b[1] - a[1]);
-
-                    return (
-                      <div key={group.key} className="rounded-lg bg-white dark:bg-background border overflow-hidden">
-                        <div className={`flex items-center justify-between p-3 ${
-                          is8D ? 'bg-red-50/50 dark:bg-red-950/20' : 'bg-blue-50/50 dark:bg-blue-950/20'
-                        }`}>
-                          <div className="flex items-center gap-3">
-                            {is8D ? (
-                              <AlertOctagon className="h-5 w-5 text-red-600 shrink-0" />
-                            ) : (
-                              <Layers className="h-5 w-5 text-blue-600 shrink-0" />
-                            )}
-                            <div className="min-w-0">
-                              <p className="font-semibold text-sm">{group.category}</p>
-                              <p className="text-xs text-muted-foreground">{group.detection_area}</p>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <span className="text-xs font-medium">{group.records.length} kayıt</span>
-                                <span className="text-xs text-muted-foreground">•</span>
-                                <span className="text-xs text-muted-foreground">{group.totalQuantity} toplam adet</span>
-                                {sevEntries.map(([sev, cnt]) => (
-                                  <Badge key={sev} variant="outline" className={`text-[9px] px-1.5 py-0 ${severityColors[sev] || ''}`}>
-                                    {sev} ({cnt})
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 shrink-0 ml-3">
-                            <Badge className={`text-xs ${is8D ? 'bg-red-600' : 'bg-blue-600'}`}>
-                              {group.suggestion} Önerilir
-                            </Badge>
-                            <span className="text-[10px] text-muted-foreground">{group.reason}</span>
-                          </div>
-                        </div>
-                        <div className="divide-y max-h-48 overflow-y-auto">
-                          {group.records.slice(0, 10).map(record => (
-                            <div key={record.id} className="flex items-center justify-between px-3 py-1.5 text-xs hover:bg-muted/20 transition-colors">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <span className="font-mono text-muted-foreground shrink-0">{getDisplayRecordNumber(record)}</span>
-                                <span className="truncate text-foreground">{record.description?.substring(0, 50)}</span>
-                                <Badge className={`text-[9px] shrink-0 ${severityColors[record.severity] || ''}`}>{record.severity}</Badge>
-                                <span className="text-muted-foreground shrink-0">x{record.quantity || 1}</span>
-                              </div>
-                            </div>
-                          ))}
-                          {group.records.length > 10 && (
-                            <div className="px-3 py-1.5 text-[10px] text-muted-foreground text-center">
-                              ... ve {group.records.length - 10} kayıt daha
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-3 border-t bg-muted/30">
-                          <Button
-                            size="sm"
-                            className={`w-full h-8 text-xs font-bold gap-1.5 ${
-                              is8D ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-                            }`}
-                            onClick={() => setGroupConvertDialog({ open: true, group, selectedType: group.suggestion })}
-                          >
-                            <Layers className="w-3.5 h-3.5" />
-                            Toplu {group.suggestion} Aç — {group.records.length} kayıt birleştir
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* AYARLAR — tam genişlik (dar A4 benzeri sütun yok) */}
