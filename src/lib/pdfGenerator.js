@@ -1,4 +1,5 @@
 import { logoCache, imageUrlToBase64, preloadLogos, getLogoUrl } from './reportUtils';
+import { stripSquareBullets } from '@/lib/df8dTextUtils';
 import { calculateVehicleTimelineStats } from './vehicleTimelineUtils';
 
 const generatePrintableReport = async (record) => {
@@ -24,6 +25,15 @@ const generatePrintableReport = async (record) => {
             "'": '&#039;'
         };
         return text.replace(/[&<>"']/g, m => map[m]);
+    };
+
+    /** 8D adım metni: escape + satır sonları; PDF’te taşmayı önlemek için <pre> kullanılmaz */
+    const formatStepMultiline = (text) => {
+        if (text == null || text === '') return '-';
+        const s = typeof text === 'string' ? text : String(text);
+        const t = s.trim();
+        if (!t) return '-';
+        return escapeHtml(t).replace(/\n/g, '<br/>');
     };
     
     // Türkçe karakterleri normalize et (Unicode normalization)
@@ -196,11 +206,11 @@ const generatePrintableReport = async (record) => {
     
     const eightDStepsHtml = record.type === '8D' && record.eight_d_steps ? Object.entries(record.eight_d_steps).map(([key, step]) => `
         <div class="step-section">
-            <h3 class="step-title">${key}: ${formatText(step.title || '')}</h3>
+            <h3 class="step-title">${escapeHtml(String(key))}: ${escapeHtml(stripSquareBullets(step.title != null ? String(step.title) : ''))}</h3>
             <div class="step-content">
-                <p><strong>Sorumlu:</strong> ${formatText(step.responsible || '-')}</p>
+                <p><strong>Sorumlu:</strong> ${formatStepMultiline(step.responsible || '-')}</p>
                 <p><strong>Tamamlanma Tarihi:</strong> ${formatDate(step.completionDate)}</p>
-                <p class="step-description"><strong>Açıklama:</strong> ${formatText(step.description || '-')}</p>
+                <div class="step-description"><strong>Açıklama:</strong> <div class="step-description-body">${formatStepMultiline(step.description != null ? step.description : '-')}</div></div>
             </div>
         </div>
     `).join('') : '';
@@ -358,25 +368,41 @@ const generatePrintableReport = async (record) => {
 
                 .step-section {
                     margin-bottom: 12px;
+                    max-width: 100%;
+                    box-sizing: border-box;
                 }
                 .step-title {
                     font-size: 13px;
                     font-weight: 600;
                     color: #1e40af;
                     margin: 0 0 8px 0;
+                    font-family: 'Inter', sans-serif;
                 }
                 .step-content {
                     background-color: #f9fafb;
                     border-left: 3px solid #60a5fa;
                     padding: 12px;
                     border-radius: 0 6px 6px 0;
+                    max-width: 100%;
+                    box-sizing: border-box;
+                    overflow: hidden;
                 }
-                .step-content p { margin: 0 0 8px 0; font-size: 13px; }
+                .step-content p { margin: 0 0 8px 0; font-size: 13px; font-family: 'Inter', sans-serif; }
                 .step-content p:last-child { margin-bottom: 0; }
                 .step-description {
                     margin-top: 10px;
                     padding-top: 10px;
                     border-top: 1px dashed #d1d5db;
+                }
+                .step-description-body {
+                    font-family: 'Inter', sans-serif;
+                    font-size: 13px;
+                    line-height: 1.55;
+                    margin-top: 6px;
+                    word-wrap: break-word;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
+                    max-width: 100%;
                 }
                 .image-grid {
                     display: grid;

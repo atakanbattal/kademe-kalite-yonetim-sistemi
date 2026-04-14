@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,8 @@ import {
   Printer,
   Loader2,
   AlertTriangle,
-  Image
+  Image,
+  Layers,
 } from 'lucide-react';
 import { Lightbox } from 'react-modal-image';
 import { RejectModal } from '@/components/df-8d/modals/ActionModals';
@@ -52,36 +53,12 @@ import RevisionHistory from './RevisionHistory';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { Card, CardContent } from '@/components/ui/card';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
-
-const EightDStepView = ({ stepKey, step }) => {
-  if (!step || typeof step !== 'object') {
-    return null;
-  }
-
-  return (
-    <div className="p-4 border-l-2 border-primary/50 bg-secondary/30 rounded-r-lg">
-      <h4 className="font-bold text-primary">
-        {stepKey}: {step.title || stepKey}
-      </h4>
-      <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-        <p>
-          <strong className="text-muted-foreground">Sorumlu:</strong>{' '}
-          {step.responsible || '-'}
-        </p>
-        <p>
-          <strong className="text-muted-foreground">Tarih:</strong>{' '}
-          {step.completionDate || '-'}
-        </p>
-      </div>
-      {step.description && (
-        <p className="mt-2 text-sm bg-background/50 p-2 rounded-md">
-          <strong className="text-muted-foreground">Açıklama:</strong>{' '}
-          {step.description}
-        </p>
-      )}
-    </div>
-  );
-};
+import EightDStepView from '@/components/df-8d/EightDStepView';
+import {
+  StructuredProblemDescription,
+  looksLikeStructuredProblemDescription,
+} from '@/components/df-8d/StructuredProblemDescription';
+import { stripSquareBullets } from '@/lib/df8dTextUtils';
 
 // Varsayılan 8D başlıkları - Component dışında tanımlanmalı
 const getDefault8DTitle = (stepKey) => {
@@ -234,6 +211,56 @@ const AttachmentItem = ({ path, onPreview }) => {
   );
 };
 
+/** Başlık satırında uzun/şablon metinleri kısalt; normal yazı (uppercase yok) */
+function getHeaderTitleParts(record) {
+  if (!record) {
+    return { line1: '—', line2: null, isGroup: false, badge: null };
+  }
+
+  const raw = stripSquareBullets((record.title || '').trim());
+  const nc = record.nc_number || record.mdi_no || '';
+
+  if (!raw) {
+    return { line1: nc || '—', line2: null, isGroup: false, badge: null };
+  }
+
+  if (/^\[UYG-GRUP\]/i.test(raw)) {
+    const rest = raw.replace(/^\[UYG-GRUP\]\s*/i, '').trim();
+    return {
+      line1: nc || '—',
+      line2: rest,
+      isGroup: true,
+      badge: 'Grup özeti',
+    };
+  }
+
+  if (raw.includes('GRUP ÖZETİ') || (raw.length > 200 && /\bKategori\s*:/i.test(raw))) {
+    const firstLine = raw.split('\n')[0].trim();
+    return {
+      line1: nc || '—',
+      line2: firstLine.length > 120 ? `${firstLine.slice(0, 117)}…` : firstLine,
+      isGroup: true,
+      badge: 'Grup özeti',
+    };
+  }
+
+  if (raw.length > 160) {
+    return {
+      line1: nc || '—',
+      line2: `${raw.slice(0, 157)}…`,
+      isGroup: false,
+      badge: null,
+    };
+  }
+
+  return {
+    line1: nc || '—',
+    line2: raw,
+    isGroup: false,
+    badge: null,
+  };
+}
+
 const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdit }) => {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [isRejectModalOpen, setRejectModalOpen] = useState(false);
@@ -263,6 +290,8 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
       fetchSupplierName();
     }
   }, [isOpen, record]);
+
+  const headerParts = useMemo(() => getHeaderTitleParts(record), [record]);
 
   if (!record) return null;
 
@@ -386,25 +415,68 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
-          <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-2.5 rounded-lg"><AlertTriangle className="h-5 w-5 text-white" /></div>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight">Uygunsuzluk Detayı</h1>
-                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{record.nc_number || record.mdi_no} - {record.title}</p>
+        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col gap-0 p-0 rounded-xl border-0 shadow-2xl" hideCloseButton>
+          <DialogHeader className="sr-only">
+            <DialogTitle>
+              Uygunsuzluk detayı {record.nc_number || record.mdi_no || ''}
+            </DialogTitle>
+            <DialogDescription>Uygunsuzluk kaydı ayrıntıları</DialogDescription>
+          </DialogHeader>
+
+          <header className="relative shrink-0 border-b border-white/10 bg-gradient-to-br from-primary via-primary to-blue-800 text-white">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12),_transparent_55%)] pointer-events-none" aria-hidden />
+            <div className="relative flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+              <div className="flex min-w-0 flex-1 gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 sm:h-12 sm:w-12">
+                  <AlertTriangle className="h-5 w-5 text-white sm:h-6 sm:w-6" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-base font-semibold tracking-tight sm:text-lg">
+                      Uygunsuzluk detayı
+                    </h1>
+                    {headerParts.badge && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/95 ring-1 ring-white/25">
+                        <Layers className="h-3 w-3 opacity-90" />
+                        {headerParts.badge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-mono text-xs text-white/80 tabular-nums sm:text-[13px]">
+                    {headerParts.line1}
+                  </p>
+                  {headerParts.line2 && (
+                    <p className="text-sm font-medium leading-snug text-white/95 [text-wrap:pretty] break-words normal-case tracking-normal">
+                      {headerParts.line2}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2 pt-0.5">
+                    {record.status && (
+                      <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold text-white ring-1 ring-white/25">
+                        {record.status}
+                      </span>
+                    )}
+                    {record.is_major && (
+                      <span className="rounded-full bg-amber-400/25 px-3 py-1 text-[11px] font-semibold text-amber-50 ring-1 ring-amber-300/40">
+                        MAJOR
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{record.status}</span>
-                {record.is_major && (
-                  <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">MAJOR</span>
-                )}
+              <div className="flex shrink-0 items-center justify-end gap-2 self-start sm:pt-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                  className="h-10 w-10 rounded-xl bg-white/10 text-white hover:bg-white/20"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Kapat</span>
+                </Button>
               </div>
             </div>
-            <Button type="button" variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
-              <X className="w-4 h-4" />
-              <span className="sr-only">Kapat</span>
-            </Button>
           </header>
 
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
@@ -496,17 +568,25 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
 
                   <Separator />
 
-                  <Separator />
-
                   {/* Problem Tanımı */}
                   <div>
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                       <FileText className="h-5 w-5 text-primary" />
                       Problem Tanımı
                     </h3>
-                    <Card>
-                      <CardContent className="p-6">
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{record.description || 'Açıklama girilmemiş.'}</p>
+                    <Card className="border-border/80 shadow-sm">
+                      <CardContent className="p-5 sm:p-6">
+                        {record.description ? (
+                          looksLikeStructuredProblemDescription(record.description) ? (
+                            <StructuredProblemDescription text={record.description} />
+                          ) : (
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground [text-wrap:pretty] break-words">
+                              {stripSquareBullets(record.description)}
+                            </p>
+                          )
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Açıklama girilmemiş.</p>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -612,42 +692,42 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                                   <div className="space-y-3">
                                     {record.five_why_analysis.why1 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">1. Neden:</strong> {record.five_why_analysis.why1}
+                                        <strong className="text-muted-foreground">1. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why1)}
                                       </div>
                                     )}
                                     {record.five_why_analysis.why2 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">2. Neden:</strong> {record.five_why_analysis.why2}
+                                        <strong className="text-muted-foreground">2. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why2)}
                                       </div>
                                     )}
                                     {record.five_why_analysis.why3 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">3. Neden:</strong> {record.five_why_analysis.why3}
+                                        <strong className="text-muted-foreground">3. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why3)}
                                       </div>
                                     )}
                                     {record.five_why_analysis.why4 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">4. Neden:</strong> {record.five_why_analysis.why4}
+                                        <strong className="text-muted-foreground">4. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why4)}
                                       </div>
                                     )}
                                     {record.five_why_analysis.why5 && (
                                       <div className="p-3 bg-destructive/10 border-l-4 border-destructive rounded-md">
-                                        <strong className="text-destructive">5. Neden (Kök Neden):</strong> {record.five_why_analysis.why5}
+                                        <strong className="text-destructive">5. Neden (Kök Neden):</strong> {stripSquareBullets(record.five_why_analysis.why5)}
                                       </div>
                                     )}
                                     {record.five_why_analysis.rootCause && (
                                       <div className="p-3 bg-primary/10 border-l-4 border-primary rounded-md mt-4">
-                                        <strong className="text-primary">Kök Neden Özeti:</strong> {record.five_why_analysis.rootCause}
+                                        <strong className="text-primary">Kök Neden Özeti:</strong> {stripSquareBullets(record.five_why_analysis.rootCause)}
                                       </div>
                                     )}
                                     {record.five_why_analysis.immediateAction && (
                                       <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border-l-4 border-yellow-500 rounded-md mt-4">
-                                        <strong className="text-yellow-700 dark:text-yellow-400">Anlık Aksiyon:</strong> {record.five_why_analysis.immediateAction}
+                                        <strong className="text-yellow-700 dark:text-yellow-400">Anlık Aksiyon:</strong> {stripSquareBullets(record.five_why_analysis.immediateAction)}
                                       </div>
                                     )}
                                     {record.five_why_analysis.preventiveAction && (
                                       <div className="p-3 bg-green-50 dark:bg-green-950/20 border-l-4 border-green-500 rounded-md mt-4">
-                                        <strong className="text-green-700 dark:text-green-400">Önleyici Aksiyon:</strong> {record.five_why_analysis.preventiveAction}
+                                        <strong className="text-green-700 dark:text-green-400">Önleyici Aksiyon:</strong> {stripSquareBullets(record.five_why_analysis.preventiveAction)}
                                       </div>
                                     )}
                                   </div>
@@ -715,7 +795,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                                     <div className="space-y-3">
                                       {record.fta_analysis.topEvent && (
                                         <div className="p-3 bg-secondary/50 rounded-md">
-                                          <strong className="text-muted-foreground">Üst Olay:</strong> {record.fta_analysis.topEvent}
+                                          <strong className="text-muted-foreground">Üst Olay:</strong> {stripSquareBullets(record.fta_analysis.topEvent)}
                                         </div>
                                       )}
                                       {record.fta_analysis.events && Array.isArray(record.fta_analysis.events) && record.fta_analysis.events.length > 0 && (
@@ -724,35 +804,35 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                                           {record.fta_analysis.events.map((event, idx) => (
                                             <div key={idx} className="p-3 bg-secondary/50 rounded-md">
                                               <div><strong>Tip:</strong> {event.type || '-'}</div>
-                                              <div><strong>Açıklama:</strong> {event.description || '-'}</div>
-                                              {event.gate && <div><strong>Kapı:</strong> {event.gate}</div>}
+                                              <div><strong>Açıklama:</strong> {stripSquareBullets(event.description || '-')}</div>
+                                              {event.gate && <div><strong>Kapı:</strong> {stripSquareBullets(String(event.gate))}</div>}
                                             </div>
                                           ))}
                                         </div>
                                       )}
                                       {record.fta_analysis.intermediateEvents && (
                                         <div className="p-3 bg-secondary/50 rounded-md">
-                                          <strong className="text-muted-foreground">Ara Olaylar:</strong> {record.fta_analysis.intermediateEvents}
+                                          <strong className="text-muted-foreground">Ara Olaylar:</strong> {stripSquareBullets(record.fta_analysis.intermediateEvents)}
                                         </div>
                                       )}
                                       {record.fta_analysis.basicEvents && (
                                         <div className="p-3 bg-secondary/50 rounded-md">
-                                          <strong className="text-muted-foreground">Temel Olaylar:</strong> {record.fta_analysis.basicEvents}
+                                          <strong className="text-muted-foreground">Temel Olaylar:</strong> {stripSquareBullets(record.fta_analysis.basicEvents)}
                                         </div>
                                       )}
                                       {record.fta_analysis.gates && (
                                         <div className="p-3 bg-secondary/50 rounded-md">
-                                          <strong className="text-muted-foreground">Kapılar:</strong> {record.fta_analysis.gates}
+                                          <strong className="text-muted-foreground">Kapılar:</strong> {stripSquareBullets(record.fta_analysis.gates)}
                                         </div>
                                       )}
                                       {record.fta_analysis.rootCauses && (
                                         <div className="p-3 bg-destructive/10 border-l-4 border-destructive rounded-md">
-                                          <strong className="text-destructive">Kök Nedenler:</strong> {record.fta_analysis.rootCauses}
+                                          <strong className="text-destructive">Kök Nedenler:</strong> {stripSquareBullets(record.fta_analysis.rootCauses)}
                                         </div>
                                       )}
                                       {record.fta_analysis.summary && (
                                         <div className="p-3 bg-primary/10 border-l-4 border-primary rounded-md mt-4">
-                                          <strong className="text-primary">Özet:</strong> {record.fta_analysis.summary}
+                                          <strong className="text-primary">Özet:</strong> {stripSquareBullets(record.fta_analysis.summary)}
                                         </div>
                                       )}
                                     </div>
@@ -772,7 +852,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                         <h3 className="text-lg font-semibold text-foreground mb-3">
                           8D Adımları
                         </h3>
-                        <div className="space-y-4">
+                        <div className="min-w-0 space-y-4">
                           {Object.entries(displayEightDSteps).map(([key, step]) => {
                             if (!step || typeof step !== 'object') return null;
                             return <EightDStepView key={key} stepKey={key} step={step} />;
@@ -834,22 +914,28 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
             </div>
           </div>
 
-          <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t">
-            <div className="flex gap-2">
-              {onReject && <Button variant="destructive" onClick={() => setRejectModalOpen(true)}>
-                <XCircle className="mr-2 h-4 w-4" /> Reddet
-              </Button>}
-              {onEdit && <Button variant="secondary" onClick={() => onEdit(record)}>
-                <Edit className="mr-2 h-4 w-4" /> Düzenle
-              </Button>}
+          <DialogFooter className="flex-shrink-0 flex-col gap-3 border-t bg-muted/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="flex flex-wrap gap-2">
+              {onReject && (
+                <Button variant="destructive" onClick={() => setRejectModalOpen(true)}>
+                  <XCircle className="mr-2 h-4 w-4" /> Reddet
+                </Button>
+              )}
+              {onEdit && (
+                <Button variant="secondary" onClick={() => onEdit(record)}>
+                  <Edit className="mr-2 h-4 w-4" /> Düzenle
+                </Button>
+              )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:justify-end">
               <Button onClick={handlePrint} variant="outline" disabled={isPrinting}>
                 {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
                 Yazdır / PDF
               </Button>
               <DialogClose asChild>
-                <Button type="button" variant="secondary" size="lg">Kapat</Button>
+                <Button type="button" variant="default" size="lg" className="min-w-[7rem]">
+                  Kapat
+                </Button>
               </DialogClose>
             </div>
           </DialogFooter>

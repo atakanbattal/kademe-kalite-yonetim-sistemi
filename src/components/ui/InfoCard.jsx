@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { stripSquareBullets } from '@/lib/df8dTextUtils';
 
 export const InfoCard = ({ icon: Icon, label, value, variant = 'default' }) => {
     const variants = {
@@ -22,7 +23,9 @@ export const InfoCard = ({ icon: Icon, label, value, variant = 'default' }) => {
                     )}
                     <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-                        <div className="text-sm font-semibold text-foreground break-words">{value ?? '-'}</div>
+                        <div className="text-sm font-semibold text-foreground break-words">
+                            {typeof value === 'string' ? stripSquareBullets(value) : (value ?? '-')}
+                        </div>
                     </div>
                 </div>
             </CardContent>

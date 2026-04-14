@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getStatusBadge } from '@/lib/statusUtils';
 import { normalizeUnitNameForSettings } from '@/lib/utils';
+import { stripSquareBullets } from '@/lib/df8dTextUtils';
 
 function displayNcUnitName(v) {
     if (v == null || String(v).trim() === '') return '—';
@@ -129,7 +130,9 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                                 </div>
                                             </td>
                                             <td className="text-sm max-w-[min(100vw,24rem)] md:max-w-none">
-                                                <span className="line-clamp-2 md:line-clamp-none">{record.title}</span>
+                                                <span className="line-clamp-2 md:line-clamp-none">
+                                                    {typeof record.title === 'string' ? stripSquareBullets(record.title) : (record.title ?? '—')}
+                                                </span>
                                             </td>
                                             <td className="text-sm whitespace-nowrap">{displayNcUnitName(record.department)}</td>
                                             <td className="text-sm whitespace-nowrap text-muted-foreground">

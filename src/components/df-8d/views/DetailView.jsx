@@ -7,6 +7,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal, XCircle, CheckSquare as CheckSquareIcon, ShieldOff, Edit, FileUp, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import EightDStepView from '@/components/df-8d/EightDStepView';
+import { stripSquareBullets } from '@/lib/df8dTextUtils';
 
 const InfoItem = ({ label, value, children, className }) => (
     <div className={`bg-secondary/50 p-3 rounded-lg ${className}`}>
@@ -14,18 +16,6 @@ const InfoItem = ({ label, value, children, className }) => (
         <div className="text-md font-semibold text-foreground mt-1">{value || children || '-'}</div>
     </div>
 );
-
-const EightDStepView = ({ stepKey, step }) => (
-    <div className="p-4 border-l-2 border-primary/50 bg-secondary/30 rounded-r-lg">
-        <h4 className="font-bold text-primary">{stepKey}: {step.title}</h4>
-        <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-            <p><strong className="text-muted-foreground">Sorumlu:</strong> {step.responsible || '-'}</p>
-            <p><strong className="text-muted-foreground">Tarih:</strong> {step.completionDate ? new Date(step.completionDate).toLocaleDateString('tr-TR') : '-'}</p>
-        </div>
-        {step.description && <p className="mt-2 text-sm bg-background/50 p-2 rounded-md"><strong className="text-muted-foreground">Açıklama:</strong> {step.description}</p>}
-    </div>
-);
-
 
 const DetailView = ({ record, onClose, onEdit, onReject, onConvertTo8D, onToggleStatus, onDelete }) => {
     const [attachmentUrls, setAttachmentUrls] = useState({});
@@ -88,7 +78,9 @@ const DetailView = ({ record, onClose, onEdit, onReject, onConvertTo8D, onToggle
                         <h2 className="text-2xl font-bold text-primary">{record.nc_number}</h2>
                         {getStatusBadge(record.status)}
                     </div>
-                    <p className="text-muted-foreground mt-1">{record.problem_definition}</p>
+                    <p className="text-muted-foreground mt-1">
+                        {typeof record.problem_definition === 'string' ? stripSquareBullets(record.problem_definition) : record.problem_definition}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <AlertDialog>

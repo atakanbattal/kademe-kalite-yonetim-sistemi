@@ -616,7 +616,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const catCount = record.category ? (categoryAnalysisData[record.category]?.inPeriod || 0) : 0;
 
     const L = [
-      '■ KAYNAK BİLGİSİ',
+      'KAYNAK BİLGİSİ',
       `  Uygunsuzluk No : ${recNo}`,
       `  Tespit Tarihi  : ${fmtDate(record.detection_date)}`,
       `  Tespit Alanı   : ${record.detection_area || '-'}`,
@@ -624,13 +624,13 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       `  Ciddiyet       : ${record.severity || '-'}`,
       record.shift ? `  Vardiya         : ${record.shift}` : null,
       '',
-      '■ ÜRÜN / PARÇA BİLGİSİ',
+      'ÜRÜN / PARÇA BİLGİSİ',
       record.part_code ? `  Parça Kodu      : ${record.part_code}` : null,
       record.part_name ? `  Parça Adı       : ${record.part_name}` : null,
       record.vehicle_type ? `  Araç Tipi       : ${record.vehicle_type}` : null,
       record.vehicle_identifier ? `  Araç Seri/Şasi  : ${record.vehicle_identifier}` : null,
       '',
-      '■ UYGUNSUZLUK DETAYI',
+      'UYGUNSUZLUK DETAYI',
       `  Kategori        : ${record.category || '-'}`,
       `  Hatalı Adet     : ${record.quantity || '-'}`,
       record.department ? `  Sorumlu Birim   : ${record.department}` : null,
@@ -641,7 +641,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     ];
 
     if (partCount > 1 || catCount > 1) {
-      L.push('', '■ TEKRAR ANALİZİ');
+      L.push('', 'TEKRAR ANALİZİ');
       if (partCount > 1)
         L.push(`  Aynı parça kodu (${record.part_code}) son dönemde ${partCount} kez tekrarladı.`);
       if (catCount > 1)
@@ -649,11 +649,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }
 
     if (record.action_taken) {
-      L.push('', '■ ALINAN ACİL AKSİYON', `  ${record.action_taken.replace(/\n/g, '\n  ')}`);
+      L.push('', 'ALINAN ACİL AKSİYON', `  ${record.action_taken.replace(/\n/g, '\n  ')}`);
     }
 
     if (record.notes) {
-      L.push('', '■ EK NOTLAR', `  ${record.notes.replace(/\n/g, '\n  ')}`);
+      L.push('', 'EK NOTLAR', `  ${record.notes.replace(/\n/g, '\n  ')}`);
     }
 
     const titleParts = [record.category || 'Uygunsuzluk'];
@@ -727,7 +727,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const sevEntries = Object.entries(group.severities).sort((a, b) => b[1] - a[1]);
 
     const descLines = [
-      '■ GRUP ÖZETİ',
+      'GRUP ÖZETİ',
       `  Kategori        : ${group.category}`,
       `  Tespit Alanı    : ${group.detection_area}`,
       `  Toplam Kayıt    : ${group.records.length}`,
@@ -737,21 +737,21 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     ];
 
     if (topDepts.length > 0) {
-      descLines.push('', '■ ETKİLENEN BİRİMLER');
+      descLines.push('', 'ETKİLENEN BİRİMLER');
       topDepts.forEach(([d, c]) => descLines.push(`  ${d}: ${c} kayıt`));
     }
 
     if (topVehicles.length > 0) {
-      descLines.push('', '■ ETKİLENEN ARAÇ TİPLERİ');
+      descLines.push('', 'ETKİLENEN ARAÇ TİPLERİ');
       topVehicles.forEach(([v, c]) => descLines.push(`  ${v}: ${c} kayıt`));
     }
 
     if (topFaults.length > 0) {
-      descLines.push('', '■ EN SIK TEKRARLAYAN HATALAR');
+      descLines.push('', 'EN SIK TEKRARLAYAN HATALAR');
       topFaults.forEach(([f, c]) => descLines.push(`  • ${f}${c > 1 ? ` (${c}x)` : ''}`));
     }
 
-    descLines.push('', '■ İLGİLİ UYGUNSUZLUK KAYITLARI');
+    descLines.push('', 'İLGİLİ UYGUNSUZLUK KAYITLARI');
     sorted.slice(0, 50).forEach(r => {
       const vInfo = [r.vehicle_type, r.vehicle_identifier].filter(Boolean).join('/');
       descLines.push(
@@ -762,7 +762,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const actionRecords = sorted.filter(r => r.action_taken);
     if (actionRecords.length > 0) {
-      descLines.push('', '■ ALINAN ACİL AKSİYONLAR');
+      descLines.push('', 'ALINAN ACİL AKSİYONLAR');
       actionRecords.slice(0, 10).forEach(r => {
         descLines.push(`  ${getDisplayRecordNumber(r)}: ${r.action_taken.substring(0, 120)}`);
       });

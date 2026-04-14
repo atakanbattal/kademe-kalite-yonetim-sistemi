@@ -21,6 +21,7 @@ const getQuarantineDocumentNoValue = (record) => {
 };
 import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
 import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
+import { stripSquareBullets } from '@/lib/df8dTextUtils';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -6543,28 +6544,28 @@ const generateGenericReportHtml = async (record, type) => {
 			</div> `;
 
 			html += `</div> `;
-		}
 
-		if (type === 'nonconformity' && record.eight_d_steps) {
-			// Problem tanımı artık 2. section, bu yüzden numaraları güncelle
-			let sectionNumber = record.closing_notes ? '4' : '3';
-			const hasAnalysis = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
-				(record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
-				(record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) ||
-				(record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
-			if (hasAnalysis) {
-				sectionNumber = record.closing_notes ? '5' : '4';
-			}
-			html += `<div class="section" > <h2 class="section-title red">${sectionNumber}. 8D ADIMLARI</h2>`;
-			Object.entries(record.eight_d_steps).forEach(([key, step]) => {
-				html += `<div class="step-section" >
-					<h3 class="step-title">${key}: ${step.title || ''}</h3>
-					<p><strong>Sorumlu:</strong> ${step.responsible || '-'}</p>
+			if (record.eight_d_steps) {
+				let sectionNumber8d = record.closing_notes ? '4' : '3';
+				const hasAnalysis8d = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
+					(record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
+					(record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) ||
+					(record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
+				if (hasAnalysis8d) {
+					sectionNumber8d = record.closing_notes ? '5' : '4';
+				}
+				html += `<div class="section" > <h2 class="section-title red">${sectionNumber8d}. 8D ADIMLARI</h2>`;
+				Object.entries(record.eight_d_steps).forEach(([key, step]) => {
+					const stepDescHtml = renderField(stripSquareBullets(step.description || ''), '') || '-';
+					html += `<div class="step-section" >
+					<h3 class="step-title">${escapeHtml(key)}: ${escapeHtml(stripSquareBullets(step.title || ''))}</h3>
+					<p><strong>Sorumlu:</strong> ${escapeHtml(stripSquareBullets(step.responsible || '-'))}</p>
 					<p><strong>Tarih:</strong> ${formatDate(step.completionDate)}</p>
-					<p class="step-description"><strong>Açıklama:</strong> <pre>${step.description || '-'}</pre></p>
+					<div class="step-description"><strong>Açıklama:</strong> <div class="step-description-body">${stepDescHtml}</div></div>
 				</div> `;
-			});
-			html += `</div> `;
+				});
+				html += `</div> `;
+			}
 		}
 		if (type === 'deviation' && record.deviation_approvals?.length > 0) {
 			// Deviation için description varsa 3. section, yoksa 2. section
@@ -8347,17 +8348,28 @@ h3 {
 	background-color: #fafafa;
 	border-radius: 0 4px 4px 0;
 	page-break-inside: avoid;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: hidden;
 }
 		.step-title {
 	font-weight: bold;
 	color: #1e40af;
 	page-break-after: avoid;
 }
-		.step-description { white-space: pre-wrap; }
-		.step-description pre {
-	white-space: pre-wrap;
+		.step-description { margin-top: 0.4em; }
+		.step-description-body {
 	font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif;
-	margin: 0;
+	font-size: 10px;
+	line-height: 1.55;
+	color: #1f2937;
+	white-space: normal;
+	word-wrap: break-word;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+	max-width: 100%;
+	box-sizing: border-box;
+	margin: 0.35em 0 0 0;
 }
 		
 		.analysis-box {
