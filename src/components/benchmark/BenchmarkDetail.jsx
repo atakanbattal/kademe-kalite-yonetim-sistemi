@@ -44,12 +44,43 @@ const BenchmarkDetail = ({
     const [reportLoading, setReportLoading] = useState(false);
     const [approveUploading, setApproveUploading] = useState(false);
     const approveDocInputRef = useRef(null);
+    /** documents bucket çoğunlukla private — getPublicUrl 403 verir; imzalı URL gerekir */
+    const [signedApprovalPdfUrl, setSignedApprovalPdfUrl] = useState(null);
+    const [signedApprovalPdfUrlLoading, setSignedApprovalPdfUrlLoading] = useState(false);
 
     useEffect(() => {
         if (benchmark?.id) {
             fetchDetails();
         }
     }, [benchmark?.id]);
+
+    useEffect(() => {
+        const path = benchmark?.approval_signed_pdf_path;
+        if (!path) {
+            setSignedApprovalPdfUrl(null);
+            setSignedApprovalPdfUrlLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setSignedApprovalPdfUrl(null);
+        setSignedApprovalPdfUrlLoading(true);
+        supabase.storage
+            .from('documents')
+            .createSignedUrl(path, 3600)
+            .then(({ data, error }) => {
+                if (cancelled) return;
+                if (error) {
+                    console.error('İmzalı onay PDF URL:', error);
+                    setSignedApprovalPdfUrl(null);
+                } else {
+                    setSignedApprovalPdfUrl(data?.signedUrl ?? null);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setSignedApprovalPdfUrlLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [benchmark?.approval_signed_pdf_path]);
 
     const fetchDetails = async () => {
         if (!benchmark?.id) return;
@@ -199,10 +230,6 @@ const BenchmarkDetail = ({
             description: 'Dokümanlar başarıyla yüklendi.'
         });
     };
-
-    const signedApprovalPdfUrl = benchmark?.approval_signed_pdf_path
-        ? supabase.storage.from('documents').getPublicUrl(benchmark.approval_signed_pdf_path).data.publicUrl
-        : null;
 
     const handleSignedApprovalPdf = async (e) => {
         const file = e.target.files?.[0];
@@ -493,7 +520,7 @@ const BenchmarkDetail = ({
                                                 </p>
                                                 <div className="flex items-center gap-2">
                                                     <User className="h-4 w-4 text-muted-foreground" />
-                                                    <span>{benchmark.owner.name}</span>
+                                                    <span>{benchmark.owner.full_name}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -646,47 +673,65 @@ const BenchmarkDetail = ({
                                             </div>
                                         )}
 
-                                        {benchmark.approval_status === 'Onaylandı' && (
+                                        {(benchmark.approval_status === 'Onaylandı' || benchmark.approval_signed_pdf_path) && (
                                             <div className="mt-4 rounded-lg border bg-muted/30 p-4 space-y-3">
                                                 <p className="text-sm font-medium">İmzalı onay PDF&apos;i</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Onay için imzalanmış rapor PDF&apos;ini buraya yükleyin (max. 10 MB).
-                                                </p>
-                                                {signedApprovalPdfUrl && benchmark.approval_signed_pdf_path && (
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <Button variant="outline" size="sm" asChild>
-                                                            <a
-                                                                href={signedApprovalPdfUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                            >
-                                                                <FileText className="mr-2 h-4 w-4" />
-                                                                {benchmark.approval_signed_pdf_name || 'PDF aç'}
-                                                            </a>
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            disabled={signedPdfUploading}
-                                                            onClick={handleRemoveSignedApprovalPdf}
-                                                        >
-                                                            Kaldır
-                                                        </Button>
+                                                {benchmark.approval_signed_pdf_path && (
+                                                    <div className="space-y-2">
+                                                        {signedApprovalPdfUrlLoading && (
+                                                            <p className="text-xs text-muted-foreground">İndirme bağlantısı hazırlanıyor…</p>
+                                                        )}
+                                                        {!signedApprovalPdfUrlLoading && signedApprovalPdfUrl && (
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <Button variant="outline" size="sm" asChild>
+                                                                    <a
+                                                                        href={signedApprovalPdfUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                    >
+                                                                        <FileText className="mr-2 h-4 w-4" />
+                                                                        {benchmark.approval_signed_pdf_name || 'PDF aç'}
+                                                                    </a>
+                                                                </Button>
+                                                                {benchmark.approval_status === 'Onaylandı' && (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        disabled={signedPdfUploading}
+                                                                        onClick={handleRemoveSignedApprovalPdf}
+                                                                    >
+                                                                        Kaldır
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {!signedApprovalPdfUrlLoading && !signedApprovalPdfUrl && (
+                                                            <p className="text-xs text-destructive">
+                                                                PDF bağlantısı oluşturulamadı (depolama veya yetki).
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 )}
-                                                <div className="flex items-center gap-2">
-                                                    <Input
-                                                        type="file"
-                                                        accept="application/pdf,.pdf"
-                                                        disabled={signedPdfUploading}
-                                                        onChange={handleSignedApprovalPdf}
-                                                        className="max-w-md cursor-pointer"
-                                                    />
-                                                    {signedPdfUploading && (
-                                                        <span className="text-xs text-muted-foreground">Yükleniyor…</span>
-                                                    )}
-                                                </div>
+                                                {benchmark.approval_status === 'Onaylandı' && (
+                                                    <>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Onay için imzalanmış rapor PDF&apos;ini buraya yükleyin (max. 10 MB).
+                                                        </p>
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                type="file"
+                                                                accept="application/pdf,.pdf"
+                                                                disabled={signedPdfUploading}
+                                                                onChange={handleSignedApprovalPdf}
+                                                                className="max-w-md cursor-pointer"
+                                                            />
+                                                            {signedPdfUploading && (
+                                                                <span className="text-xs text-muted-foreground">Yükleniyor…</span>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                     </CardContent>

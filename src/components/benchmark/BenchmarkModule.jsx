@@ -278,8 +278,8 @@ const BenchmarkModule = () => {
                 aVal = a.category?.name || '';
                 bVal = b.category?.name || '';
             } else if (sortBy === 'owner') {
-                aVal = a.owner?.name || '';
-                bVal = b.owner?.name || '';
+                aVal = a.owner?.full_name || '';
+                bVal = b.owner?.full_name || '';
             }
 
             if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
