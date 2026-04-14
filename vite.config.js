@@ -252,7 +252,14 @@ export default defineConfig({
 		},
 	},
 	// Safari / iframe: node_modules/.vite/deps/*.js.map istekleri "access control" ile düşebilir
+	// Radix paketlerini önceden bundle etmek, "504 Outdated Optimize Dep" hatalarını azaltır
 	optimizeDeps: {
+		include: [
+			'@radix-ui/react-progress',
+			'@radix-ui/react-dialog',
+			'@radix-ui/react-popover',
+			'@radix-ui/react-select',
+		],
 		esbuildOptions: {
 			sourcemap: false,
 		},
