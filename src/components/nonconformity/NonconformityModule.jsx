@@ -301,8 +301,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const smartGroups = useMemo(() => {
     if (!records.length) return [];
 
-    const dfThreshold = settings?.df_threshold ?? 5;
-    const eightDThreshold = settings?.eight_d_threshold ?? 10;
+    const dfThreshold = settings?.df_threshold ?? 3;
+    const eightDThreshold = settings?.eight_d_threshold ?? 5;
     const dfQtyThreshold = settings?.df_quantity_threshold ?? 10;
     const eightDQtyThreshold = settings?.eight_d_quantity_threshold ?? 20;
 
@@ -1607,7 +1607,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
         {/* AYARLAR — tam genişlik (dar A4 benzeri sütun yok) */}
         <TabsContent value="settings" className="space-y-4 w-full min-w-0">
-          <NonconformitySettings />
+          <NonconformitySettings onSaved={fetchSettings} />
         </TabsContent>
       </Tabs>
 

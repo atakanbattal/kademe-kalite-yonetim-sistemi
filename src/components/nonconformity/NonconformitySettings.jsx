@@ -12,9 +12,10 @@ import {
   NC_SUGGESTION_SOURCE_OPTIONS,
   DEFAULT_SUGGESTION_DETECTION_AREAS,
   normalizeSuggestionDetectionAreas,
+  parseSuggestionAreasForSave,
 } from '@/lib/nonconformitySuggestionSources';
 
-const NonconformitySettings = () => {
+const NonconformitySettings = ({ onSaved }) => {
   const { toast } = useToast();
   const [settings, setSettings] = useState({
     id: null,
@@ -65,7 +66,7 @@ const NonconformitySettings = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const areas = normalizeSuggestionDetectionAreas(settings.suggestion_include_detection_areas);
+      const areas = parseSuggestionAreasForSave(settings.suggestion_include_detection_areas);
       if (areas.length === 0) {
         toast({
           variant: 'destructive',
@@ -105,8 +106,16 @@ const NonconformitySettings = () => {
       if (result.error) {
         toast({ variant: 'destructive', title: 'Hata', description: result.error.message });
       } else {
-        setSettings(result.data);
+        setSettings({
+          ...result.data,
+          suggestion_include_detection_areas: normalizeSuggestionDetectionAreas(
+            result.data.suggestion_include_detection_areas
+          ),
+        });
         toast({ title: 'Başarılı', description: 'Ayarlar kaydedildi.' });
+        if (onSaved) {
+          await onSaved();
+        }
       }
     } catch (err) {
       toast({ variant: 'destructive', title: 'Hata', description: err.message });

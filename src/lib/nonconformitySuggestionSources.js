@@ -28,6 +28,13 @@ export const DEFAULT_SUGGESTION_DETECTION_AREAS = ['Proses İçi Kontrol'];
 
 const VALID_AREAS = new Set(NC_SUGGESTION_SOURCE_OPTIONS.map((o) => o.detection_area));
 
+/** Kayıt: yalnızca geçerli alan adları (boş dizi dönebilir) */
+export function parseSuggestionAreasForSave(raw) {
+    if (raw == null) return [];
+    const arr = Array.isArray(raw) ? raw : [];
+    return arr.map((a) => String(a).trim()).filter((a) => VALID_AREAS.has(a));
+}
+
 /**
  * @param {unknown} raw - DB jsonb veya dizi
  * @returns {string[]}
