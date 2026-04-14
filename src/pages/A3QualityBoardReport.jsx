@@ -307,30 +307,6 @@ const A3QualityBoardReport = () => {
             });
         };
 
-        const fillRemainingPageSpace = (block, extraHeight) => {
-            if (!block || extraHeight < 64) return;
-
-            const hasPieChart = Boolean(block.querySelector('.recharts-pie-sector, .recharts-sector'));
-            const hasCartesianChart = Boolean(block.querySelector('.recharts-cartesian-axis, .recharts-cartesian-grid'));
-            if (hasPieChart || !hasCartesianChart) return;
-
-            const chartNodes = Array.from(block.querySelectorAll('.recharts-responsive-container'));
-            if (chartNodes.length === 0) return;
-
-            const targetChartNode = chartNodes.reduce((tallestNode, currentNode) => (
-                currentNode.getBoundingClientRect().height > tallestNode.getBoundingClientRect().height
-                    ? currentNode
-                    : tallestNode
-            ));
-
-            const baseHeight = targetChartNode.getBoundingClientRect().height || parseFloat(targetChartNode.style.height) || 0;
-            if (baseHeight <= 0) return;
-
-            targetChartNode.style.height = `${Math.round(baseHeight + Math.max(0, extraHeight - 8))}px`;
-            targetChartNode.style.maxHeight = 'none';
-            block.classList.add('report-fill-panel');
-        };
-
         const applyBreaks = () => {
             if (!wrapRef.current) return;
             const blocks = getFlowBlocks();
@@ -346,7 +322,6 @@ const A3QualityBoardReport = () => {
                 }
             });
 
-            const pages = [];
             let currentPage = { blocks: [], usedHeight: 0 };
 
             blocks.forEach((block) => {
@@ -355,29 +330,11 @@ const A3QualityBoardReport = () => {
 
                 if (requiresNewPage) {
                     block.classList.add('report-break-before');
-                    pages.push(currentPage);
                     currentPage = { blocks: [], usedHeight: 0 };
                 }
 
                 currentPage.blocks.push(block);
                 currentPage.usedHeight += blockHeight;
-            });
-
-            if (currentPage.blocks.length > 0) {
-                pages.push(currentPage);
-            }
-
-            pages.forEach((page, pageIndex) => {
-                const lastBlock = page.blocks[page.blocks.length - 1];
-                const remainingHeight = printableHeightPx - page.usedHeight;
-                const hasAnotherPageAfter = pageIndex < pages.length - 1;
-
-                if (lastBlock.classList.contains('report-allow-break-inside')) {
-                    return;
-                }
-                if (hasAnotherPageAfter || remainingHeight > printableHeightPx * 0.22) {
-                    fillRemainingPageSpace(lastBlock, remainingHeight);
-                }
             });
         };
 
@@ -393,8 +350,7 @@ const A3QualityBoardReport = () => {
             scheduleBreaks();
             window.setTimeout(() => {
                 applyBreaks();
-                window.requestAnimationFrame(() => applyBreaks());
-            }, 50);
+            }, 80);
         };
 
         const onAfterPrint = () => {
@@ -497,7 +453,8 @@ const A3QualityBoardReport = () => {
         costMonthly.length > 0 ||
         costByUnit.length > 0 ||
         (qualityActivities?.trainingDetails?.length || 0) > 0 ||
-        (qualityActivities?.totalTrainings || 0) > 0
+        (qualityActivities?.totalTrainings || 0) > 0 ||
+        (qualityActivities?.trainingExamPersonnelRows?.length || 0) > 0
     );
 
     const hasGovernanceSection = (
@@ -537,7 +494,38 @@ const A3QualityBoardReport = () => {
         .wrap{background:white;}
         .wrap text,.wrap tspan{font-family:inherit;}
         @media screen{
-            .wrap{max-width:1200px;margin:24px auto;padding:24px;box-shadow:0 6px 24px rgba(0,0,0,.15);border-radius:8px;}
+            /* Yazdırmadaki akışla aynı genişlik ve tek sütun (çoklu panel satırları); ölçüm = PDF */
+            .wrap{
+                width:420mm;
+                max-width:min(420mm, 100vw - 24px);
+                margin:16px auto;
+                padding:4mm;
+                box-shadow:0 6px 24px rgba(0,0,0,.15);
+                border-radius:8px;
+                box-sizing:border-box;
+            }
+            .wrap .report-row:not(.report-kpi-grid){
+                display:block !important;
+                grid-template-columns:unset !important;
+            }
+            .wrap .report-row:not(.report-kpi-grid) > .report-panel{
+                width:100% !important;
+                max-width:100% !important;
+            }
+            .wrap .report-row:not(.report-kpi-grid) > .report-panel + .report-panel{
+                margin-top:10px !important;
+            }
+            .report-print-hint{
+                background:#f0fdf4;
+                border:1px solid #86efac;
+                color:#166534;
+                border-radius:6px;
+                padding:10px 12px;
+                font-size:11px;
+                line-height:1.45;
+                margin-bottom:14px;
+            }
+            .report-print-hint strong{color:#14532d;}
         }
         @media print{
             html,body{height:auto!important;min-height:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -545,6 +533,7 @@ const A3QualityBoardReport = () => {
             .wrap{padding:4mm;margin:0;max-width:100%;width:100%;box-sizing:border-box;}
             /* A3 yatay: 420×297 mm; kenar boşlukları JS ile uyumlu (sayfa kırılımı hesabı) */
             @page{size:420mm 297mm;margin:5mm;}
+            .report-print-hint{display:none !important;}
             .report-panel,.wrap .report-panel{page-break-inside:avoid;break-inside:avoid;}
             .report-panel.report-allow-break-inside,.wrap .report-panel.report-allow-break-inside{
                 page-break-inside:auto!important;break-inside:auto!important;
@@ -577,6 +566,14 @@ const A3QualityBoardReport = () => {
             <Helmet><title>Kalite Panosu – {periodLabel}</title></Helmet>
             <style>{css}</style>
             <div ref={wrapRef} className="wrap" lang="tr">
+
+                <div className="report-print-hint">
+                    <strong>Duvara asmak için yazdırma:</strong>{' '}
+                    Ctrl+P (Mac: ⌘P) → Hedef: PDF veya yazıcı → Kağıt: <strong>A3</strong> → Yön: <strong>Yatay</strong> →
+                    Kenar boşlukları: <strong>Minimum</strong> veya <strong>Yok</strong> → Ölçek: <strong>%100</strong> →
+                    &quot;Grafikler&quot; / <strong>Arka plan grafikleri</strong> açık olsun.
+                    Önizleme bu sayfada A3 yatay genişliğinde tek sütun gösterir; kırılımlar buna göre hesaplanır.
+                </div>
 
                 {/* ══════════════════════════════════════════════════════════ */}
                 {/* BAŞLIK                                                     */}
@@ -1765,10 +1762,19 @@ const A3QualityBoardReport = () => {
                             <StatRow label="Toplam Eğitim" value={qualityActivities?.totalTrainings ?? 0} color={C.teal} bold/>
                             <StatRow label="Tamamlanan" value={qualityActivities?.completedTrainings ?? 0} color={C.green}/>
                             <StatRow label="Planlanan" value={qualityActivities?.plannedTrainings ?? 0} color={C.orange}/>
+                            {(qualityActivities?.examSummary?.trainingsWithExam ?? 0) > 0 && (
+                                <>
+                                    <StatRow label="Sınavlı eğitim" value={qualityActivities.examSummary.trainingsWithExam} color={C.indigo}/>
+                                    <StatRow label="Sınava giren (değerlendirilen)" value={qualityActivities.examSummary.evaluated ?? 0} color={C.blue}/>
+                                    <StatRow label="Geçen" value={qualityActivities.examSummary.passed ?? 0} color={C.green}/>
+                                    <StatRow label="Kalan" value={qualityActivities.examSummary.failed ?? 0} color={C.red}/>
+                                    <StatRow label="Bekleyen" value={qualityActivities.examSummary.awaiting ?? 0} color={C.orange}/>
+                                </>
+                            )}
                         </div>
                         {qualityActivities?.trainingDetails && qualityActivities.trainingDetails.length > 0 ? (
                             <MiniTable
-                                headers={['Eğitim Adı','Başlangıç','Bitiş','Eğitmen','Süre (saat)','Katılımcı','Durum']}
+                                headers={['Eğitim Adı','Başlangıç','Bitiş','Eğitmen','Süre (saat)','Katılımcı','Sınav','Geçme notu','Durum']}
                                 rows={qualityActivities.trainingDetails.slice(0, 12).map((d) => [
                                     <span style={{fontSize:11}}>{trunc(safeText(d.title),30)}</span>,
                                     <span style={{fontSize:9}}>{d.startDate ? format(new Date(d.startDate),'dd.MM.yyyy',{locale:tr}) : '—'}</span>,
@@ -1776,12 +1782,41 @@ const A3QualityBoardReport = () => {
                                     <span style={{fontSize:10}}>{trunc(safeText(d.instructor),18)}</span>,
                                     <span style={{fontSize:10}}>{d.durationHours != null ? d.durationHours : '—'}</span>,
                                     <span style={{fontWeight:600,color:C.teal}}>{d.participantsCount ?? 0}</span>,
+                                    <span style={{fontSize:10}}>{d.examTitle ? trunc(safeText(d.examTitle),22) : '—'}</span>,
+                                    <span style={{fontSize:10}}>{d.passingScore != null ? d.passingScore : '—'}</span>,
                                     <span style={{fontSize:10,color:d.status==='Tamamlandı'?C.green:C.orange}}>{d.status}</span>,
                                 ])}
                                 fontSize={10}
                             />
                         ) : (
                             <div style={{textAlign:'center',color:C.slate,fontSize:11,padding:24}}>Dönemde eğitim kaydı yok.</div>
+                        )}
+                        {qualityActivities?.trainingExamPersonnelRows && qualityActivities.trainingExamPersonnelRows.length > 0 && (
+                            <>
+                                <div style={{fontSize:12,fontWeight:700,color:C.teal,margin:'16px 0 8px',paddingTop:12,borderTop:'2px solid rgba(15,118,110,0.25)'}}>Sınavlar ve sonuçları (personel)</div>
+                                <MiniTable
+                                    headers={['Personel','Birim','Eğitim','Sınav','Aldığı not','Geçme notu','Sonuç']}
+                                    rows={qualityActivities.trainingExamPersonnelRows.slice(0, 45).map((r) => [
+                                        <span style={{fontSize:10,fontWeight:600}}>{trunc(safeText(r.personnelName),24)}</span>,
+                                        <span style={{fontSize:9}}>{trunc(safeText(r.department),18)}</span>,
+                                        <span style={{fontSize:10}}>{trunc(safeText(r.trainingTitle),26)}</span>,
+                                        <span style={{fontSize:10}}>{trunc(safeText(r.examTitle),20)}</span>,
+                                        <span style={{fontSize:10,fontWeight:600}}>{r.score != null && r.score !== undefined ? r.score : '—'}</span>,
+                                        <span style={{fontSize:10}}>{r.passingScore != null ? r.passingScore : '—'}</span>,
+                                        <span style={{
+                                            fontSize:10,
+                                            fontWeight:700,
+                                            color: r.result === 'Geçti' ? C.green : r.result === 'Kaldı' ? C.red : C.orange,
+                                        }}>{r.result}</span>,
+                                    ])}
+                                    fontSize={10}
+                                />
+                                {qualityActivities.trainingExamPersonnelRows.length > 45 && (
+                                    <div style={{fontSize:10,color:C.slate,marginTop:8,textAlign:'right'}}>
+                                        +{qualityActivities.trainingExamPersonnelRows.length - 45} kayıt daha (tam liste eğitim modülünden)
+                                    </div>
+                                )}
+                            </>
                         )}
                     </Panel>
                 </Row>

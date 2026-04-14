@@ -209,7 +209,9 @@ const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
                                 A3 Yatay Rapor İçeriği
                             </div>
                             <ul className="list-disc list-inside space-y-0.5 text-emerald-700 pl-1">
-                                <li className="font-medium">PDF / yazdır: Kağıt <strong>A3 Yatay</strong>, kenar boşluğu <strong>yok veya minimum</strong> (sayfa kırılımları buna göre ayarlanır).</li>
+                                <li className="font-medium">
+                                    Rapor penceresi A3 yatay genişliğinde <strong>tek sütun</strong> açılır; sayfa kırılımları buna göre hesaplanır. Yazdırırken: <strong>A3 · Yatay · %100 · kenar minimum</strong> — PDF kaydedip plottere veya ofis yazıcısından A3&apos;e basıp panoya asabilirsiniz.
+                                </li>
                                 <li>8 adet KPI kartı (DF/8D, Maliyet, Karantina, Araç Kalite...)</li>
                                 <li>Birim bazlı uygunsuzluk dağılımı (bar chart)</li>
                                 <li>COPQ kategori kartları (İç/Dış Hata, Değerlendirme, Önleme)</li>

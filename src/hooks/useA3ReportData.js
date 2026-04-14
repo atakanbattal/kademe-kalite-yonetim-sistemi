@@ -22,6 +22,12 @@ const inDateRange = (dateStr, startDate, endDate) => {
     }
 };
 
+const chunkArray = (arr, size) => {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+};
+
 const toNumber = (value) => {
     const parsed = parseFloat(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -645,19 +651,130 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
             );
             const completedTrainings = trainingData.filter(t => t.status === 'Tamamlandı').length;
             const plannedTrainings = trainingData.filter(t => t.status !== 'Tamamlandı').length;
+
+            const trainingIds = [...new Set(trainingData.map(t => t.id).filter((id) => id != null))];
+            const examMetaByTrainingId = {};
+            let trainingExamParticipantRows = [];
+            const examSummary = {
+                trainingsWithExam: 0,
+                evaluated: 0,
+                passed: 0,
+                failed: 0,
+                awaiting: 0,
+            };
+
+            if (trainingIds.length > 0) {
+                const idChunks = chunkArray(trainingIds, 80);
+                try {
+                    for (const chunk of idChunks) {
+                        const { data: metaRows, error: metaErr } = await supabase
+                            .from('trainings')
+                            .select('id, training_exams(id, title, passing_score)')
+                            .in('id', chunk);
+                        if (metaErr) {
+                            console.warn('A3 sınav meta (trainings) alınamadı:', metaErr);
+                        } else {
+                            (metaRows || []).forEach((row) => {
+                                examMetaByTrainingId[row.id] = row.training_exams || [];
+                            });
+                        }
+                    }
+                    examSummary.trainingsWithExam = trainingIds.filter((id) => (examMetaByTrainingId[id]?.length || 0) > 0).length;
+
+                    for (const chunk of idChunks) {
+                        const { data: partRows, error: partErr } = await supabase
+                            .from('training_participants')
+                            .select(`
+                                id,
+                                status,
+                                score,
+                                personnel:personnel_id(full_name, department),
+                                training:training_id!inner(
+                                    id,
+                                    title,
+                                    training_exams!inner(title, passing_score)
+                                )
+                            `)
+                            .in('training_id', chunk);
+                        if (partErr) {
+                            console.warn('A3 sınav katılımcıları alınamadı:', partErr);
+                        } else if (partRows?.length) {
+                            trainingExamParticipantRows.push(...partRows);
+                        }
+                    }
+
+                    const seenPid = new Map();
+                    trainingExamParticipantRows = trainingExamParticipantRows.filter((p) => {
+                        if (seenPid.has(p.id)) return false;
+                        seenPid.set(p.id, true);
+                        return true;
+                    });
+
+                    for (const p of trainingExamParticipantRows) {
+                        const exam = p.training?.training_exams?.[0];
+                        if (!exam) continue;
+                        const passS = Number(exam.passing_score);
+                        const done = p.status === 'Tamamlandı' && p.score != null && p.score !== undefined;
+                        if (done) {
+                            examSummary.evaluated++;
+                            if (Number(p.score) >= passS) examSummary.passed++;
+                            else examSummary.failed++;
+                        } else {
+                            examSummary.awaiting++;
+                        }
+                    }
+                } catch (examFetchErr) {
+                    console.warn('A3 eğitim sınav verisi işlenemedi:', examFetchErr);
+                }
+            }
+
+            const trainingExamPersonnelRows = (() => {
+                const rows = [];
+                for (const p of trainingExamParticipantRows) {
+                    const exam = p.training?.training_exams?.[0];
+                    if (!exam) continue;
+                    const passS = Number(exam.passing_score);
+                    let resultLabel = 'Bekliyor';
+                    if (p.status === 'Tamamlandı' && p.score != null && p.score !== undefined) {
+                        resultLabel = Number(p.score) >= passS ? 'Geçti' : 'Kaldı';
+                    }
+                    rows.push({
+                        trainingTitle: p.training?.title || '—',
+                        examTitle: exam.title || '—',
+                        passingScore: passS,
+                        score: p.score,
+                        personnelName: p.personnel?.full_name || '—',
+                        department: p.personnel?.department || '—',
+                        result: resultLabel,
+                    });
+                }
+                rows.sort((a, b) => {
+                    const t = (a.trainingTitle || '').localeCompare(b.trainingTitle || '', 'tr');
+                    if (t !== 0) return t;
+                    return (a.personnelName || '').localeCompare(b.personnelName || '', 'tr');
+                });
+                return rows;
+            })();
+
             const trainingDetails = trainingData
                 .sort((a, b) => new Date(b.start_date || b.created_at || 0) - new Date(a.start_date || a.created_at || 0))
-                .map(t => ({
-                    title: t.title || '—',
-                    startDate: t.start_date,
-                    endDate: t.end_date,
-                    status: t.status || '—',
-                    instructor: t.instructor || '—',
-                    durationHours: t.duration_hours,
-                    participantsCount: Array.isArray(t.training_participants) && t.training_participants[0]?.count != null
-                        ? t.training_participants[0].count
-                        : (t.training_participants?.count ?? 0),
-                }));
+                .map((t) => {
+                    const exams = examMetaByTrainingId[t.id] || [];
+                    const ex0 = exams[0];
+                    return {
+                        title: t.title || '—',
+                        startDate: t.start_date,
+                        endDate: t.end_date,
+                        status: t.status || '—',
+                        instructor: t.instructor || '—',
+                        durationHours: t.duration_hours,
+                        participantsCount: Array.isArray(t.training_participants) && t.training_participants[0]?.count != null
+                            ? t.training_participants[0].count
+                            : (t.training_participants?.count ?? 0),
+                        examTitle: ex0?.title ?? null,
+                        passingScore: ex0?.passing_score ?? null,
+                    };
+                });
             const complaintIdsInPeriod = new Set(complaintData.map(c => c.id));
             const complaintAnalysesData = (raw.complaintAnalyses || []).filter(a =>
                 complaintIdsInPeriod.has(a.complaint_id) || inDateRange(a.analysis_date || a.created_at, startDate, endDate)
@@ -2212,6 +2329,8 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                     plannedTrainings,
                     totalTrainings: trainingData.length,
                     trainingDetails,
+                    examSummary,
+                    trainingExamPersonnelRows,
                 },
                 stockRisk: {
                     totalInPeriod: stockRiskData.length,
