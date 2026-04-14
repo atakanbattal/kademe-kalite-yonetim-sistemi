@@ -342,47 +342,6 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         setIsSubmitting(false);
     };
 
-    // ─── DF / 8D oluştur ─────────────────────────────────────────────────
-    const handleCreateDF8D = () => {
-        if (!onOpenNCForm) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'DF/8D formu açılamadı. Lütfen sayfayı yenileyiniz.' });
-            return;
-        }
-        const deviationTxt = deviationPercent != null
-            ? `Sapma (hedefe göre): ${deviationPercent > 0 ? '+' : ''}${deviationPercent.toFixed(1)}%`
-            : 'Hedef aşımı';
-        const ncFormData = {
-            source_kpi_id: kpi.id,
-            source_kpi_year: currentYear,
-            source_kpi_month: currentMonth,
-            title: `[KPI] ${displayMeta.name} - Hedef Tutturulamadı`,
-            description: [
-                `Kaynak: KPI Yönetimi`,
-                `KPI Adı: ${displayMeta.name}`,
-                `Kategori: ${catMeta.label}`,
-                `Mevcut Değer: ${fmt(kpiCurrent)}${kpi.unit || ''}`,
-                `Hedef Değer: ${hasTarget ? `${fmt(kpiTarget)}${kpi.unit || ''}` : 'Belirsiz'}`,
-                deviationTxt,
-                `Hedef Yönü: ${targetDir === 'decrease' ? 'Düşük daha iyi' : 'Yüksek daha iyi'}`,
-                displayMeta.description ? `\nKPI Açıklaması: ${displayMeta.description}` : '',
-                displayMeta.data_source ? `Veri Kaynağı: ${displayMeta.data_source}` : '',
-            ].filter(Boolean).join('\n'),
-            type: selectedNcType,
-            category: catMeta.label,
-            requesting_unit: kpi.responsible_unit || 'KPI Yönetimi',
-            responsible_person: kpi.responsible_unit || '',
-            priority: relativeGapAbs != null && relativeGapAbs > 20 ? 'Kritik' : 'Yüksek',
-        };
-        // Önce KPI modalını kapat, sonra kısa gecikmeyle NC formunu aç
-        // (Radix Dialog kapanış animasyonu NC formunu bloke etmesin)
-        setOpen(false);
-        setTimeout(() => {
-            onOpenNCForm(ncFormData, () => {
-                toast({ title: `${selectedNcType} oluşturuldu`, description: 'DF/8D kaydı KPI ile ilişkilendirildi.' });
-            });
-        }, 200);
-    };
-
     // ─── Türetilmiş değerler ──────────────────────────────────────────────
     // Recharts: ASCII dataKey + sayı tipi (Postgres numeric string sorunu)
     const chartData = useMemo(() =>
@@ -484,6 +443,45 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     const pendingCount  = Object.keys(editingTargets).filter(k => editingTargets[k].trim() !== '').length;
     const hasActualData = monthlyData.some(d => d.actual != null);
     const showDF8DCard  = isOnTarget === false;
+
+    // ─── DF / 8D oluştur (deviationPercent, catMeta vb. tanımlandıktan sonra) ───
+    const handleCreateDF8D = () => {
+        if (!onOpenNCForm) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'DF/8D formu açılamadı. Lütfen sayfayı yenileyiniz.' });
+            return;
+        }
+        const sapmaLineForNc = deviationPercent != null
+            ? `Sapma (hedefe göre): ${deviationPercent > 0 ? '+' : ''}${deviationPercent.toFixed(1)}%`
+            : 'Hedef aşımı';
+        const ncFormData = {
+            source_kpi_id: kpi.id,
+            source_kpi_year: currentYear,
+            source_kpi_month: currentMonth,
+            title: `[KPI] ${displayMeta.name} - Hedef Tutturulamadı`,
+            description: [
+                `Kaynak: KPI Yönetimi`,
+                `KPI Adı: ${displayMeta.name}`,
+                `Kategori: ${catMeta.label}`,
+                `Mevcut Değer: ${fmt(kpiCurrent)}${kpi.unit || ''}`,
+                `Hedef Değer: ${hasTarget ? `${fmt(kpiTarget)}${kpi.unit || ''}` : 'Belirsiz'}`,
+                sapmaLineForNc,
+                `Hedef Yönü: ${targetDir === 'decrease' ? 'Düşük daha iyi' : 'Yüksek daha iyi'}`,
+                displayMeta.description ? `\nKPI Açıklaması: ${displayMeta.description}` : '',
+                displayMeta.data_source ? `Veri Kaynağı: ${displayMeta.data_source}` : '',
+            ].filter(Boolean).join('\n'),
+            type: selectedNcType,
+            category: catMeta.label,
+            requesting_unit: kpi.responsible_unit || 'KPI Yönetimi',
+            responsible_person: kpi.responsible_unit || '',
+            priority: relativeGapAbs != null && relativeGapAbs > 20 ? 'Kritik' : 'Yüksek',
+        };
+        setOpen(false);
+        setTimeout(() => {
+            onOpenNCForm(ncFormData, () => {
+                toast({ title: `${selectedNcType} oluşturuldu`, description: 'DF/8D kaydı KPI ile ilişkilendirildi.' });
+            });
+        }, 200);
+    };
 
     if (!kpi) return null;
 
