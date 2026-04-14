@@ -8,9 +8,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
     import { Label } from '@/components/ui/label';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Textarea } from '@/components/ui/textarea';
-    import { UploadCloud, File, X } from 'lucide-react';
+    import { UploadCloud, File, X, FileEdit } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
     import { sanitizeFileName } from '@/lib/utils';
+    import { getPublishedAttachment, getSourceAttachments, SOURCE_FILE_ACCEPT } from '@/lib/documentRevisionAttachments';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
 
@@ -53,6 +54,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 
         const [formData, setFormData] = useState({});
         const [file, setFile] = useState(null);
+        /** Mevcut revizyondan korunan kaynak ekleri (storage'da duran) */
+        const [keptExistingSources, setKeptExistingSources] = useState([]);
+        /** Bu oturumda eklenecek yeni kaynak dosyalar */
+        const [newSourceFiles, setNewSourceFiles] = useState([]);
         const [isSubmitting, setIsSubmitting] = useState(false);
         
         const initialLoadRef = useRef(true);
@@ -162,19 +167,25 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                             // Düzenleme modunda: Mevcut revizyon tarihini göster
                             revision_date: isRevisionMode ? '' : (revision?.revision_date ? new Date(revision.revision_date).toISOString().slice(0, 10) : ''),
                             revision_reason: isRevisionMode ? '' : (revision?.revision_reason || ''),
-                            file_name: revision?.attachments?.[0]?.name,
+                            file_name: getPublishedAttachment(revision?.attachments)?.name,
                             department_id: existingDocument.department_id || null,
                          });
+                         setKeptExistingSources(getSourceAttachments(revision?.attachments || []));
+                         setNewSourceFiles([]);
                     } else {
                         setFormData(initialData);
+                        setKeptExistingSources([]);
+                        setNewSourceFiles([]);
                     }
                     setFile(null);
                     initialLoadRef.current = false;
                 }
             } else {
                 initialLoadRef.current = true;
+                setKeptExistingSources([]);
+                setNewSourceFiles([]);
             }
-        }, [isOpen, existingDocument, isEditMode, preselectedCategory, profile]);
+        }, [isOpen, existingDocument, isEditMode, preselectedCategory, profile, isRevisionMode]);
 
         const onDrop = useCallback(acceptedFiles => {
             if (acceptedFiles.length > 0) {
@@ -182,10 +193,23 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
             }
         }, []);
 
+        const onDropSource = useCallback((acceptedFiles) => {
+            if (acceptedFiles.length > 0) {
+                setNewSourceFiles((prev) => [...prev, ...acceptedFiles].slice(0, 25));
+            }
+        }, []);
+
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
             onDrop,
             accept: { 'application/pdf': ['.pdf'] },
             maxFiles: 1
+        });
+
+        const { getRootProps: getSourceRootProps, getInputProps: getSourceInputProps, isDragActive: isSourceDragActive } = useDropzone({
+            onDrop: onDropSource,
+            accept: SOURCE_FILE_ACCEPT,
+            maxFiles: 25,
+            multiple: true,
         });
 
         const handleInputChange = (e) => {
@@ -203,7 +227,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 toast({ variant: 'destructive', title: 'Dosya Eksik', description: 'Lütfen bir PDF dosyası seçin.' });
                 return;
             }
-            if (isRevisionMode && !file && !existingDocument?.document_revisions?.attachments?.[0]?.path) {
+            if (isRevisionMode && !file && !getPublishedAttachment(existingDocument?.document_revisions?.attachments)?.path) {
                 toast({ variant: 'destructive', title: 'Dosya Eksik', description: 'Lütfen bir PDF dosyası seçin veya mevcut dosyayı kullanın.' });
                 return;
             }
@@ -236,39 +260,80 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 }
 
                 const documentId = (isEditMode || isRevisionMode) ? existingDocument.id : uuidv4();
-                let attachmentData = null;
+                const folderName = getDocumentFolder(formData.document_type);
 
+                let publishedMeta = null;
                 if (file) {
                     const sanitizedFileName = sanitizeFileName(file.name);
-                    // Doküman tipine göre klasör yapısı oluştur
-                    const folderName = getDocumentFolder(formData.document_type);
-                    
-                    // Revizyon modunda benzersiz dosya yolu oluştur (revizyon numarası ile)
                     let filePath;
                     if (isRevisionMode) {
                         const revisionNumber = formData.revision_number || '1';
-                        // Dosya adından uzantıyı ayır ve revizyon numarasını ekle
                         const fileNameWithoutExt = sanitizedFileName.replace(/\.[^/.]+$/, '');
                         const fileExt = sanitizedFileName.substring(sanitizedFileName.lastIndexOf('.'));
                         filePath = `${folderName}/${documentId}-rev${revisionNumber}-${fileNameWithoutExt}${fileExt}`;
                     } else {
                         filePath = `${folderName}/${documentId}-${sanitizedFileName}`;
                     }
-                    
-                    // Yeni dosyayı yükle (upsert: true ile varsa üzerine yaz)
                     const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {
                         upsert: true
                     });
                     if (uploadError) throw uploadError;
 
-                    attachmentData = {
+                    publishedMeta = {
                         path: filePath,
                         name: file.name,
                         size: file.size,
-                        type: file.type,
+                        type: file.type || 'application/pdf',
+                        role: 'published',
                     };
+                } else if (isEditMode || isRevisionMode) {
+                    const prev = getPublishedAttachment(existingDocument.document_revisions?.attachments);
+                    if (prev) {
+                        publishedMeta = {
+                            ...prev,
+                            role: 'published',
+                        };
+                    }
                 }
-                
+
+                const sourceMetas = keptExistingSources.map((s) => ({
+                    path: s.path,
+                    name: s.name,
+                    size: s.size,
+                    type: s.type || 'application/octet-stream',
+                    role: 'source',
+                }));
+
+                for (const srcFile of newSourceFiles) {
+                    const sanitizedSourceName = sanitizeFileName(srcFile.name);
+                    const shortId = uuidv4().slice(0, 8);
+                    let srcPath;
+                    if (isRevisionMode) {
+                        const revisionNumber = formData.revision_number || '1';
+                        srcPath = `${folderName}/${documentId}-rev${revisionNumber}-src-${shortId}-${sanitizedSourceName}`;
+                    } else if (isEditMode) {
+                        const rev = String(formData.revision_number || '1');
+                        srcPath = `${folderName}/${documentId}-rev${rev}-src-${shortId}-${sanitizedSourceName}`;
+                    } else {
+                        srcPath = `${folderName}/${documentId}-src-${shortId}-${sanitizedSourceName}`;
+                    }
+                    const { error: srcErr } = await supabase.storage.from(BUCKET_NAME).upload(srcPath, srcFile, {
+                        upsert: true
+                    });
+                    if (srcErr) throw srcErr;
+                    sourceMetas.push({
+                        path: srcPath,
+                        name: srcFile.name,
+                        size: srcFile.size,
+                        type: srcFile.type || 'application/octet-stream',
+                        role: 'source',
+                    });
+                }
+
+                const mergedAttachments = [];
+                if (publishedMeta) mergedAttachments.push(publishedMeta);
+                mergedAttachments.push(...sourceMetas);
+
                 const documentPayload = {
                     title: formData.title,
                     document_type: formData.document_type,
@@ -286,7 +351,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     revision_date: formData.revision_date || null, // Revizyon tarihi manuel girilecek (yeni kayıtlarda boş olabilir)
                     prepared_by_id: currentUserPersonnelRecord?.id || null,
                     user_id: user.id,
-                    attachments: attachmentData ? [attachmentData] : ((isEditMode || isRevisionMode) ? existingDocument.document_revisions?.attachments : null),
+                    attachments: mergedAttachments.length > 0 ? mergedAttachments : null,
                 };
                 
                 if (isRevisionMode) {
@@ -358,8 +423,8 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         <DialogTitle className="text-foreground">{isRevisionMode ? 'Dokümanı Revize Et' : (isEditMode ? 'Dokümanı Düzenle' : 'Yeni Doküman Yükle')}</DialogTitle>
                         <DialogDescription className="text-muted-foreground">
                             {isRevisionMode 
-                                ? 'Bu doküman için yeni bir revizyon oluşturun. Revizyon numarası ve tarihi otomatik olarak ayarlanacaktır.' 
-                                : (isEditMode ? 'Mevcut doküman bilgilerini güncelleyin.' : 'Sisteme yeni bir doküman ekleyin.')}
+                                ? 'Yayın PDF’ini ve isteğe bağlı olarak Word/Excel kaynaklarını yükleyin. Kaynaklar bu revizyonla birlikte saklanır; sonraki düzenlemeler için indirilebilir.' 
+                                : (isEditMode ? 'Yayın PDF’i ve düzenlenebilir kaynak dosyalarını güncelleyebilirsiniz.' : 'Yayın için PDF yükleyin; düzenlenebilir asılları (Word, Excel vb.) ayrıca ekleyebilirsiniz.')}
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
@@ -449,18 +514,19 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         </div>
 
                         <div className="md:col-span-2">
-                            <Label>Dosya (PDF)</Label>
+                            <Label>Yayın dosyası (PDF) <span className="text-red-500">*</span></Label>
+                            <p className="text-xs text-muted-foreground mt-0.5 mb-1">Dağıtım ve görüntüleme için nihai PDF; zorunludur (yeni kayıtta veya revizyonda yeni PDF ile).</p>
                             <div {...getRootProps()} className={`mt-1 flex justify-center rounded-lg border-2 border-dashed border-border px-6 py-10 transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'hover:border-primary/50'}`}>
                                 <input {...getInputProps()} />
                                 <div className="text-center">
                                     <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                                     <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                                        {isDragActive ? 'Dosyayı buraya bırakın...' : 'Dosyayı sürükleyin veya seçmek için tıklayın'}
+                                        {isDragActive ? 'Dosyayı buraya bırakın...' : 'PDF’i sürükleyin veya seçmek için tıklayın'}
                                     </p>
-                                    <p className="text-xs leading-5 text-muted-foreground">Sadece PDF dosyaları kabul edilir.</p>
+                                    <p className="text-xs leading-5 text-muted-foreground">Sadece PDF.</p>
                                 </div>
                             </div>
-                             {(file || (isEditMode && formData.file_name)) && (
+                             {(file || (isEditMode && formData.file_name) || (isRevisionMode && formData.file_name)) && (
                                 <div className="mt-4 flex items-center justify-between rounded-lg bg-secondary p-3">
                                     <div className="flex items-center gap-2">
                                         <File className="h-5 w-5 text-primary" />
@@ -470,6 +536,43 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                                         <X className="h-4 w-4" />
                                     </Button>
                                 </div>
+                            )}
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <Label className="flex items-center gap-2">
+                                <FileEdit className="h-4 w-4" />
+                                Düzenlenebilir kaynak dosyalar (isteğe bağlı)
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-0.5 mb-1">Word, Excel, PowerPoint vb. — bir sonraki revizyonda bu dosyalar üzerinden çalışabilirsiniz. Birden fazla dosya ekleyebilirsiniz.</p>
+                            <div {...getSourceRootProps()} className={`mt-1 flex justify-center rounded-lg border-2 border-dashed border-border px-6 py-8 transition-colors ${isSourceDragActive ? 'border-primary bg-primary/10' : 'hover:border-primary/50'}`}>
+                                <input {...getSourceInputProps()} />
+                                <div className="text-center">
+                                    <FileEdit className="mx-auto h-10 w-10 text-muted-foreground" />
+                                    <p className="mt-3 text-sm text-muted-foreground">
+                                        {isSourceDragActive ? 'Dosyaları buraya bırakın…' : 'Kaynak dosyaları sürükleyin veya seçin'}
+                                    </p>
+                                </div>
+                            </div>
+                            {(keptExistingSources.length > 0 || newSourceFiles.length > 0) && (
+                                <ul className="mt-3 space-y-2">
+                                    {keptExistingSources.map((s) => (
+                                        <li key={s.path} className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                                            <span className="truncate pr-2">{s.name}</span>
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setKeptExistingSources((prev) => prev.filter((x) => x.path !== s.path))} aria-label="Kaldır">
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </li>
+                                    ))}
+                                    {newSourceFiles.map((f, idx) => (
+                                        <li key={`${f.name}-${idx}`} className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm">
+                                            <span className="truncate pr-2">{f.name} <span className="text-muted-foreground">(yeni)</span></span>
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setNewSourceFiles((prev) => prev.filter((_, i) => i !== idx))} aria-label="Kaldır">
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </li>
+                                    ))}
+                                </ul>
                             )}
                         </div>
                          <DialogFooter className="md:col-span-2 mt-4">

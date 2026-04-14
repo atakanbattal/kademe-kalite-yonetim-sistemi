@@ -18,6 +18,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Download, Loader2 } from 'lucide-react';
 import { sanitizeArchiveName } from '@/lib/qualityFolderDownloadUtils';
+import { getPublishedAttachment, getSourceAttachments } from '@/lib/documentRevisionAttachments';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const BUCKET_NAME = 'documents';
@@ -169,55 +170,69 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
 
             let downloadedCount = 0;
 
-            // Dosyaları kategorilerine göre Zip içinde klasörlere yerleştir
-            // Eşzamanlı maksimum X indirme limiti koyulabilir, ancak şimdilik Promise.all kullanıyoruz (Supabase 100-200 dosya için destekler)
-            // Büyük dosya setleri için batching yapılabilir.
-            const MAX_CONCURRENT = 10;
-            const chunks = [];
-            for (let i = 0; i < docsToDownload.length; i += MAX_CONCURRENT) {
-                chunks.push(docsToDownload.slice(i, i + MAX_CONCURRENT));
-            }
-
-            for (const chunk of chunks) {
-                await Promise.all(chunk.map(async (doc) => {
+            const countTotalFiles = () =>
+                docsToDownload.reduce((acc, doc) => {
                     const revision = doc.document_revisions;
-                    let filePath = revision?.attachments?.[0]?.path;
-                    let fileName = revision?.attachments?.[0]?.name;
+                    const pub = getPublishedAttachment(revision?.attachments);
+                    const n = (pub?.path ? 1 : 0) + getSourceAttachments(revision?.attachments).length;
+                    return acc + n;
+                }, 0);
 
-                    if (!filePath || !fileName) return;
+            const totalFiles = countTotalFiles();
 
-                    filePath = normalizeDocumentPath(filePath, doc.document_type);
+            const bumpProgress = () => {
+                downloadedCount++;
+                const pct = totalFiles > 0 ? Math.round((downloadedCount / totalFiles) * 100) : 100;
+                setProgress(pct);
+                setDownloadStatus(`İndiriliyor: %${pct} (${downloadedCount}/${totalFiles})`);
+            };
 
-                    try {
-                        const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
-                        if (error) {
-                            console.error(`Error downloading ${fileName}:`, error.message);
-                            return; // Hatalı olanları atla
-                        }
+            // Dosyaları kategorilerine göre Zip içinde klasörlere yerleştir (sıralı: ilerleme sayacı tutarlı)
+            for (const doc of docsToDownload) {
+                const revision = doc.document_revisions;
+                const published = getPublishedAttachment(revision?.attachments);
+                const sources = getSourceAttachments(revision?.attachments);
 
-                        // Kategori adını bul
-                        let categoryFolder = 'Diğer';
-                        for (const [catName, catVariants] of Object.entries(DOCUMENT_TYPE_MAPPING)) {
-                            if (catVariants.includes(doc.document_type)) {
-                                categoryFolder = catName;
-                                break;
-                            }
-                        }
-
-                        const deptName = doc.department?.unit_name
-                            ? sanitizeArchiveName(doc.department.unit_name, 'Birim')
-                            : 'Genel';
-                        const folder = zip.folder(`${deptName}/${categoryFolder}`);
-                        folder.file(fileName, data);
-
-                        downloadedCount++;
-                        setProgress(Math.round((downloadedCount / docsToDownload.length) * 100));
-                        setDownloadStatus(`İndiriliyor: %${Math.round((downloadedCount / docsToDownload.length) * 100)} (${downloadedCount}/${docsToDownload.length})`);
-
-                    } catch (err) {
-                        console.error(`Failed to fetch ${fileName}:`, err);
+                let categoryFolder = 'Diğer';
+                for (const [catName, catVariants] of Object.entries(DOCUMENT_TYPE_MAPPING)) {
+                    if (catVariants.includes(doc.document_type)) {
+                        categoryFolder = catName;
+                        break;
                     }
-                }));
+                }
+
+                const deptName = doc.department?.unit_name
+                    ? sanitizeArchiveName(doc.department.unit_name, 'Birim')
+                    : 'Genel';
+                const baseFolder = zip.folder(`${deptName}/${categoryFolder}`);
+
+                const downloadOne = async (filePath, zipPath, labelForLog) => {
+                    if (!filePath) return;
+                    const normalized = normalizeDocumentPath(filePath, doc.document_type);
+                    try {
+                        const { data, error } = await supabase.storage.from(BUCKET_NAME).download(normalized);
+                        if (error) {
+                            console.error(`Error downloading ${labelForLog}:`, error.message);
+                            return;
+                        }
+                        baseFolder.file(zipPath, data);
+                        bumpProgress();
+                    } catch (err) {
+                        console.error(`Failed to fetch ${labelForLog}:`, err);
+                    }
+                };
+
+                if (published?.path) {
+                    const pubName = published.name || `${sanitizeArchiveName(doc.title || 'dokuman', 'Dosya')}.pdf`;
+                    await downloadOne(published.path, pubName, pubName);
+                }
+
+                for (let i = 0; i < sources.length; i++) {
+                    const s = sources[i];
+                    const safeName = sanitizeArchiveName(s.name || `kaynak-${i + 1}`, 'Dosya');
+                    const zipPath = `kaynak/${i + 1}-${safeName}`;
+                    await downloadOne(s.path, zipPath, s.name);
+                }
             }
 
             if (downloadedCount === 0) {
@@ -230,7 +245,7 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
             const content = await zip.generateAsync({ type: 'blob' });
             saveAs(content, 'KademeQMS_Dokumanlar.zip');
 
-            toast({ title: 'Başarılı', description: `${downloadedCount} doküman başarıyla indirilerek arşivlendi.` });
+            toast({ title: 'Başarılı', description: `${downloadedCount} dosya başarıyla indirilerek arşivlendi.` });
             setIsOpen(false);
             setSelectedCategories([]);
         } catch (error) {

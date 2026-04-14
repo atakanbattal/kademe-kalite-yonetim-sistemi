@@ -233,6 +233,24 @@ body {
   @apply bg-secondary;
 }
 
+/* İç doküman modülü — daha kompakt tablo, okunaklı başlıklar */
+.document-module-table.data-table th {
+  @apply py-2.5 normal-case tracking-normal text-xs font-semibold;
+}
+.document-module-table.data-table td {
+  @apply py-2 align-middle;
+}
+.document-module-table.data-table tbody td:first-child {
+  @apply max-w-[min(100vw,18rem)] whitespace-normal font-medium leading-snug;
+}
+.document-module-table.data-table thead th:last-child,
+.document-module-table.data-table tbody td:last-child {
+  @apply text-right;
+}
+.document-module-table.data-table thead th:last-child {
+  @apply w-[168px] min-w-[168px];
+}
+
 /* Responsive table wrapper */
 .table-responsive {
   @apply w-full overflow-x-auto;

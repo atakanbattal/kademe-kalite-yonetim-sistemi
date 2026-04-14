@@ -3,12 +3,53 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { History, User, Calendar, FileText, RefreshCw, Eye, FileDown } from 'lucide-react';
+import { History, User, Calendar, FileText, Eye, FileEdit } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
+import { getPublishedAttachment, getSourceAttachments } from '@/lib/documentRevisionAttachments';
+
+const detailDocumentFolder = (documentType) => {
+    const folderMap = {
+        'Kalite Sertifikaları': 'Kalite-Sertifikalari',
+        'Personel Sertifikaları': 'Personel-Sertifikalari',
+        'Prosedürler': 'documents',
+        'Talimatlar': 'documents',
+        'Formlar': 'documents',
+        'El Kitapları': 'documents',
+        'Şemalar': 'documents',
+        'Görev Tanımları': 'documents',
+        'Süreçler': 'documents',
+        'Planlar': 'documents',
+        'Listeler': 'documents',
+        'Şartnameler': 'documents',
+        'Politikalar': 'documents',
+        'Tablolar': 'documents',
+        'Antetler': 'documents',
+        'Sözleşmeler': 'documents',
+        'Yönetmelikler': 'documents',
+        'Kontrol Planları': 'documents',
+        'FMEA Planları': 'documents',
+        'Proses Kontrol Kartları': 'documents',
+        'Görsel Yardımcılar': 'documents',
+        'Diğer': 'documents',
+    };
+    return folderMap[documentType] || 'documents';
+};
+
+const normalizeDetailStoragePath = (path, documentType) => {
+    if (!path) return null;
+    if (path.includes('/') && !path.startsWith('documents/') && !path.includes('Kalite') && !path.includes('Personel')) {
+        const folderName = detailDocumentFolder(documentType);
+        const parts = path.split('/');
+        if (parts.length >= 2) {
+            return `${folderName}/${parts.slice(1).join('/')}`;
+        }
+    }
+    return path;
+};
 
 const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
     const [revisions, setRevisions] = useState([]);
@@ -95,54 +136,39 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
         }
     };
 
+    const handleDownloadSource = async (revision, documentType, attachment) => {
+        let filePath = attachment?.path;
+        if (!filePath) return;
+        filePath = normalizeDetailStoragePath(filePath, documentType);
+
+        try {
+            const { data, error } = await supabase.storage.from('documents').download(filePath);
+            if (error) {
+                console.error('Kaynak indirilemedi:', error);
+                return;
+            }
+            const blob = new Blob([data], { type: attachment.type || 'application/octet-stream' });
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = attachment.name || 'kaynak';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error('Kaynak indirme hatası:', err);
+        }
+    };
+
     const handleViewPdf = async (revision, title, documentType) => {
-        let filePath = revision?.attachments?.[0]?.path;
+        const pub = getPublishedAttachment(revision?.attachments);
+        let filePath = pub?.path;
         if (!filePath) {
             return;
         }
-        
-        // Path'i normalize et
-        const getDocumentFolder = (documentType) => {
-            const folderMap = {
-                'Kalite Sertifikaları': 'Kalite-Sertifikalari',
-                'Personel Sertifikaları': 'Personel-Sertifikalari',
-                'Prosedürler': 'documents',
-                'Talimatlar': 'documents',
-                'Formlar': 'documents',
-                'El Kitapları': 'documents',
-                'Şemalar': 'documents',
-                'Görev Tanımları': 'documents',
-                'Süreçler': 'documents',
-                'Planlar': 'documents',
-                'Listeler': 'documents',
-                'Şartnameler': 'documents',
-                'Politikalar': 'documents',
-                'Tablolar': 'documents',
-                'Antetler': 'documents',
-                'Sözleşmeler': 'documents',
-                'Yönetmelikler': 'documents',
-                'Kontrol Planları': 'documents',
-                'FMEA Planları': 'documents',
-                'Proses Kontrol Kartları': 'documents',
-                'Görsel Yardımcılar': 'documents',
-                'Diğer': 'documents',
-            };
-            return folderMap[documentType] || 'documents';
-        };
 
-        const normalizeDocumentPath = (path, documentType) => {
-            if (!path) return null;
-            if (path.includes('/') && !path.startsWith('documents/') && !path.includes('Kalite') && !path.includes('Personel')) {
-                const folderName = getDocumentFolder(documentType);
-                const parts = path.split('/');
-                if (parts.length >= 2) {
-                    return `${folderName}/${parts.slice(1).join('/')}`;
-                }
-            }
-            return path;
-        };
-
-        filePath = normalizeDocumentPath(filePath, documentType);
+        filePath = normalizeDetailStoragePath(filePath, documentType);
         
         try {
             const { data, error } = await supabase.storage.from('documents').download(filePath);
@@ -250,12 +276,14 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                     ) : (
                                         <div className="space-y-4">
                                             {revisions.map((revision, index) => {
-                                                const hasFile = !!revision?.attachments?.[0]?.path;
+                                                const published = getPublishedAttachment(revision?.attachments);
+                                                const sources = getSourceAttachments(revision?.attachments);
+                                                const hasFile = !!published?.path;
                                                 const isCurrent = document.current_revision_id === revision.id;
                                                 
                                                 return (
                                                     <div key={revision.id} className="border rounded-lg p-4 space-y-3">
-                                                        <div className="flex items-start justify-between">
+                                                        <div className="flex items-start justify-between gap-2 flex-wrap">
                                                             <div className="flex items-center gap-3">
                                                                 <Badge variant={isCurrent ? "default" : "outline"} className="font-mono text-sm">
                                                                     Revizyon {revision.revision_number || index + 1}
@@ -271,18 +299,29 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                                                     </Badge>
                                                                 )}
                                                             </div>
-                                                            {hasFile && (
-                                                                <div className="flex gap-2">
+                                                            <div className="flex flex-wrap gap-2 justify-end">
+                                                                {hasFile && (
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
                                                                         onClick={() => handleViewPdf(revision, document.title, document.document_type)}
                                                                     >
                                                                         <Eye className="w-4 h-4 mr-1" />
-                                                                        Görüntüle
+                                                                        PDF
                                                                     </Button>
-                                                                </div>
-                                                            )}
+                                                                )}
+                                                                {sources.map((s) => (
+                                                                    <Button
+                                                                        key={s.path}
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleDownloadSource(revision, document.document_type, s)}
+                                                                    >
+                                                                        <FileEdit className="w-4 h-4 mr-1" />
+                                                                        <span className="max-w-[140px] truncate">{s.name}</span>
+                                                                    </Button>
+                                                                ))}
+                                                            </div>
                                                         </div>
 
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

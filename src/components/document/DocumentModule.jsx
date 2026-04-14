@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,15 @@ import DocumentDetailModal from '@/components/document/DocumentDetailModal';
 import FolderDownloadModal from '@/components/document/FolderDownloadModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
+import { getPublishedAttachment, getSourceAttachments, collectAttachmentPaths } from '@/lib/documentRevisionAttachments';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const DOCUMENT_CATEGORIES = [
     { value: 'Tümü', label: 'Tümü', icon: FileText, addText: 'Yeni Doküman Ekle' },
@@ -144,9 +153,11 @@ const normalizeDocumentPath = (path, documentType) => {
     return path;
 };
 
+const validityBadgeClass = 'text-xs font-medium px-2 py-0 h-6 shrink-0';
+
 const ValidityStatus = ({ validUntil }) => {
     if (!validUntil) {
-        return <Badge variant="secondary">Süresiz</Badge>;
+        return <Badge variant="secondary" className={validityBadgeClass}>Süresiz</Badge>;
     }
 
     try {
@@ -156,22 +167,22 @@ const ValidityStatus = ({ validUntil }) => {
 
         // Geçersiz tarih kontrolü
         if (isNaN(expiryDate.getTime())) {
-            return <Badge variant="secondary">Geçersiz Tarih</Badge>;
+            return <Badge variant="secondary" className={validityBadgeClass}>Geçersiz Tarih</Badge>;
         }
 
         const diffTime = expiryDate - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         if (diffDays < 0) {
-            return <Badge variant="destructive">Süresi Doldu ({Math.abs(diffDays)} gün önce)</Badge>;
+            return <Badge variant="destructive" className={validityBadgeClass}>Süresi Doldu ({Math.abs(diffDays)} gün önce)</Badge>;
         }
         if (diffDays <= 30) {
-            return <Badge variant="warning" className="bg-yellow-500 text-white">{diffDays} gün kaldı</Badge>;
+            return <Badge variant="warning" className={`bg-yellow-500 text-white ${validityBadgeClass}`}>{diffDays} gün kaldı</Badge>;
         }
-        return <Badge variant="success" className="bg-green-600 text-white">{diffDays} gün kaldı</Badge>;
+        return <Badge variant="success" className={`bg-green-600 text-white ${validityBadgeClass}`}>{diffDays} gün kaldı</Badge>;
     } catch (error) {
         console.error('ValidityStatus error:', error, validUntil);
-        return <Badge variant="secondary">Geçersiz Tarih</Badge>;
+        return <Badge variant="secondary" className={validityBadgeClass}>Geçersiz Tarih</Badge>;
     }
 };
 
@@ -188,6 +199,7 @@ const DocumentModule = () => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isFolderDownloadModalOpen, setIsFolderDownloadModalOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
+    const [documentPendingDelete, setDocumentPendingDelete] = useState(null);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
     const preparedDocuments = useMemo(() => {
@@ -255,13 +267,13 @@ const DocumentModule = () => {
     }, [preparedDocuments, activeTab, normalizedSearchTerm, selectedDepartmentId]);
 
     const downloadPdf = async (revision, docTitle, documentType, originalFileName) => {
-        let filePath = revision?.attachments?.[0]?.path;
+        const pub = getPublishedAttachment(revision?.attachments);
+        let filePath = pub?.path;
         if (!filePath) {
             toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
             return;
         }
-        
-        // Path'i normalize et (eski formatı yeni klasör yapısına uyarla)
+
         filePath = normalizeDocumentPath(filePath, documentType);
         const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
         if (error) {
@@ -269,17 +281,18 @@ const DocumentModule = () => {
             return;
         }
 
+        const nameHint = originalFileName || pub?.name;
         let downloadName = docTitle;
-        if (originalFileName) {
-            const extension = originalFileName.split('.').pop();
-            if (!downloadName.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
+        if (nameHint) {
+            const extension = nameHint.split('.').pop();
+            if (extension && !downloadName.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
                 downloadName = `${downloadName}.${extension}`;
             }
         } else {
-            downloadName = downloadName + '.pdf'; // Default to pdf if no original filename available
+            downloadName = `${downloadName}.pdf`;
         }
 
-        const blob = new Blob([data]);
+        const blob = new Blob([data], { type: pub?.type || 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -290,12 +303,38 @@ const DocumentModule = () => {
         document.body.removeChild(a);
     };
 
+    const downloadEditableSource = async (revision, documentType, attachment) => {
+        let filePath = attachment?.path;
+        if (!filePath) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
+            return;
+        }
+        filePath = normalizeDocumentPath(filePath, documentType);
+        const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
+        if (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Dosya indirilemedi: ${error.message}` });
+            return;
+        }
+        const downloadName = attachment.name || 'kaynak';
+        const blob = new Blob([data], { type: attachment.type || 'application/octet-stream' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = downloadName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    };
+
     const deleteDocument = async (doc) => {
-        if (doc.current_revision_id) {
-            const { data: revision } = await supabase.from('document_revisions').select('attachments').eq('id', doc.current_revision_id).single();
-            if (revision?.attachments?.[0]?.path) {
-                await supabase.storage.from(BUCKET_NAME).remove([revision.attachments[0].path]);
-            }
+        const { data: allRevs } = await supabase
+            .from('document_revisions')
+            .select('attachments')
+            .eq('document_id', doc.id);
+        const paths = [...new Set((allRevs || []).flatMap((r) => collectAttachmentPaths(r.attachments)))];
+        if (paths.length > 0) {
+            await supabase.storage.from(BUCKET_NAME).remove(paths);
         }
         const { error: dbError } = await supabase.from('documents').delete().eq('id', doc.id);
         if (dbError) {
@@ -322,13 +361,13 @@ const DocumentModule = () => {
     };
 
     const handleViewPdf = async (revision, title, documentType) => {
-        let filePath = revision?.attachments?.[0]?.path;
+        const pub = getPublishedAttachment(revision?.attachments);
+        let filePath = pub?.path;
         if (!filePath) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya yolu bulunamadı.' });
             return;
         }
 
-        // Path'i normalize et (eski formatı yeni klasör yapısına uyarla)
         filePath = normalizeDocumentPath(filePath, documentType);
 
         try {
@@ -394,6 +433,31 @@ const DocumentModule = () => {
                 categories={DOCUMENT_CATEGORIES.map(c => c.value)}
                 unitCostSettings={unitCostSettings || []}
             />
+
+            <AlertDialog open={!!documentPendingDelete} onOpenChange={(open) => !open && setDocumentPendingDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Dokümanı silmek istiyor musunuz?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu işlem geri alınamaz. Dokümana ait tüm revizyon dosyaları depolamadan kaldırılır.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (documentPendingDelete) {
+                                    deleteDocument(documentPendingDelete);
+                                    setDocumentPendingDelete(null);
+                                }
+                            }}
+                        >
+                            Sil
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -464,7 +528,7 @@ const DocumentModule = () => {
 
                 <div className="pt-2">
                     <div className="dashboard-widget">
-                        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-3 gap-4">
                             <div className="flex flex-col sm:flex-row gap-4 flex-1">
                                 <div className="search-box w-full sm:max-w-sm">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
@@ -497,20 +561,22 @@ const DocumentModule = () => {
                             </Button>
                         </div>
 
+                        <TooltipProvider delayDuration={250}>
+                        <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="data-table">
+                            <table className="data-table document-module-table">
                                 <thead>
                                     <tr>
-                                        <th>Doküman Adı / Numarası</th>
+                                        <th>Doküman adı / no</th>
                                         {activeTab === 'Personel Sertifikaları' && <th>Personel</th>}
                                         {DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) && <th>Birim</th>}
-                                        <th>Doküman Tipi</th>
-                                        <th>Versiyon</th>
-                                        <th>Yayın Tarihi</th>
-                                        <th>Revizyon Tarihi</th>
-                                        {showCertExpiryColumn && <th>Bitiş tarihi</th>}
-                                        <th>Geçerlilik Durumu</th>
-                                        <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                        <th>Tip</th>
+                                        <th>Ver.</th>
+                                        <th>Yayın</th>
+                                        <th>Revizyon</th>
+                                        {showCertExpiryColumn && <th>Bitiş</th>}
+                                        <th>Durum</th>
+                                        <th className="text-right">İşlemler</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -522,8 +588,10 @@ const DocumentModule = () => {
                                         filteredDocuments.map((doc) => {
                                             // filteredDocuments içinde zaten revision tek bir obje olarak set edilmiş
                                             const revision = doc.document_revisions;
-                                            const fileName = revision?.attachments?.[0]?.name;
-                                            const hasFile = !!revision?.attachments?.[0]?.path;
+                                            const published = getPublishedAttachment(revision?.attachments);
+                                            const sourceFiles = getSourceAttachments(revision?.attachments);
+                                            const fileName = published?.name;
+                                            const hasFile = !!published?.path;
 
                                             return (
                                                 <tr key={doc.id}>
@@ -542,7 +610,7 @@ const DocumentModule = () => {
                                                         <td className="text-muted-foreground">{doc.department?.unit_name || doc.personnel?.full_name || '-'}</td>
                                                     )}
                                                     <td className="text-muted-foreground">
-                                                        <Badge variant="outline">{doc.document_type || '-'}</Badge>
+                                                        <Badge variant="outline" className="text-xs font-normal px-2 py-0 h-6 text-muted-foreground border-border/80">{doc.document_type || '-'}</Badge>
                                                     </td>
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
                                                     <td className="text-muted-foreground">
@@ -580,28 +648,99 @@ const DocumentModule = () => {
                                                         </td>
                                                     )}
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
-                                                    <td className="flex items-center gap-2 flex-wrap">
-                                                        <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
-                                                        <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, doc.title, doc.document_type, fileName)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
-                                                        <Button variant="ghost" size="sm" onClick={() => handleReviseDocument(doc)}><RefreshCw className="w-4 h-4 mr-1" /> Revize Et</Button>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleOpenUploadModal(doc)}><Edit className="w-4 h-4" /></Button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive-foreground hover:bg-destructive"><Trash2 className="w-4 h-4" /></Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        Bu dokümanı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => deleteDocument(doc)}>Sil</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
+                                                    <td className="align-middle">
+                                                        <div className="inline-flex items-center justify-end gap-0.5">
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                        disabled={!hasFile}
+                                                                        onClick={() => handleViewPdf(revision, doc.title, doc.document_type)}
+                                                                    >
+                                                                        <Eye className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom">PDF önizle</TooltipContent>
+                                                            </Tooltip>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                        disabled={!hasFile}
+                                                                        onClick={() => downloadPdf(revision, doc.title, doc.document_type, fileName)}
+                                                                    >
+                                                                        <FileDown className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom">PDF indir</TooltipContent>
+                                                            </Tooltip>
+                                                            {sourceFiles.length > 0 && (
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground relative"
+                                                                            aria-label={`Düzenlenebilir kaynaklar (${sourceFiles.length})`}
+                                                                        >
+                                                                            <FileEdit className="h-4 w-4" />
+                                                                            <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-semibold leading-none text-primary-foreground">
+                                                                                {sourceFiles.length}
+                                                                            </span>
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end" className="w-56">
+                                                                        {sourceFiles.map((s) => (
+                                                                            <DropdownMenuItem
+                                                                                key={s.path}
+                                                                                className="cursor-pointer text-xs"
+                                                                                onClick={() => downloadEditableSource(revision, doc.document_type, s)}
+                                                                            >
+                                                                                <span className="truncate">{s.name}</span>
+                                                                            </DropdownMenuItem>
+                                                                        ))}
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            )}
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                        aria-label="Diğer işlemler"
+                                                                    >
+                                                                        <MoreVertical className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end" className="w-48">
+                                                                    <DropdownMenuItem className="cursor-pointer text-sm" onClick={() => handleReviseDocument(doc)}>
+                                                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                                                        Revize et
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem className="cursor-pointer text-sm" onClick={() => handleOpenUploadModal(doc)}>
+                                                                        <Edit className="mr-2 h-4 w-4" />
+                                                                        Düzenle
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        className="cursor-pointer text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                                        onClick={() => setDocumentPendingDelete(doc)}
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Sil
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             )
@@ -610,6 +749,8 @@ const DocumentModule = () => {
                                 </tbody>
                             </table>
                         </div>
+                        </div>
+                        </TooltipProvider>
                     </div>
                 </div>
             </div>
