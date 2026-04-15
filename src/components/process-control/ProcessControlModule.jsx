@@ -10,6 +10,7 @@ import ProcessControlDashboard from './ProcessControlDashboard';
 import ControlPlanManagement from './ControlPlanManagement';
 import ProcessInkrManagement from './ProcessInkrManagement';
 import ProcessInspectionManagement from './ProcessInspectionManagement';
+import ProcessControlAnalytics from './ProcessControlAnalytics';
 import ProcessControlFolderDownloadModal from './ProcessControlFolderDownloadModal';
 import { Download, FileSpreadsheet, Presentation } from 'lucide-react';
 import { enrichProcessInkrReports } from './processInkrUtils';
@@ -17,6 +18,7 @@ import { enrichProcessInkrReports } from './processInkrUtils';
 const PROCESS_CONTROL_TABS = [
     { value: 'dashboard', label: 'Ana Ekran' },
     { value: 'inspections', label: 'Muayene Kayıtları' },
+    { value: 'analytics', label: 'Analiz' },
     { value: 'plans', label: 'Kontrol Planları' },
     { value: 'inkr', label: 'İlk Numune (INKR)' },
 ];
@@ -29,6 +31,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
+    const [pendingInspectionOpenId, setPendingInspectionOpenId] = useState(null);
 
     const enrichedInkrReports = useMemo(
         () => enrichProcessInkrReports(inkrReports, plans),
@@ -165,6 +168,16 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
         );
     }, [inspections, toast]);
 
+    const clearPendingInspectionOpen = useCallback(() => {
+        setPendingInspectionOpenId(null);
+    }, []);
+
+    const openInspectionFromAnalytics = useCallback((inspectionId) => {
+        if (!inspectionId) return;
+        setActiveTab('inspections');
+        setPendingInspectionOpenId(inspectionId);
+    }, []);
+
     return (
         <>
             <Helmet>
@@ -203,7 +216,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                 />
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-4">
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-3 lg:grid-cols-5">
                         {PROCESS_CONTROL_TABS.map((tab) => (
                             <TabsTrigger key={tab.value} value={tab.value} className="w-full min-w-0">
                                 {tab.label}
@@ -222,7 +235,14 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                     </TabsContent>
 
                     <TabsContent value="inspections" className="mt-6">
-                        <ProcessInspectionManagement />
+                        <ProcessInspectionManagement
+                            externalOpenInspectionId={pendingInspectionOpenId}
+                            onExternalOpenConsumed={clearPendingInspectionOpen}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="analytics" className="mt-6">
+                        <ProcessControlAnalytics onOpenInspectionRecord={openInspectionFromAnalytics} />
                     </TabsContent>
 
                     <TabsContent value="plans" className="mt-6">

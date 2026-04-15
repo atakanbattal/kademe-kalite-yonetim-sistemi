@@ -506,6 +506,30 @@ const ProcessInspectionFormModal = ({
         }));
     }, [formData.quantity_conditional, formData.quantity_produced, formData.quantity_rejected, results]);
 
+    const liveDecision = useMemo(
+        () =>
+            deriveInspectionDecision({
+                quantityProduced: formData.quantity_produced,
+                quantityRejected: formData.quantity_rejected,
+                quantityConditional: formData.quantity_conditional,
+                results,
+            }),
+        [
+            formData.quantity_produced,
+            formData.quantity_rejected,
+            formData.quantity_conditional,
+            results,
+        ]
+    );
+
+    const hasTypedDefect = useMemo(
+        () => defects.some((d) => (d.defect_type || '').trim().length > 0),
+        [defects]
+    );
+
+    const needsDefectTypes =
+        !isViewMode && (liveDecision === 'Ret' || liveDecision === 'Şartlı Kabul');
+
     const handleInputChange = (event) => {
         const { name, value, type } = event.target;
         const normalizedValue = type === 'number' ? (value === '' ? 0 : Number(value)) : value;
@@ -632,15 +656,31 @@ const ProcessInspectionFormModal = ({
             return;
         }
 
+        const derivedDecision = deriveInspectionDecision({
+            quantityProduced: formData.quantity_produced,
+            quantityRejected: formData.quantity_rejected,
+            quantityConditional: formData.quantity_conditional,
+            results,
+        });
+
+        const defectsWithType = defects.filter((d) => (d.defect_type || '').trim().length > 0);
+
+        if (
+            (derivedDecision === 'Ret' || derivedDecision === 'Şartlı Kabul') &&
+            defectsWithType.length === 0
+        ) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata tipi zorunlu',
+                description:
+                    'Ret veya Şartlı Kabul durumunda en az bir satırda hata tipi seçmeden kayıt yapılamaz.',
+            });
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
-            const derivedDecision = deriveInspectionDecision({
-                quantityProduced: formData.quantity_produced,
-                quantityRejected: formData.quantity_rejected,
-                quantityConditional: formData.quantity_conditional,
-                results,
-            });
 
             const payload = {
                 record_no: formData.record_no || null,
@@ -1177,12 +1217,24 @@ const ProcessInspectionFormModal = ({
                                     )}
                                 </div>
 
+                                {needsDefectTypes && !hasTypedDefect && (
+                                    <Alert variant="destructive">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle>Ret / Şartlı Kabul için hata tipi gerekli</AlertTitle>
+                                        <AlertDescription>
+                                            Kayıt almak için aşağıda en az bir satırda <strong>hata tipi</strong>{' '}
+                                            seçin.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between border-b pb-2">
                                         <div>
                                             <h3 className="text-lg font-semibold">Tespit Edilen Hatalar</h3>
                                             <p className="text-sm text-muted-foreground">
                                                 Muayene sırasında bulunan hata tiplerini ve adetlerini kaydedin.
+                                                Ret veya şartlı kabul durumunda en az bir hata tipi seçimi zorunludur.
                                             </p>
                                         </div>
                                         {!isViewMode && (

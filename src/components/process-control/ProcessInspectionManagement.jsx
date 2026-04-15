@@ -6,14 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import ListTableShell from '@/components/ui/ListTableShell';
-import { MoreVertical, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MoreVertical, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { formatInspectionDateOnly } from '@/lib/dateDisplay';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ProcessInspectionFormModal from './ProcessInspectionFormModal';
 import ProcessInspectionDetailModal from './ProcessInspectionDetailModal';
 
-const ProcessInspectionManagement = () => {
+const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenConsumed }) => {
     const { toast } = useToast();
     const [inspections, setInspections] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -24,6 +26,9 @@ const ProcessInspectionManagement = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [decisionFilter, setDecisionFilter] = useState('all');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
 
     useEffect(() => {
         const id = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 500);
@@ -32,7 +37,7 @@ const ProcessInspectionManagement = () => {
 
     useEffect(() => {
         setPage(0);
-    }, [searchTerm]);
+    }, [searchTerm, decisionFilter, dateFrom, dateTo]);
 
     // Modals
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -60,6 +65,17 @@ const ProcessInspectionManagement = () => {
                 query = query.or(`record_no.ilike.%${term}%,part_code.ilike.%${term}%,part_name.ilike.%${term}%`);
             }
 
+            if (decisionFilter && decisionFilter !== 'all') {
+                query = query.eq('decision', decisionFilter);
+            }
+
+            if (dateFrom) {
+                query = query.gte('inspection_date', dateFrom);
+            }
+            if (dateTo) {
+                query = query.lte('inspection_date', dateTo);
+            }
+
             query = query
                 .order('inspection_date', { ascending: false })
                 .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -76,7 +92,7 @@ const ProcessInspectionManagement = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, debouncedSearch, toast]);
+    }, [page, pageSize, debouncedSearch, decisionFilter, dateFrom, dateTo, toast]);
 
     useEffect(() => {
         fetchInspections();
@@ -123,6 +139,31 @@ const ProcessInspectionManagement = () => {
             results: resultsRes.data || [],
         };
     }, []);
+
+    useEffect(() => {
+        if (!externalOpenInspectionId) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const full = await loadFullInspectionRecord({ id: externalOpenInspectionId });
+                if (cancelled) return;
+                setSelectedInspectionForView(full);
+                setIsDetailModalOpen(true);
+            } catch (error) {
+                console.error('Muayene kaydı açılamadı:', error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata!',
+                    description: 'Muayene kaydı açılamadı.',
+                });
+            } finally {
+                if (!cancelled) onExternalOpenConsumed?.();
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [externalOpenInspectionId, loadFullInspectionRecord, onExternalOpenConsumed, toast]);
 
     const handleEdit = async (inspection) => {
         try {
@@ -180,21 +221,83 @@ const ProcessInspectionManagement = () => {
     return (
         <TooltipProvider delayDuration={200}>
         <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-lg border shadow-sm">
-                <div className="search-box w-full max-w-sm">
-                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                        type="text"
-                        placeholder="Kayıt No, Parça Kodu veya Adı ile ara..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="search-input h-11"
-                    />
-                </div>
-                <div className="flex gap-2">
-                    <Button onClick={handleAdd}>
+            <div className="space-y-3 bg-card p-4 rounded-lg border shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="search-box w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Kayıt No, Parça Kodu veya Adı ile ara..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="search-input h-11"
+                        />
+                    </div>
+                    <Button onClick={handleAdd} className="shrink-0">
                         <Plus className="mr-2 h-4 w-4" /> Yeni Muayene
                     </Button>
+                </div>
+                <div className="flex flex-wrap items-end gap-3 border-t pt-3">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Filter className="h-4 w-4 shrink-0" />
+                        <span className="text-xs font-medium uppercase tracking-wide">Filtreler</span>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="pi-decision" className="text-xs text-muted-foreground">
+                            Karar
+                        </Label>
+                        <Select value={decisionFilter} onValueChange={setDecisionFilter}>
+                            <SelectTrigger id="pi-decision" className="h-10 w-[180px]">
+                                <SelectValue placeholder="Tümü" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tüm kararlar</SelectItem>
+                                <SelectItem value="Kabul">Kabul</SelectItem>
+                                <SelectItem value="Şartlı Kabul">Şartlı Kabul</SelectItem>
+                                <SelectItem value="Ret">Ret</SelectItem>
+                                <SelectItem value="Beklemede">Beklemede</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="pi-from" className="text-xs text-muted-foreground">
+                            Tarih başlangıç
+                        </Label>
+                        <input
+                            id="pi-from"
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="flex h-10 w-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="pi-to" className="text-xs text-muted-foreground">
+                            Tarih bitiş
+                        </Label>
+                        <input
+                            id="pi-to"
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="flex h-10 w-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                    </div>
+                    {(dateFrom || dateTo || decisionFilter !== 'all') && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="mb-0.5"
+                            onClick={() => {
+                                setDecisionFilter('all');
+                                setDateFrom('');
+                                setDateTo('');
+                            }}
+                        >
+                            Filtreleri temizle
+                        </Button>
+                    )}
                 </div>
             </div>
 
