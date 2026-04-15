@@ -22,6 +22,7 @@ const getQuarantineDocumentNoValue = (record) => {
 import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
 import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
 import { stripSquareBullets } from '@/lib/df8dTextUtils';
+import { formatFiveTopicForPdf, FIVE_T_PDF_LABELS } from '@/lib/fmeaFiveTopics';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -307,7 +308,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			console.error("Error storing report data:", error);
 
 			// Fallback: Liste tipleri için hata, diğerleri için database fetch
-			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list', 'fixture_list', 'leak_test_list', 'process_inspection_list', 'kpi_list'].includes(type);
+			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list', 'fixture_list', 'leak_test_list', 'process_inspection_list', 'kpi_list', 'fmea_project_list'].includes(type);
 			if (isListTypeFallback) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
 				return;
@@ -449,6 +450,10 @@ const getReportTitle = (record, type) => {
 			return record.title || 'Proses Muayene Listesi Raporu';
 		case 'fixture_list':
 			return record.title || 'Fikstür Liste Raporu';
+		case 'fmea':
+			return `FMEA Raporu-${record.fmea_number || record.fmea_name || 'Kayıt'}`;
+		case 'fmea_project_list':
+			return record.title || 'FMEA Proje Listesi Raporu';
 		case 'process_control_plans':
 			return `Kontrol Planı-${record.part_code || ''}${record.part_name ? `-${record.part_name}` : ''}` || 'Kontrol Planı';
 		default:
@@ -4737,6 +4742,10 @@ const generateGenericReportHtml = async (record, type) => {
 			case 'equipment': return record.serial_number || '-';
 			case 'equipment_scrap_certificate':
 				return record.serial_number ? `HT-${record.serial_number}` : (record.id ? `HT-${String(record.id).slice(0, 8).toUpperCase()}` : '-');
+			case 'fmea':
+				return record.fmea_number || '-';
+			case 'fmea_project_list':
+				return 'LIST';
 			case 'inkr_management':
 				// INKR numarası varsa onu kullan
 				if (record.inkr_number && record.inkr_number.startsWith('INKR-')) {
@@ -4768,6 +4777,8 @@ const generateGenericReportHtml = async (record, type) => {
 			case 'equipment': return 'Ekipman Kalibrasyon Raporu';
 			case 'equipment_scrap_certificate': return 'Ekipman Hurda Ayırma Tutanağı';
 			case 'inkr_management': return 'INKR Raporu';
+			case 'fmea': return 'FMEA Analiz Raporu';
+			case 'fmea_project_list': return 'FMEA Proje Listesi';
 			default: return 'Rapor';
 		}
 	};
@@ -6991,6 +7002,192 @@ const generateGenericReportHtml = async (record, type) => {
 `;
 };
 
+const generateFmeaProjectListHtml = (record) => {
+	const escapeHtml = (v) => String(v ?? '')
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+	const items = record.items || [];
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
+	const fmt = (d) => (d ? format(new Date(d), 'dd.MM.yyyy HH:mm', { locale: tr }) : '—');
+	const st = (s) => {
+		const m = { Draft: 'Taslak', Active: 'Aktif', 'In Review': 'İncelemede', Approved: 'Onaylandı', Obsolete: 'Arşiv' };
+		return m[s] || s || '—';
+	};
+	let rows = '';
+	items.forEach((p, i) => {
+		rows += `<tr>
+			<td style="text-align:center">${i + 1}</td>
+			<td><strong>${escapeHtml(p.fmea_number)}</strong></td>
+			<td>${escapeHtml(p.fmea_name)}</td>
+			<td>${escapeHtml(p.fmea_type)}</td>
+			<td>${escapeHtml(p.part_number)}</td>
+			<td>${escapeHtml(p.part_name)}</td>
+			<td>${st(p.status)}</td>
+			<td>${fmt(p.updated_at)}</td>
+		</tr>`;
+	});
+	return `
+<div class="report-header">
+	<div class="report-logo"><img src="${mainLogoBase64}" alt="Kademe Logo"></div>
+	<div class="company-title"><h1>KADEME A.Ş.</h1><p>Kalite Yönetim Sistemi</p></div>
+	<div class="print-info">Liste tarihi: ${fmt(new Date().toISOString())}</div>
+</div>
+<div class="meta-box" style="border-left:4px solid #2980b9;background:#f8fafc;">
+	<div class="meta-item"><strong>Belge türü:</strong> FMEA proje listesi</div>
+	<div class="meta-item"><strong>Toplam:</strong> ${items.length} proje</div>
+</div>
+<div class="section">
+	<h2 class="section-title dark">Kayıtlar</h2>
+	<table class="info-table results-table" style="width:100%;font-size:11px;">
+		<thead>
+			<tr style="background:#1e3a5f;color:#fff;">
+				<th style="padding:10px 8px;">#</th>
+				<th style="padding:10px 8px;">FMEA no</th>
+				<th style="padding:10px 8px;">Ad</th>
+				<th style="padding:10px 8px;">Tip</th>
+				<th style="padding:10px 8px;">Parça no</th>
+				<th style="padding:10px 8px;">Parça adı</th>
+				<th style="padding:10px 8px;">Durum</th>
+				<th style="padding:10px 8px;">Güncelleme</th>
+			</tr>
+		</thead>
+		<tbody>${rows || '<tr><td colspan="8" style="text-align:center;padding:24px;color:#64748b">Kayıt yok.</td></tr>'}</tbody>
+	</table>
+</div>`;
+};
+
+const generateFmeaReportHtml = (record) => {
+	const escapeHtml = (v) => String(v ?? '')
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+	const formatCell = (v) => escapeHtml(v).replace(/\n/g, '<br/>');
+	const lines = record.fmea_lines || [];
+	const ft = record.five_topics || {};
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
+	const fmt = (d) => (d ? format(new Date(d), 'dd.MM.yyyy', { locale: tr }) : '—');
+	const apT = { HIGH: 'Yüksek', MEDIUM: 'Orta', LOW: 'Düşük' };
+	const apColor = { HIGH: '#e74c3c', MEDIUM: '#f39c12', LOW: '#27ae60' };
+	let fiveRows = '';
+	['intent', 'timing', 'team', 'tasks', 'tools'].forEach((k) => {
+		fiveRows += `<tr><td style="font-weight:600;background:#f1f5f9;width:22%;vertical-align:top">${FIVE_T_PDF_LABELS[k]}</td><td style="white-space:pre-wrap;vertical-align:top">${formatCell(formatFiveTopicForPdf(ft, k))}</td></tr>`;
+	});
+	let lineRows = '';
+	lines.forEach((line, idx) => {
+		const ap = line.ap_level
+			? `<span style="display:inline-block;padding:4px 10px;border-radius:6px;background:${apColor[line.ap_level] || '#64748b'};color:#fff;font-weight:700;font-size:9px;">${apT[line.ap_level] || line.ap_level}</span>`
+			: '—';
+		const apA = line.ap_after
+			? `<span style="display:inline-block;padding:4px 10px;border-radius:6px;background:${apColor[line.ap_after] || '#64748b'};color:#fff;font-weight:700;font-size:9px;">${apT[line.ap_after] || line.ap_after}</span>`
+			: '—';
+		const inactive = line.is_active === false ? 'opacity:.5;' : '';
+		lineRows += `<tr style="vertical-align:top;${inactive}">
+			<td style="text-align:center;padding:6px;">${idx + 1}</td>
+			<td style="padding:6px;min-width:88px;">${formatCell(line.process_step)}</td>
+			<td style="padding:6px;min-width:88px;">${formatCell(line.function_text)}</td>
+			<td style="padding:6px;min-width:88px;">${formatCell(line.failure_mode)}</td>
+			<td style="padding:6px;min-width:80px;">${formatCell(line.effect)}</td>
+			<td style="text-align:center;padding:6px;">${line.severity ?? '—'}</td>
+			<td style="padding:6px;min-width:80px;">${formatCell(line.cause)}</td>
+			<td style="text-align:center;padding:6px;">${line.occurrence ?? '—'}</td>
+			<td style="padding:6px;min-width:76px;">${formatCell(line.current_prevention)}</td>
+			<td style="padding:6px;min-width:76px;">${formatCell(line.current_detection)}</td>
+			<td style="text-align:center;padding:6px;">${line.detection ?? '—'}</td>
+			<td style="text-align:center;padding:6px;font-weight:700;">${line.rpn ?? '—'}</td>
+			<td style="text-align:center;padding:6px;">${ap}</td>
+			<td style="padding:6px;min-width:100px;">${formatCell(line.recommended_action)}</td>
+			<td style="padding:6px;">${formatCell(line.responsible)}</td>
+			<td style="padding:6px;white-space:nowrap;">${fmt(line.target_date)}</td>
+			<td style="padding:6px;min-width:88px;">${formatCell(line.actions_taken)}</td>
+			<td style="text-align:center;padding:6px;">${line.s_after ?? '—'}</td>
+			<td style="text-align:center;padding:6px;">${line.o_after ?? '—'}</td>
+			<td style="text-align:center;padding:6px;">${line.d_after ?? '—'}</td>
+			<td style="text-align:center;padding:6px;">${line.rpn_after ?? '—'}</td>
+			<td style="text-align:center;padding:6px;">${apA}</td>
+		</tr>`;
+	});
+	const cust = Array.isArray(record.customer_names) ? record.customer_names.join(', ') : '';
+	const team = Array.isArray(record.team_member_names) ? record.team_member_names.join(', ') : '';
+	return `
+<div class="report-header">
+	<div class="report-logo"><img src="${mainLogoBase64}" alt="Kademe Logo"></div>
+	<div class="company-title"><h1>KADEME A.Ş.</h1><p>Kalite Yönetim Sistemi</p></div>
+	<div class="print-info">${format(new Date(), 'dd.MM.yyyy HH:mm', { locale: tr })}</div>
+</div>
+<div style="background:linear-gradient(135deg,#1e3a5f 0%,#2980b9 100%);color:#fff;padding:18px 22px;border-radius:10px;margin-bottom:14px;box-shadow:0 4px 14px rgba(30,58,95,.25);">
+	<div style="font-size:11px;opacity:.9;letter-spacing:.06em;text-transform:uppercase;">FMEA · Failure Mode and Effects Analysis</div>
+	<div style="font-size:20px;font-weight:800;margin-top:6px;line-height:1.25;">${escapeHtml(record.fmea_name)}</div>
+	<div style="font-size:13px;opacity:.95;margin-top:4px;">${escapeHtml(record.fmea_number)} · ${escapeHtml(record.fmea_type)}</div>
+</div>
+<div class="section">
+	<h2 class="section-title blue">1. Proje bilgileri</h2>
+	<table class="info-table">
+		<tbody>
+			<tr><td style="width:26%;font-weight:600;background:#f8fafc">FMEA numarası</td><td>${escapeHtml(record.fmea_number)}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Standart</td><td>${escapeHtml(record.standard || 'AIAG_VDA')}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Parça</td><td>${escapeHtml(record.part_number)} ${record.part_name ? `· ${escapeHtml(record.part_name)}` : ''}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Proses adı</td><td>${escapeHtml(record.process_name)}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Revizyon</td><td>${escapeHtml(record.revision_number)} · ${fmt(record.revision_date)}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Firma</td><td>${escapeHtml(record.company_name)}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Müşteriler</td><td>${escapeHtml(cust)}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Ekip üyeleri</td><td>${escapeHtml(team)}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc">Durum</td><td>${escapeHtml(record.status)}</td></tr>
+			<tr><td style="font-weight:600;background:#f8fafc;vertical-align:top">Notlar</td><td style="white-space:pre-wrap">${formatCell(record.notes)}</td></tr>
+		</tbody>
+	</table>
+</div>
+<div class="section">
+	<h2 class="section-title dark">2. 5T (analiz öncesi)</h2>
+	<table class="info-table results-table"><tbody>${fiveRows}</tbody></table>
+</div>
+<div class="section">
+	<h2 class="section-title green">3. Çalışma sayfası</h2>
+	<div style="overflow:visible;">
+	<table class="info-table results-table fmea-sheet-pdf" style="margin:0;font-size:8px;width:100%;border-collapse:collapse;">
+		<thead>
+			<tr style="background:#1e3a5f;color:#fff;">
+				<th style="padding:8px 5px;">#</th>
+				<th style="padding:8px 5px;">Proses</th>
+				<th style="padding:8px 5px;">Fonksiyon</th>
+				<th style="padding:8px 5px;">Hata</th>
+				<th style="padding:8px 5px;">Etki</th>
+				<th style="padding:8px 5px;">S</th>
+				<th style="padding:8px 5px;">Neden</th>
+				<th style="padding:8px 5px;">O</th>
+				<th style="padding:8px 5px;">Önl.</th>
+				<th style="padding:8px 5px;">Tesp.</th>
+				<th style="padding:8px 5px;">D</th>
+				<th style="padding:8px 5px;">RPN</th>
+				<th style="padding:8px 5px;">Önc.</th>
+				<th style="padding:8px 5px;">Tedbir</th>
+				<th style="padding:8px 5px;">Sorumlu</th>
+				<th style="padding:8px 5px;">Tarih</th>
+				<th style="padding:8px 5px;">Alınan</th>
+				<th style="padding:8px 5px;">S'</th>
+				<th style="padding:8px 5px;">O'</th>
+				<th style="padding:8px 5px;">D'</th>
+				<th style="padding:8px 5px;">RPN'</th>
+				<th style="padding:8px 5px;">Önc.'</th>
+			</tr>
+		</thead>
+		<tbody>${lineRows || '<tr><td colspan="22" style="text-align:center;padding:20px;color:#64748b">Henüz satır yok.</td></tr>'}</tbody>
+	</table>
+	</div>
+</div>
+<div class="section signature-section">
+	<h2 class="section-title gray">İmza</h2>
+	<div class="signature-area" style="display:flex;gap:40px;flex-wrap:wrap;margin-top:8px;">
+		<div class="signature-box"><p class="role">HAZIRLAYAN</p><div class="signature-line"></div></div>
+		<div class="signature-box"><p class="role">ONAYLAYAN</p><div class="signature-line"></div></div>
+	</div>
+</div>`;
+};
+
 const generatePrintableReportHtml = async (record, type) => {
 	// Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
 	await preloadLogos();
@@ -7565,6 +7762,26 @@ h3 {
 		reportContentHtml = generateExamPaperHtml(record);
 	} else if (type === 'dynamic_balance') {
 		reportContentHtml = generateDynamicBalanceReportHtml(record);
+	} else if (type === 'fmea') {
+		reportContentHtml = generateFmeaReportHtml(normalizedRecord);
+		cssOverrides = `
+@page { size: A3 landscape; margin: 8mm; }
+.page-container {
+	max-width: 420mm !important;
+	width: 100% !important;
+}
+.report-wrapper { padding: 5mm 7mm !important; }
+.fmea-sheet-pdf th, .fmea-sheet-pdf td {
+	font-size: 6.5px !important;
+	line-height: 1.25 !important;
+	padding: 4px 3px !important;
+}
+.fmea-sheet-pdf th { font-size: 7px !important; }
+.section { page-break-inside: auto; }
+.results-table thead { display: table-header-group; }
+`;
+	} else if (type === 'fmea_project_list') {
+		reportContentHtml = generateFmeaProjectListHtml(normalizedRecord);
 	} else if (type === 'polyvalence_matrix') {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
 		// Override page style for landscape

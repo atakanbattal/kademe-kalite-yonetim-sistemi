@@ -53,6 +53,7 @@ const NonconformityModule = lazyWithRetry(() => import('@/components/nonconformi
 const FixtureModule = lazyWithRetry(() => import('@/components/fixture/FixtureModule'));
 const LeakTestModule = lazyWithRetry(() => import('@/components/leak-test/LeakTestModule'));
 const ExternalDocumentsModule = lazyWithRetry(() => import('@/components/external-docs/ExternalDocumentsModule'));
+const FmeaModule = lazyWithRetry(() => import('@/components/fmea/FmeaModule'));
 
 // 8D adımları için varsayılan başlıklar
 const getDefault8DTitle = (stepKey) => {
@@ -98,6 +99,7 @@ const moduleTitles = {
     'dynamic-balance': 'Dinamik Balans Kalite Kontrol',
     'nonconformity': 'Uygunsuzluk Yönetimi',
     'fixture': 'Fikstür Takip Modülü',
+    'fmea': 'FMEA',
 };
 
 const ALL_MODULES = Object.keys(moduleTitles);
@@ -530,6 +532,7 @@ const MainLayout = () => {
                 case 'dynamic-balance': return <DynamicBalanceModule />;
                 case 'nonconformity': return <NonconformityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
                 case 'fixture': return <FixtureModule />;
+                case 'fmea': return <FmeaModule />;
                 default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
             }
         };

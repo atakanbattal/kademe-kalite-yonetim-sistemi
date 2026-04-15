@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets, Globe2 } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets, Globe2, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -20,6 +20,7 @@ const navGroups = [
     items: [
       { id: 'nonconformity', icon: ClipboardList, label: 'Uygunsuzluk Yönetimi' },
       { id: 'df-8d', icon: FileText, label: 'DF ve 8D Yönetimi' },
+      { id: 'fmea', icon: ShieldAlert, label: 'FMEA' },
       { id: 'quality-cost', icon: DollarSign, label: 'Kalite Maliyetleri' },
       { id: 'customer-complaints', icon: AlertCircle, label: 'Satış Sonrası Hizmetler' },
     ]
