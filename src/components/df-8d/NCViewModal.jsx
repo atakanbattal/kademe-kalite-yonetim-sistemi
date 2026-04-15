@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Clock,
   User,
@@ -44,6 +45,7 @@ import {
   AlertTriangle,
   Image,
   Layers,
+  CircleDot,
 } from 'lucide-react';
 import { Lightbox } from 'react-modal-image';
 import { RejectModal } from '@/components/df-8d/modals/ActionModals';
@@ -58,7 +60,13 @@ import {
   StructuredProblemDescription,
   looksLikeStructuredProblemDescription,
 } from '@/components/df-8d/StructuredProblemDescription';
-import { stripSquareBullets } from '@/lib/df8dTextUtils';
+import { Df8dProblemDescriptionSections } from '@/components/df-8d/Df8dProblemDescriptionSections';
+import {
+  stripSquareBullets,
+  shouldRenderDf8dProblemDescriptionAsPlain,
+  hasStructuredRootCauseData,
+  stripDuplicateRootCauseFromProblemDescription,
+} from '@/lib/df8dTextUtils';
 
 // Varsayılan 8D başlıkları - Component dışında tanımlanmalı
 const getDefault8DTitle = (stepKey) => {
@@ -262,6 +270,7 @@ function getHeaderTitleParts(record) {
 }
 
 const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdit }) => {
+  const { toast } = useToast();
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [isRejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionNotes, setRejectionNotes] = useState('');
@@ -292,6 +301,15 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   }, [isOpen, record]);
 
   const headerParts = useMemo(() => getHeaderTitleParts(record), [record]);
+
+  /** Kök neden analizleri ayrı alanlardaysa açıklamadaki mükerrer blokları gösterme */
+  const problemDescriptionForView = useMemo(() => {
+    if (!record) return '';
+    const raw = record.description;
+    if (!raw || typeof raw !== 'string') return '';
+    if (!hasStructuredRootCauseData(record)) return raw;
+    return stripDuplicateRootCauseFromProblemDescription(raw);
+  }, [record]);
 
   if (!record) return null;
 
@@ -368,32 +386,41 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
 
   const displayEightDSteps = getDisplayEightDSteps();
 
-  const handlePrint = (e) => {
+  const handlePrint = async (e) => {
     // Event'i engelle - sayfa yenilenmesini önle
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
 
+    if (!record?.id) {
+      console.error('Yazdırılamadı: kayıt id yok');
+      return;
+    }
+
     setIsPrinting(true);
     try {
-      // Attachments'ları URL'den çıkar (çok uzun URL oluşturuyorlar)
-      // PDF sayfası bunları zaten record.id ile fetch edecek
+      // Attachments localStorage kotasını şişirmesin; rapor /print sayfası id ile DB'den tamamlanır
       const { attachments, closing_attachments, ...recordWithoutAttachments } = record;
       const lightweightRecord = {
         ...recordWithoutAttachments,
-        supplier_name: supplierName || record.supplier_name
+        supplier_name: supplierName || record.supplier_name,
       };
 
       if (onDownloadPDF) {
-        onDownloadPDF(lightweightRecord, 'nonconformity');
+        await Promise.resolve(onDownloadPDF(lightweightRecord, 'nonconformity'));
       } else {
-        openPrintableReport(lightweightRecord, 'nonconformity');
+        await openPrintableReport(lightweightRecord, 'nonconformity');
       }
     } catch (error) {
-      console.error("PDF generation failed:", error);
+      console.error('PDF generation failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Yazdırılamadı',
+        description: error?.message || 'Rapor açılırken hata oluştu.',
+      });
     } finally {
-      setTimeout(() => setIsPrinting(false), 1000);
+      setIsPrinting(false);
     }
   };
 
@@ -497,6 +524,22 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <InfoCard icon={Tag} label="Uygunsuzluk No" value={record.nc_number || record.mdi_no} variant="primary" />
                       <InfoCard icon={Type} label="Tip" value={record.type} />
+                      {record.status && (
+                        <InfoCard
+                          icon={CircleDot}
+                          label="Durum"
+                          value={record.status}
+                          variant={
+                            record.status === 'İşlemde'
+                              ? 'warning'
+                              : record.status === 'Kapatıldı'
+                                ? 'success'
+                                : record.status === 'Reddedildi'
+                                  ? 'danger'
+                                  : 'default'
+                          }
+                        />
+                      )}
                       <InfoCard
                         icon={Flag}
                         label="Öncelik"
@@ -576,14 +619,23 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                     </h3>
                     <Card className="border-border/80 shadow-sm">
                       <CardContent className="p-5 sm:p-6">
-                        {record.description ? (
-                          looksLikeStructuredProblemDescription(record.description) ? (
-                            <StructuredProblemDescription text={record.description} />
+                        {problemDescriptionForView.trim() ? (
+                          shouldRenderDf8dProblemDescriptionAsPlain(problemDescriptionForView) ? (
+                            <Df8dProblemDescriptionSections text={problemDescriptionForView} />
+                          ) : looksLikeStructuredProblemDescription(problemDescriptionForView) ? (
+                            <StructuredProblemDescription text={problemDescriptionForView} />
                           ) : (
                             <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground [text-wrap:pretty] break-words">
-                              {stripSquareBullets(record.description)}
+                              {stripSquareBullets(problemDescriptionForView)}
                             </p>
                           )
+                        ) : record.description?.trim() &&
+                          hasStructuredRootCauseData(record) ? (
+                          <p className="text-sm text-muted-foreground">
+                            Sorun özetinin bu bölümü, metinde yalnızca «Kök Neden Analizleri»ne
+                            taşınan içeriklerden oluşuyor; ayrıntılar aşağıdaki analiz
+                            alanlarında.
+                          </p>
                         ) : (
                           <p className="text-sm text-muted-foreground">Açıklama girilmemiş.</p>
                         )}

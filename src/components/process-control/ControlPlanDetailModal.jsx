@@ -12,6 +12,7 @@ import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
 import { useData } from '@/contexts/DataContext';
 import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
+import { parseProcessControlVehicleTypes } from '@/lib/df8dTextUtils';
 
 const ControlPlanDetailModal = ({
     isOpen,
@@ -57,6 +58,8 @@ const ControlPlanDetailModal = ({
     };
 
     if (!plan) return null;
+
+    const vehicleList = parseProcessControlVehicleTypes(plan.vehicle_type);
 
     // Karakteristik ve ekipman bilgilerini al
     const getCharacteristicName = (id) => {
@@ -107,8 +110,18 @@ const ControlPlanDetailModal = ({
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-gray-600">Araç Tipi</Label>
-                                        <p className="font-medium">{plan.vehicle_type || '-'}</p>
+                                        <Label className="text-gray-600">Araç modelleri</Label>
+                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                            {vehicleList.length > 0 ? (
+                                                vehicleList.map((v) => (
+                                                    <Badge key={v} variant="secondary" className="font-medium">
+                                                        {v}
+                                                    </Badge>
+                                                ))
+                                            ) : (
+                                                <p className="font-medium">{plan.vehicle_type || '-'}</p>
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Parça Kodu</Label>

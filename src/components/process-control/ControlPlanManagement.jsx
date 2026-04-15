@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit, Trash2, Search, FilePlus, History, Eye, Minus, ChevronsRight, ArrowLeft, FileSpreadsheet } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Plus, Edit, Trash2, Search, FilePlus, History, Eye, Minus, ChevronsRight, ArrowLeft, FileSpreadsheet, Loader2, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -18,10 +18,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeFileName } from '@/lib/utils';
+import { parseProcessControlVehicleTypes } from '@/lib/df8dTextUtils';
 import { Combobox } from '@/components/ui/combobox';
 import { useData } from '@/contexts/DataContext';
 import { openPrintableReport } from '@/lib/reportUtils';
 import ControlPlanDetailModal from './ControlPlanDetailModal';
+import { Badge } from '@/components/ui/badge';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme", 
@@ -303,6 +305,18 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
     );
 };
 
+/** Parça kodu — DB ile aynı normalizasyon (handleSubmit ile uyumlu) */
+const normalizePartCodeForPlan = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    return String(text)
+        .normalize('NFC')
+        .replace(/\u0131/g, 'ı')
+        .replace(/\u0130/g, 'İ')
+        .replace(/\u0069\u0307/g, 'i')
+        .replace(/\u0049\u0307/g, 'İ')
+        .trim();
+};
+
 const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refreshEquipment }) => {
     const { toast } = useToast();
     const { characteristics, equipment: measurementEquipment, standards, products, productCategories, refreshEquipment: refreshMeasurementEquipment } = useData();
@@ -310,7 +324,8 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [step, setStep] = useState(1);
-    const [selectedEquipmentId, setSelectedEquipmentId] = useState(null);
+    /** Birden fazla araç modeli (virgülle birleştirilerek vehicle_type olarak kaydedilir) */
+    const [selectedVehicleTypes, setSelectedVehicleTypes] = useState(['']);
     const [partCode, setPartCode] = useState('');
     const [partName, setPartName] = useState('');
     const [characteristicCount, setCharacteristicCount] = useState(5);
@@ -318,6 +333,12 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const [file, setFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [duplicatePlan, setDuplicatePlan] = useState(null);
+    /** Adım 1: bu parça kodu için mevcut plan(lar) — anında uyarı */
+    const [partCodeDuplicatePlans, setPartCodeDuplicatePlans] = useState([]);
+    /** Parça kodu mevcut planda — planda birleştirilecek ek araç satırları */
+    const [inlineMergeVehicleRows, setInlineMergeVehicleRows] = useState(['']);
+    const [mergingVehiclesIntoPlan, setMergingVehiclesIntoPlan] = useState(false);
+    const partCodeLookupTimerRef = useRef(null);
     const [selectedPlanDetail, setSelectedPlanDetail] = useState(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [revisionNotes, setRevisionNotes] = useState('');
@@ -363,10 +384,24 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         maxFiles: 1 
     });
 
+    const updateVehicleTypeRow = (index, value) => {
+        setSelectedVehicleTypes((prev) => {
+            const next = [...prev];
+            next[index] = value;
+            return next;
+        });
+    };
+
+    const addVehicleTypeRow = () => setSelectedVehicleTypes((prev) => [...prev, '']);
+
+    const removeVehicleTypeRow = (index) => {
+        setSelectedVehicleTypes((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+    };
+
     useEffect(() => {
         if (!isFormOpen) {
             setStep(1);
-            setSelectedEquipmentId(null);
+            setSelectedVehicleTypes(['']);
             setPartCode('');
             setPartName('');
             setCharacteristicCount(5);
@@ -374,9 +409,12 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             setFile(null);
             setSelectedPlan(null);
             setDuplicatePlan(null);
+            setPartCodeDuplicatePlans([]);
+            setInlineMergeVehicleRows(['']);
             setRevisionNotes('');
         } else if (selectedPlan) {
-            setSelectedEquipmentId(selectedPlan.vehicle_type || selectedPlan.equipment_id);
+            const fromVt = parseProcessControlVehicleTypes(selectedPlan.vehicle_type);
+            setSelectedVehicleTypes(fromVt.length > 0 ? fromVt : ['']);
             setPartCode(selectedPlan.part_code || '');
             setPartName(selectedPlan.part_name || '');
             setRevisionNotes(selectedPlan.revision_notes || '');
@@ -404,9 +442,52 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         }
     }, [isFormOpen, selectedPlan]);
 
+    // Yeni plan — adım 1: parça kodu girildiğinde mevcut kontrol planı var mı?
+    useEffect(() => {
+        if (partCodeLookupTimerRef.current) {
+            clearTimeout(partCodeLookupTimerRef.current);
+            partCodeLookupTimerRef.current = null;
+        }
+        if (!isFormOpen || selectedPlan || step !== 1) {
+            setPartCodeDuplicatePlans([]);
+            return;
+        }
+        const code = normalizePartCodeForPlan(partCode);
+        if (!code) {
+            setPartCodeDuplicatePlans([]);
+            return;
+        }
+        partCodeLookupTimerRef.current = setTimeout(async () => {
+            partCodeLookupTimerRef.current = null;
+            const { data, error } = await supabase
+                .from('process_control_plans')
+                .select('id, part_code, part_name, vehicle_type, revision_number, plan_name')
+                .eq('part_code', code);
+            if (error) {
+                console.warn('Parça kodu kontrol planı sorgusu:', error);
+                setPartCodeDuplicatePlans([]);
+                return;
+            }
+            setPartCodeDuplicatePlans(data?.length ? data : []);
+        }, 450);
+        return () => {
+            if (partCodeLookupTimerRef.current) {
+                clearTimeout(partCodeLookupTimerRef.current);
+                partCodeLookupTimerRef.current = null;
+            }
+        };
+    }, [isFormOpen, selectedPlan, step, partCode]);
+
     const handleNextStep = async () => {
-        if (!selectedEquipmentId) {
-            toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen araç seçin.' });
+        const chosenVehicles = selectedVehicleTypes
+            .map((v) => (typeof v === 'string' ? v.trim() : ''))
+            .filter(Boolean);
+        if (chosenVehicles.length === 0) {
+            toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen en az bir araç modeli seçin.' });
+            return;
+        }
+        if (new Set(chosenVehicles).size !== chosenVehicles.length) {
+            toast({ variant: 'destructive', title: 'Mükerrer', description: 'Aynı araç modelini iki kez seçemezsiniz.' });
             return;
         }
 
@@ -415,24 +496,35 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             return;
         }
 
-        // selectedEquipmentId artık vehicle_type (araç tipi adı)
-        const { data: existing, error } = await supabase
+        const normalizedPartCode = normalizePartCodeForPlan(partCode);
+
+        const { data: samePartPlans, error } = await supabase
             .from('process_control_plans')
             .select('*')
-            .eq('vehicle_type', selectedEquipmentId)
-            .eq('part_code', partCode)
-            .order('revision_number', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .eq('part_code', normalizedPartCode);
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: `Kontrol planı kontrol edilirken bir hata oluştu: ${error.message}` });
             return;
         }
-        
-        if (existing && !selectedPlan) {
-            setDuplicatePlan(existing);
-            return;
+
+        for (const p of samePartPlans || []) {
+            if (selectedPlan?.id && p.id === selectedPlan.id) continue;
+            const existingVehicles = parseProcessControlVehicleTypes(p.vehicle_type);
+            // Eski kayıtlarda vehicle_type boş olabilir; çakışma: bu parça için zaten plan var
+            if (existingVehicles.length === 0) {
+                setDuplicatePlan({
+                    plan: p,
+                    overlappingVehicles: [...chosenVehicles],
+                    legacyNoVehicle: true,
+                });
+                return;
+            }
+            const overlapping = chosenVehicles.filter((v) => existingVehicles.includes(v));
+            if (overlapping.length > 0) {
+                setDuplicatePlan({ plan: p, overlappingVehicles: overlapping, legacyNoVehicle: false });
+                return;
+            }
         }
 
         setItems(Array.from({ length: characteristicCount }, () => ({ ...initialItemState, id: uuidv4() })));
@@ -468,9 +560,9 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 return normalized;
             };
             
-            // Parça adı ve kodunu normalize et
+            // Parça adı ve kodunu normalize et (kod, sorgu ile aynı anahtar)
             const normalizedPartName = normalizeTurkishChars(partName);
-            const normalizedPartCode = normalizeTurkishChars(partCode);
+            const normalizedPartCode = normalizePartCodeForPlan(partCode) || null;
             
             console.log('💾 Kaydedilecek veri:', {
                 original_part_name: partName,
@@ -558,14 +650,27 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 };
             });
 
-            // Plan adını otomatik oluştur: Parça Kodu - Araç Tipi
-            const autoPlanName = `${partCode} - ${selectedEquipmentId}`;
+            const chosenVehicles = selectedVehicleTypes.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+            if (chosenVehicles.length === 0) {
+                toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen en az bir araç modeli seçin.' });
+                setIsSubmitting(false);
+                return;
+            }
+            if (new Set(chosenVehicles).size !== chosenVehicles.length) {
+                toast({ variant: 'destructive', title: 'Mükerrer', description: 'Aynı araç modeli iki kez seçilemez.' });
+                setIsSubmitting(false);
+                return;
+            }
+            const vehicleTypeStored = chosenVehicles.join(', ');
+
+            // Plan adını otomatik oluştur: Parça Kodu - Araç modelleri
+            const autoPlanName = `${normalizedPartCode} - ${vehicleTypeStored}`;
             
             // Plan verilerini hazırla - sadece geçerli alanları ekle
             const planData = {
                 equipment_id: null, // vehicle_type kullanıldığında null
-                vehicle_type: selectedEquipmentId || null, // Araç tipi (products tablosundan)
-                plan_name: autoPlanName || `${normalizedPartCode} - ${selectedEquipmentId}`,
+                vehicle_type: vehicleTypeStored || null, // Birden fazla araç virgülle
+                plan_name: autoPlanName || `${normalizedPartCode} - ${vehicleTypeStored}`,
                 part_code: normalizedPartCode || null,
                 part_name: normalizedPartName || null,
                 items: itemsToSave || [],
@@ -618,16 +723,156 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     };
 
     const handleDuplicateAction = (action) => {
+        const conflict = duplicatePlan?.plan || duplicatePlan;
         if (action === 'edit') {
-            setSelectedPlan(duplicatePlan);
+            setSelectedPlan(conflict || null);
             setIsFormOpen(true);
         } else if (action === 'revise') {
-            const newRevisionNumber = (duplicatePlan.revision_number || 0) + 1;
-            setSelectedPlan({ ...duplicatePlan, revision_number: newRevisionNumber });
+            const newRevisionNumber = (conflict?.revision_number || 0) + 1;
+            setSelectedPlan(conflict ? { ...conflict, revision_number: newRevisionNumber } : null);
             setIsFormOpen(true);
+        } else if (action === 'addVehicle') {
+            setSelectedVehicleTypes((prev) => [...prev, '']);
         }
         setDuplicatePlan(null);
     };
+
+    /** Liste (props) + API: parça kodu uyarısı anında gösterilsin */
+    const mergedDuplicatePlansForPart = useMemo(() => {
+        const code = normalizePartCodeForPlan(partCode);
+        if (!code || selectedPlan || step !== 1) return [];
+        const fromList = (plans || []).filter(
+            (p) => normalizePartCodeForPlan(p.part_code || '') === code
+        );
+        const map = new Map();
+        fromList.forEach((p) => map.set(p.id, p));
+        partCodeDuplicatePlans.forEach((p) => map.set(p.id, p));
+        return [...map.values()];
+    }, [plans, partCode, partCodeDuplicatePlans, selectedPlan, step]);
+
+    const registeredVehiclesForPart = useMemo(() => {
+        const set = new Set();
+        mergedDuplicatePlansForPart.forEach((p) => {
+            parseProcessControlVehicleTypes(p.vehicle_type).forEach((v) => set.add(v));
+        });
+        return [...set];
+    }, [mergedDuplicatePlansForPart]);
+
+    /** Aynı parça için birden fazla satır varsa en yüksek revizyona araç eklenir */
+    const primaryPlanSummaryForMerge = useMemo(() => {
+        if (!mergedDuplicatePlansForPart.length) return null;
+        return [...mergedDuplicatePlansForPart].sort(
+            (a, b) => (b.revision_number ?? 0) - (a.revision_number ?? 0)
+        )[0];
+    }, [mergedDuplicatePlansForPart]);
+
+    const resolvePlanFromCache = useCallback(
+        (summary) => {
+            if (!summary?.id) return summary;
+            return (plans || []).find((p) => p.id === summary.id) || summary;
+        },
+        [plans]
+    );
+
+    const handleOpenPlanEditor = useCallback(
+        (planSummary) => {
+            setSelectedPlan(resolvePlanFromCache(planSummary));
+            setIsFormOpen(true);
+        },
+        [resolvePlanFromCache]
+    );
+
+    /** Birincil (güncellenecek) planda zaten olan araçlar — eklenebilecek modeller buna göre filtrelenir */
+    const vehiclesOnPrimaryPlan = useMemo(() => {
+        if (!primaryPlanSummaryForMerge) return [];
+        return parseProcessControlVehicleTypes(primaryPlanSummaryForMerge.vehicle_type);
+    }, [primaryPlanSummaryForMerge]);
+
+    const vehicleOptionsNotOnPlan = useMemo(() => {
+        const reg = new Set(vehiclesOnPrimaryPlan);
+        return equipmentOptions.filter((o) => o.value && !reg.has(o.value));
+    }, [equipmentOptions, vehiclesOnPrimaryPlan]);
+
+    const updateInlineMergeRow = useCallback((index, value) => {
+        setInlineMergeVehicleRows((prev) => {
+            const next = [...prev];
+            next[index] = value || '';
+            return next;
+        });
+    }, []);
+
+    const mergeVehiclesIntoPrimaryPlan = async () => {
+        const chosen = inlineMergeVehicleRows.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+        if (!primaryPlanSummaryForMerge?.id) {
+            toast({
+                variant: 'destructive',
+                title: 'Plan bulunamadı',
+                description: 'Araç eklemek için geçerli bir kontrol planı gerekli.',
+            });
+            return;
+        }
+        if (chosen.length === 0) {
+            toast({ variant: 'destructive', title: 'Araç seçin', description: 'Plana eklenecek en az bir araç modeli seçin.' });
+            return;
+        }
+        if (new Set(chosen).size !== chosen.length) {
+            toast({ variant: 'destructive', title: 'Tekrarlanan seçim', description: 'Aynı araç modelini iki kez seçemezsiniz.' });
+            return;
+        }
+        const existingOnPrimary = parseProcessControlVehicleTypes(primaryPlanSummaryForMerge.vehicle_type);
+        const overlap = chosen.filter((v) => existingOnPrimary.includes(v));
+        if (overlap.length > 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Zaten bu planda',
+                description: `Şu araçlar seçilen revizyonda kayıtlı: ${overlap.join(', ')}`,
+            });
+            return;
+        }
+
+        const merged = [...existingOnPrimary, ...chosen];
+        const vehicleTypeStored = merged.join(', ');
+        const npc = normalizePartCodeForPlan(partCode);
+        const autoPlanName = `${npc} - ${vehicleTypeStored}`;
+
+        setMergingVehiclesIntoPlan(true);
+        try {
+            const { error } = await supabase
+                .from('process_control_plans')
+                .update({
+                    vehicle_type: vehicleTypeStored,
+                    plan_name: autoPlanName,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', primaryPlanSummaryForMerge.id);
+
+            if (error) {
+                toast({ variant: 'destructive', title: 'Kaydedilemedi', description: error.message });
+                return;
+            }
+            toast({
+                title: 'Araçlar güncellendi',
+                description: `${chosen.join(', ')} kontrol planına eklendi (Rev. ${primaryPlanSummaryForMerge.revision_number ?? 0}).`,
+            });
+            setInlineMergeVehicleRows(['']);
+            refreshPlans?.();
+            const { data: refreshed } = await supabase
+                .from('process_control_plans')
+                .select('id, part_code, part_name, vehicle_type, revision_number, plan_name')
+                .eq('part_code', npc);
+            setPartCodeDuplicatePlans(refreshed?.length ? refreshed : []);
+        } finally {
+            setMergingVehiclesIntoPlan(false);
+        }
+    };
+
+    /** Parça adı boşken listedeki kayıttan öner */
+    useEffect(() => {
+        if (!isFormOpen || selectedPlan || step !== 1) return;
+        if (partName.trim()) return;
+        const pn = mergedDuplicatePlansForPart.find((p) => p.part_name?.trim())?.part_name;
+        if (pn) setPartName(pn);
+    }, [isFormOpen, selectedPlan, step, partName, mergedDuplicatePlansForPart]);
 
     const filteredPlans = plans.filter(plan => {
         const searchLower = searchTerm.toLowerCase();
@@ -721,17 +966,208 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <div>
-                                    <Label>Araç (*)</Label>
-                                    <Combobox
-                                        options={equipmentOptions}
-                                        value={selectedEquipmentId}
-                                        onChange={setSelectedEquipmentId}
-                                        placeholder="Araç seçin..."
-                                    />
+                                    <Label>Araç modelleri (*)</Label>
+                                    <p className="text-xs text-muted-foreground mt-1 mb-2">
+                                        Aynı parça için birden fazla araç tipi seçebilirsiniz. Satır eklemek için &quot;Araç modeli ekle&quot; kullanın.
+                                    </p>
+                                    <div className="space-y-2">
+                                        {selectedVehicleTypes.map((rowVal, idx) => (
+                                            <div key={idx} className="flex gap-2 items-start">
+                                                <div className="flex-1 min-w-0">
+                                                    <Combobox
+                                                        options={equipmentOptions}
+                                                        value={rowVal || null}
+                                                        onChange={(v) => updateVehicleTypeRow(idx, v)}
+                                                        placeholder="Araç modeli seçin..."
+                                                    />
+                                                </div>
+                                                {selectedVehicleTypes.length > 1 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="shrink-0 mt-1"
+                                                        onClick={() => removeVehicleTypeRow(idx)}
+                                                        title="Bu satırı kaldır"
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addVehicleTypeRow}>
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Araç modeli ekle
+                                    </Button>
                                 </div>
                                 <div>
                                     <Label>Parça Kodu (*)</Label>
-                                    <Input value={partCode} onChange={(e) => setPartCode(e.target.value)} required />
+                                    <Input value={partCode} onChange={(e) => setPartCode(e.target.value)} required autoComplete="off" />
+                                    {mergedDuplicatePlansForPart.length > 0 && (
+                                        <div className="mt-3 rounded-lg border border-primary/25 bg-muted/50 px-3 py-3 text-sm space-y-3">
+                                            <div>
+                                                <p className="font-semibold text-foreground flex items-center gap-2">
+                                                    Bu parça için kontrol planı zaten var
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Aşağıda kayıtlı araçlar ve plan satırları listelenir. Yalnızca planda olmayan araçları seçerek mevcut plana ekleyebilir veya planı doğrudan düzenleyebilirsiniz.
+                                                </p>
+                                            </div>
+                                            {mergedDuplicatePlansForPart.length > 1 && (
+                                                <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-500/10 rounded px-2 py-1.5 border border-amber-500/20">
+                                                    Bu parça kodu için birden fazla kayıt bulundu. Araç ekleme işlemi <strong>en yüksek revizyon</strong> (Rev.{' '}
+                                                    {primaryPlanSummaryForMerge?.revision_number ?? 0}) olan plana uygulanır.
+                                                </p>
+                                            )}
+                                            <ul className="space-y-2">
+                                                {mergedDuplicatePlansForPart.slice(0, 8).map((p) => (
+                                                    <li
+                                                        key={p.id}
+                                                        className="rounded-md border border-border/80 bg-background/80 px-2.5 py-2 text-xs flex flex-wrap items-start justify-between gap-2"
+                                                    >
+                                                        <div className="min-w-0 flex-1">
+                                                            <span className="font-medium text-foreground">
+                                                                Rev.{p.revision_number ?? 0}
+                                                                {p.plan_name ? ` · ${p.plan_name}` : ''}
+                                                            </span>
+                                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                {parseProcessControlVehicleTypes(p.vehicle_type).length > 0 ? (
+                                                                    parseProcessControlVehicleTypes(p.vehicle_type).map((v) => (
+                                                                        <Badge key={v} variant="secondary" className="text-[10px] font-normal">
+                                                                            {v}
+                                                                        </Badge>
+                                                                    ))
+                                                                ) : (
+                                                                    <span className="text-muted-foreground italic">Araç atanmamış (eski kayıt)</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="shrink-0 h-8 text-xs gap-1"
+                                                            onClick={() => handleOpenPlanEditor(p)}
+                                                        >
+                                                            <Edit className="h-3.5 w-3.5" />
+                                                            Planı aç
+                                                        </Button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground mb-1.5">Planda kayıtlı araçlar (birleşik)</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {registeredVehiclesForPart.length > 0 ? (
+                                                        registeredVehiclesForPart.map((v) => (
+                                                            <Badge key={v} className="bg-primary/15 text-primary hover:bg-primary/20 border-primary/20">
+                                                                {v}
+                                                            </Badge>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">Henüz araç modeli eklenmemiş.</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="pt-1 border-t border-border/60 space-y-2">
+                                                <p className="text-xs font-semibold text-foreground">Plana yeni araç ekle</p>
+                                                <p className="text-[11px] text-muted-foreground">
+                                                    Sadece yukarıda olmayan modeller listelenir. Birden fazla satır ekleyebilirsiniz.
+                                                </p>
+                                                <div className="space-y-2">
+                                                    {inlineMergeVehicleRows.map((rowVal, idx) => {
+                                                        const takenElsewhere = new Set(
+                                                            inlineMergeVehicleRows
+                                                                .map((x, i) => (i !== idx ? String(x || '').trim() : ''))
+                                                                .filter(Boolean)
+                                                        );
+                                                        const rowOptions = vehicleOptionsNotOnPlan.filter(
+                                                            (o) => !takenElsewhere.has(o.value) || o.value === rowVal
+                                                        );
+                                                        return (
+                                                            <div key={`merge-${idx}`} className="flex gap-2 items-start">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <Combobox
+                                                                        options={rowOptions}
+                                                                        value={rowVal || null}
+                                                                        onChange={(v) => updateInlineMergeRow(idx, v)}
+                                                                        placeholder="Eklenecek araç modeli..."
+                                                                    />
+                                                                </div>
+                                                                {inlineMergeVehicleRows.length > 1 && (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="shrink-0 mt-1 h-8 w-8"
+                                                                        onClick={() =>
+                                                                            setInlineMergeVehicleRows((prev) =>
+                                                                                prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)
+                                                                            )
+                                                                        }
+                                                                        title="Satırı kaldır"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                {vehicleOptionsNotOnPlan.length > 0 ? (
+                                                    <>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setInlineMergeVehicleRows((prev) => [...prev, ''])}
+                                                        >
+                                                            <Plus className="h-4 w-4 mr-2" />
+                                                            Araç satırı ekle
+                                                        </Button>
+                                                        <div className="flex flex-wrap gap-2 pt-1">
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                disabled={mergingVehiclesIntoPlan || vehicleOptionsNotOnPlan.length === 0}
+                                                                onClick={mergeVehiclesIntoPrimaryPlan}
+                                                            >
+                                                                {mergingVehiclesIntoPlan ? (
+                                                                    <>
+                                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                                        Kaydediliyor...
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Plus className="h-4 w-4 mr-2" />
+                                                                        Seçilen araçları planda birleştir
+                                                                    </>
+                                                                )}
+                                                            </Button>
+                                                            {primaryPlanSummaryForMerge?.id && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        handleOpenPlanEditor(primaryPlanSummaryForMerge)
+                                                                    }
+                                                                >
+                                                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                                                    Plana git (düzenle)
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground italic py-1">
+                                                        Tanımlı tüm araç modelleri bu planda. Yeni model eklemek için önce ürün listesine araç tipi ekleyin veya mevcut planı düzenleyin.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <Label>Parça Adı (*)</Label>
@@ -764,7 +1200,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                             <form onSubmit={handleSubmit}>
                                 {selectedPlan && (
                                     <div className="mb-4 p-4 rounded-lg border bg-muted/30 space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <Label>Parça Kodu (*)</Label>
                                                 <Input
@@ -783,15 +1219,39 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                                     className="mt-1"
                                                 />
                                             </div>
-                                            <div>
-                                                <Label>Araç Tipi</Label>
-                                                <Combobox
-                                                    options={equipmentOptions}
-                                                    value={selectedEquipmentId}
-                                                    onChange={setSelectedEquipmentId}
-                                                    placeholder="Araç tipi seçin..."
-                                                />
+                                        </div>
+                                        <div>
+                                            <Label>Araç modelleri (*)</Label>
+                                            <div className="space-y-2 mt-1">
+                                                {selectedVehicleTypes.map((rowVal, idx) => (
+                                                    <div key={idx} className="flex gap-2 items-start">
+                                                        <div className="flex-1 min-w-0">
+                                                            <Combobox
+                                                                options={equipmentOptions}
+                                                                value={rowVal || null}
+                                                                onChange={(v) => updateVehicleTypeRow(idx, v)}
+                                                                placeholder="Araç modeli seçin..."
+                                                            />
+                                                        </div>
+                                                        {selectedVehicleTypes.length > 1 && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="shrink-0 mt-1"
+                                                                onClick={() => removeVehicleTypeRow(idx)}
+                                                                title="Bu satırı kaldır"
+                                                            >
+                                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                ))}
                                             </div>
+                                            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addVehicleTypeRow}>
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Araç modeli ekle
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
@@ -869,15 +1329,45 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             </Dialog>
 
             <AlertDialog open={!!duplicatePlan} onOpenChange={() => setDuplicatePlan(null)}>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-w-lg">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Mükerrer Kontrol Planı</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Bu araç ve parça koduna ({duplicatePlan?.part_code}) ait bir kontrol planı (Rev. {duplicatePlan?.revision_number}) zaten mevcut. Ne yapmak istersiniz?
+                        <AlertDialogDescription asChild>
+                            <div className="text-sm text-muted-foreground space-y-2 pt-1">
+                                <p>
+                                    Parça kodu{' '}
+                                    <strong className="text-foreground">{duplicatePlan?.plan?.part_code || duplicatePlan?.part_code}</strong>{' '}
+                                    için seçtiğiniz araç modellerinden en az biri, mevcut bir kontrol planında zaten tanımlı
+                                    (Rev.{' '}
+                                    {duplicatePlan?.plan?.revision_number ?? duplicatePlan?.revision_number}
+                                    ).
+                                </p>
+                                {(duplicatePlan?.overlappingVehicles?.length > 0 || duplicatePlan?.legacyNoVehicle) && (
+                                    <p>
+                                        {duplicatePlan?.legacyNoVehicle ? (
+                                            <>
+                                                Eski kayıtta araç modeli boş; bu parça için plan zaten tanımlı kabul edilir.
+                                            </>
+                                        ) : (
+                                            <>
+                                                Çakışan araç(lar):{' '}
+                                                <strong className="text-foreground">{duplicatePlan.overlappingVehicles.join(', ')}</strong>
+                                            </>
+                                        )}
+                                    </p>
+                                )}
+                                <p>
+                                    Farklı araç ekleyerek devam edebilir, mevcut planı düzenleyebilir veya yeni revizyon oluşturabilirsiniz.
+                                </p>
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                    <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                        <AlertDialogCancel className="mt-0">İptal</AlertDialogCancel>
+                        <Button type="button" variant="secondary" onClick={() => handleDuplicateAction('addVehicle')}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Araç modeli ekle
+                        </Button>
                         <AlertDialogAction onClick={() => handleDuplicateAction('edit')}>Mevcut Planı Düzenle</AlertDialogAction>
                         <AlertDialogAction onClick={() => handleDuplicateAction('revise')}>Yeni Revizyon Oluştur</AlertDialogAction>
                     </AlertDialogFooter>

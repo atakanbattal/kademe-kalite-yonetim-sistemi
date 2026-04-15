@@ -21,7 +21,11 @@ const getQuarantineDocumentNoValue = (record) => {
 };
 import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
 import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
-import { stripSquareBullets } from '@/lib/df8dTextUtils';
+import {
+	stripSquareBullets,
+	hasStructuredRootCauseData,
+	stripDuplicateRootCauseFromProblemDescription,
+} from '@/lib/df8dTextUtils';
 import { formatFiveTopicForPdf, FIVE_T_PDF_LABELS } from '@/lib/fmeaFiveTopics';
 
 // Global formatter helpers
@@ -151,9 +155,6 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 		return;
 	}
 
-	// Logoları önceden yükle (cache'de yoksa)
-	await preloadLogos();
-
 	// Türkçe karakterleri normalize et-tüm raporlar için geçerli
 	const normalizedRecord = normalizeRecord(record);
 
@@ -171,6 +172,32 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 		: type === 'inkr_management'
 			? (normalizedRecord.inkr_number || normalizedRecord.id)
 			: (normalizedRecord.id || normalizedRecord.delivery_note_number || `list-${Date.now()}`);
+
+	/**
+	 * await / async sonrası window.open çoğu tarayıcıda pencere engeline takılır.
+	 * Önce about:blank senkron aç, veri hazır olunca aynı pencerenin location'ına yazdırma URL'ini ver.
+	 */
+	const reportWindow = window.open('about:blank', '_blank');
+	if (!reportWindow) {
+		console.warn('Rapor sekmesi açılamadı (açılır pencere engeli olabilir).');
+		return;
+	}
+
+	const navigateReportWindow = (relativePath) => {
+		try {
+			reportWindow.location.href = relativePath;
+			try {
+				reportWindow.focus();
+			} catch {
+				/* noop */
+			}
+		} catch (e) {
+			console.error('Rapor penceresine yönlendirilemedi:', e);
+		}
+	};
+
+	// Logo önbelleği — tıklama zincirini bloklamasın; rapor sekmesi kendi bundle'ında da yüklüyor
+	void preloadLogos().catch(() => {});
 
 	if (useUrlParams) {
 		try {
@@ -292,13 +319,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			console.log('📄 Storage Key:', storageKey);
 			console.log('📄 Record Data (normalized):', normalizedRecordToStore);
 
-			// Her zaman yeni sekmede aç
-			const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
-
-			if (reportWindow) {
-				reportWindow.focus();
-				console.log('✅ Rapor penceresi açıldı');
-			}
+			navigateReportWindow(reportUrl);
 
 			// PDF yüklendikten sonra localStorage'ı temizle (30 saniye sonra-yavaş bağlantılarda da çalışsın)
 			setTimeout(() => {
@@ -311,16 +332,19 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list', 'fixture_list', 'leak_test_list', 'process_inspection_list', 'kpi_list', 'fmea_project_list'].includes(type);
 			if (isListTypeFallback) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
+				try {
+					reportWindow.close();
+				} catch {
+					/* noop */
+				}
 				return;
 			}
 			// Fallback: database fetch
-			const reportWindow = window.open(`/print/report/${type}/${reportId}?autoprint=true`, '_blank', 'noopener,noreferrer');
-			if (reportWindow) reportWindow.focus();
+			navigateReportWindow(`/print/report/${type}/${reportId}?autoprint=true`);
 		}
 	} else {
 		// Normal database fetch
-		const reportWindow = window.open(`/print/report/${type}/${reportId}?autoprint=true`, '_blank', 'noopener,noreferrer');
-		if (reportWindow) reportWindow.focus();
+		navigateReportWindow(`/print/report/${type}/${reportId}?autoprint=true`);
 	}
 };
 
@@ -4977,7 +5001,12 @@ const generateGenericReportHtml = async (record, type) => {
 				};
 
 				// Problem tanımını tablo dışında tutmak için ayrı bir değişkende sakla
-				const problemDescriptionHtml = record.description ? formatProblemDescription(record.description) : '-';
+				const rawProblemDesc = record.description || '';
+				const descForProblem =
+					hasStructuredRootCauseData(record) ?
+						stripDuplicateRootCauseFromProblemDescription(rawProblemDesc)
+					:	rawProblemDesc;
+				const problemDescriptionHtml = descForProblem.trim() ? formatProblemDescription(descForProblem) : '-';
 
 				return {
 					tableRows: `
@@ -6910,7 +6939,7 @@ const generateGenericReportHtml = async (record, type) => {
 				return `
 					<div class="section">
 						<h2 class="section-title blue">2. ${sectionTitle}</h2>
-						<div style="white-space: normal; word-wrap: break-word; padding: 8px; background-color: #ffffff; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 13px; line-height: 1.5;">${generalInfo.problemDescription}</div>
+						<div class="problem-description-block" style="white-space: normal; word-wrap: break-word; padding: 8px; background-color: #ffffff; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 13px; line-height: 1.6;">${generalInfo.problemDescription}</div>
 					</div>
 				`;
 			}
@@ -8039,6 +8068,62 @@ h3 {
 	page-break-inside: avoid!important;
 }
 			}
+`;
+	} else if (type === 'nonconformity') {
+		reportContentHtml = await generateGenericReportHtml(normalizedRecord, type);
+		/* Playwright PDF: satır/paragraf ortasında saçma kesilmeleri azalt */
+		cssOverrides = `
+.problem-description-block {
+	overflow: visible;
+}
+.problem-description-block p {
+	orphans: 3;
+	widows: 3;
+	word-break: normal;
+	overflow-wrap: break-word;
+	hyphens: none;
+}
+.step-description-body {
+	overflow-wrap: break-word;
+	word-break: normal;
+	hyphens: none;
+}
+@media print {
+	/* Kutu uzun olduğunda sayfa arası bölünebilir; başlık tek başına sayfa dibinde kalmasın */
+	.analysis-box.fillable {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+	}
+	.analysis-box.fillable h4 {
+		page-break-after: avoid !important;
+		break-after: avoid !important;
+	}
+	.analysis-box.fillable h4 + .fillable-field {
+		page-break-before: avoid !important;
+		break-before: avoid !important;
+	}
+	.fillable-field {
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+		margin-bottom: 8px !important;
+	}
+	.fillable-field strong {
+		page-break-after: avoid !important;
+		break-after: avoid !important;
+	}
+	/* Tek sorunun cevap metni çok uzunsa satır içi bölünebilir; kutunun başlığı metinden kopmasın */
+	.fillable-line,
+	.fillable-area {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		orphans: 2;
+		widows: 2;
+	}
+	.problem-description-block p {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+}
 `;
 	} else if (type === 'quarantine_decision_certificate') {
 		reportContentHtml = await generateGenericReportHtml(normalizedRecord, type);

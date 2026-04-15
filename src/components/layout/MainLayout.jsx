@@ -486,9 +486,9 @@ const MainLayout = () => {
     };
 
     const handleDownloadPDF = (record, type) => {
-        // For types that need full record data, use URL params
-        const useUrlParams = ['nonconformity', 'incoming_inspection', 'deviation', 'kaizen', 'quarantine', 'sheet_metal_entry'].includes(type);
-        openPrintableReportUtil(record, type, useUrlParams);
+        // nonconformity: her zaman /print üzerinden id ile DB'den tam kayıt (localStorage kotası / sekme sorunu önlenir)
+        const useUrlParams = ['incoming_inspection', 'deviation', 'kaizen', 'quarantine', 'sheet_metal_entry'].includes(type);
+        return openPrintableReportUtil(record, type, useUrlParams);
     };
 
     const renderModule = (modulePath) => {
