@@ -117,7 +117,7 @@ async function invokeManageUser(body) {
 
 const ALL_MODULES = [
   'dashboard', 'kpi', 'nonconformity', 'df-8d', 'fmea', 'quality-cost', 'customer-complaints',
-  'incoming-quality', 'process-control', 'produced-vehicles', 'leak-test', 'dynamic-balance',
+  'incoming-quality', 'process-control', 'control-forms', 'produced-vehicles', 'leak-test', 'dynamic-balance',
   'fixture',
   'supplier-quality', 'supplier-audit', 'internal-audit', 'deviation', 'audit-logs',
   'equipment', 'document', 'external-docs', 'wps', 'kaizen', 'training', 'polyvalence', 'benchmark',
@@ -129,6 +129,7 @@ const moduleLabels = {
   fmea: 'FMEA',
   'quality-cost': 'Kalite Maliyetleri', 'customer-complaints': 'Müşteri Şikayetleri',
   'incoming-quality': 'Girdi Kalite', 'process-control': 'Proses Kontrol',
+  'control-forms': 'Kontrol Formları',
   'leak-test': 'Sızdırmazlık Kontrol',
   'produced-vehicles': 'Üretilen Araçlar', 'dynamic-balance': 'Dinamik Balans',
   fixture: 'Fikstür Takibi',
@@ -147,6 +148,7 @@ const PERMISSION_TEMPLATES = {
     permissions: {
       dashboard: 'read', kpi: 'read', nonconformity: 'full', 'df-8d': 'full', fmea: 'full', 'quality-cost': 'read',
       'customer-complaints': 'full', 'incoming-quality': 'full', 'process-control': 'read',
+      'control-forms': 'full',
       'produced-vehicles': 'full', 'leak-test': 'full', 'dynamic-balance': 'full', fixture: 'full', 'supplier-quality': 'read',
       'supplier-audit': 'read', 'internal-audit': 'read', deviation: 'full', 'audit-logs': 'none',
       equipment: 'read', document: 'read', 'external-docs': 'read', wps: 'read', kaizen: 'full', training: 'read',
@@ -229,7 +231,7 @@ const NewUserModal = ({ open, setOpen, onUserAdded }) => {
 const MODULE_ICONS = {
   dashboard: LayoutDashboard, kpi: BarChart3, nonconformity: AlertTriangle,
   'df-8d': FileWarning, fmea: ListChecks, 'quality-cost': DollarSign, 'customer-complaints': MessageSquare,
-  'incoming-quality': PackageCheck, 'process-control': Gauge, 'produced-vehicles': Car,
+  'incoming-quality': PackageCheck, 'process-control': Gauge, 'control-forms': ClipboardCheck, 'produced-vehicles': Car,
   'leak-test': Droplets,
   'dynamic-balance': Activity, fixture: Ruler, 'supplier-quality': Factory, 'supplier-audit': ClipboardCheck,
   'internal-audit': SearchCheck, deviation: FileText, 'audit-logs': BookOpen,
@@ -241,7 +243,7 @@ const MODULE_ICONS = {
 const MODULE_GROUPS = [
   { title: 'Genel', modules: ['dashboard', 'kpi', 'tasks', 'settings'] },
   { title: 'Kalite Yönetimi', modules: ['nonconformity', 'df-8d', 'fmea', 'customer-complaints', 'deviation', 'quarantine'] },
-  { title: 'Üretim & Kontrol', modules: ['incoming-quality', 'process-control', 'produced-vehicles', 'leak-test', 'dynamic-balance', 'fixture'] },
+  { title: 'Üretim & Kontrol', modules: ['incoming-quality', 'process-control', 'control-forms', 'produced-vehicles', 'leak-test', 'dynamic-balance', 'fixture'] },
   { title: 'Tedarikçi', modules: ['supplier-quality', 'supplier-audit'] },
   { title: 'Denetim & Kayıtlar', modules: ['internal-audit', 'audit-logs'] },
   { title: 'Doküman & Ekipman', modules: ['equipment', 'document', 'external-docs', 'wps'] },

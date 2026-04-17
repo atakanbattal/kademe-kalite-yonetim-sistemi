@@ -1,8 +1,8 @@
 functionsDirectory = "/Users/atakanbattal/Desktop/Uygulamalar/Kademe QMS/netlify/functions"
 functionsDirectoryOrigin = "config-v1"
+headersOrigin = "config"
 redirectsOrigin = "config"
 plugins = []
-headers = []
 
 [build]
 publish = "/Users/atakanbattal/Desktop/Uygulamalar/Kademe QMS/dist"
@@ -36,6 +36,31 @@ autoLaunch = false
 [functions]
 
 [functions."*"]
+
+[[headers]]
+for = "/assets/*"
+
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/index.html"
+
+[headers.values]
+Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+Pragma = "no-cache"
+
+[[headers]]
+for = "/"
+
+[headers.values]
+Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[redirects]]
 from = "/*"
