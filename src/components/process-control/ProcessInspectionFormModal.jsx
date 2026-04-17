@@ -20,15 +20,18 @@ import { getProcessInkrDisplayNumber } from './processInkrUtils';
 import { buildMeasurementBundle } from './processInspectionUtils';
 import { syncProcessInspectionNonconformity, syncProcessInspectionDefectNonconformities } from '@/lib/processInspectionNonconformitySync';
 import { buildCategoryOptions } from '@/lib/defectCategories';
+import { parseProcessControlVehicleTypes } from '@/lib/df8dTextUtils';
 import {
     AlertCircle,
     AlertTriangle,
     CheckCircle2,
     ClipboardCheck,
+    Car,
     ExternalLink,
     FileText,
     Gauge,
     Hash,
+    HashIcon,
     HelpCircle,
     Paperclip,
     Plus,
@@ -36,6 +39,7 @@ import {
     ShieldAlert,
     Trash2,
     User,
+    UserCheck,
     X,
 } from 'lucide-react';
 
@@ -48,6 +52,10 @@ const INITIAL_FORM_STATE = {
     quantity_rejected: 0,
     quantity_conditional: 0,
     operator_name: '',
+    vehicle_type: '',
+    vehicle_serial_no: '',
+    inspector_personnel_id: '',
+    inspector_name: '',
     decision: 'Beklemede',
     notes: '',
 };
@@ -252,6 +260,89 @@ const ProcessInspectionFormModal = ({
         return baseOptions;
     }, [formData.operator_name, personnel]);
 
+    const inspectorOptions = useMemo(() => {
+        const activePersonnel = Array.isArray(personnel)
+            ? personnel.filter((person) => person?.is_active && person?.full_name)
+            : [];
+
+        const baseOptions = activePersonnel.map((person) => ({
+            value: person.id,
+            label: person.department ? `${person.full_name} • ${person.department}` : person.full_name,
+            triggerLabel: person.full_name,
+            searchText: [person.full_name, person.department, person.job_title].filter(Boolean).join(' '),
+            description: person.department || person.job_title || undefined,
+        }));
+
+        const currentInspectorId = formData.inspector_personnel_id;
+        const currentInspectorName = formData.inspector_name?.trim();
+
+        if (
+            currentInspectorId &&
+            !baseOptions.some((option) => option.value === currentInspectorId)
+        ) {
+            return [
+                {
+                    value: currentInspectorId,
+                    label: `${currentInspectorName || 'Kayıtlı personel'} (Pasif)`,
+                    triggerLabel: currentInspectorName || 'Kayıtlı personel',
+                    searchText: currentInspectorName || '',
+                    description: 'Aktif personel listesinde bulunmayan kayıtlı muayene sorumlusu',
+                },
+                ...baseOptions,
+            ];
+        }
+
+        return baseOptions;
+    }, [formData.inspector_personnel_id, formData.inspector_name, personnel]);
+
+    const vehicleTypeOptions = useMemo(() => {
+        const fromPlan = parseProcessControlVehicleTypes(controlPlan?.vehicle_type || '');
+        const base = fromPlan.map((vehicle) => ({
+            value: vehicle,
+            label: vehicle,
+            triggerLabel: vehicle,
+            searchText: vehicle,
+        }));
+
+        const currentVehicle = formData.vehicle_type?.trim();
+        if (currentVehicle && !base.some((option) => option.value === currentVehicle)) {
+            return [
+                {
+                    value: currentVehicle,
+                    label: `${currentVehicle} (Kayıtlı Değer)`,
+                    triggerLabel: currentVehicle,
+                    searchText: currentVehicle,
+                    description: 'Mevcut kontrol planında tanımsız araç tipi',
+                },
+                ...base,
+            ];
+        }
+
+        return base;
+    }, [controlPlan, formData.vehicle_type]);
+
+    const handleInspectorChange = useCallback(
+        (value) => {
+            if (!value) {
+                setFormData((previous) => ({
+                    ...previous,
+                    inspector_personnel_id: '',
+                    inspector_name: '',
+                }));
+                return;
+            }
+            const match = Array.isArray(personnel)
+                ? personnel.find((person) => person?.id === value)
+                : null;
+            setFormData((previous) => ({
+                ...previous,
+                inspector_personnel_id: value,
+                inspector_name: match?.full_name || previous.inspector_name || '',
+            }));
+        },
+        [personnel]
+    );
+
     const hasReferenceSuccess =
         !warnings.plan && !warnings.inkr && !!controlPlan && !!inkrReport && !!formData.part_code;
 
@@ -424,6 +515,10 @@ const ProcessInspectionFormModal = ({
                     quantity_rejected: Number(existingInspection.quantity_rejected) || 0,
                     quantity_conditional: Number(existingInspection.quantity_conditional) || 0,
                     operator_name: existingInspection.operator_name || '',
+                    vehicle_type: existingInspection.vehicle_type || '',
+                    vehicle_serial_no: existingInspection.vehicle_serial_no || '',
+                    inspector_personnel_id: existingInspection.inspector_personnel_id || '',
+                    inspector_name: existingInspection.inspector_name || '',
                     decision: existingInspection.decision || 'Beklemede',
                     notes: existingInspection.notes || '',
                 });
@@ -691,6 +786,10 @@ const ProcessInspectionFormModal = ({
                 quantity_rejected: Number(formData.quantity_rejected) || 0,
                 quantity_conditional: Number(formData.quantity_conditional) || 0,
                 operator_name: formData.operator_name || null,
+                vehicle_type: formData.vehicle_type?.trim() || null,
+                vehicle_serial_no: formData.vehicle_serial_no?.trim() || null,
+                inspector_personnel_id: formData.inspector_personnel_id || null,
+                inspector_name: formData.inspector_name?.trim() || null,
                 production_line: null,
                 shift: null,
                 decision: derivedDecision,
@@ -986,7 +1085,7 @@ const ProcessInspectionFormModal = ({
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="operator_name">Operatör</Label>
+                                        <Label htmlFor="operator_name">Üretim Operatörü</Label>
                                         {isViewMode ? (
                                             <Input
                                                 id="operator_name"
@@ -1012,6 +1111,115 @@ const ProcessInspectionFormModal = ({
                                                 allowClear
                                             />
                                         )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between border-b pb-2">
+                                        <div>
+                                            <h3 className="text-lg font-semibold">Araç ve Muayene Sorumlusu</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Bu parça hangi araç modeli için kontrol ediliyor, hangi seri numarasında
+                                                kullanılacak ve muayeneyi kim yaptı?
+                                            </p>
+                                        </div>
+                                        {vehicleTypeOptions.length > 0 && (
+                                            <Badge variant="outline" className="whitespace-nowrap">
+                                                Plan: {vehicleTypeOptions.length} araç modeli
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                        <div>
+                                            <Label htmlFor="vehicle_type" className="flex items-center gap-2">
+                                                <Car className="h-4 w-4 text-muted-foreground" />
+                                                Araç Tipi
+                                            </Label>
+                                            {isViewMode ? (
+                                                <Input
+                                                    id="vehicle_type"
+                                                    name="vehicle_type"
+                                                    value={formData.vehicle_type}
+                                                    placeholder="Araç tipi"
+                                                    disabled
+                                                />
+                                            ) : vehicleTypeOptions.length > 0 ? (
+                                                <SearchableSelectDialog
+                                                    options={vehicleTypeOptions}
+                                                    value={formData.vehicle_type || ''}
+                                                    onChange={(value) =>
+                                                        setFormData((previous) => ({
+                                                            ...previous,
+                                                            vehicle_type: value || '',
+                                                        }))
+                                                    }
+                                                    triggerPlaceholder={
+                                                        controlPlan
+                                                            ? 'Araç tipi seçin...'
+                                                            : 'Parça kodunu girin'
+                                                    }
+                                                    dialogTitle="Araç Tipi Seç"
+                                                    searchPlaceholder="Araç tipi ara..."
+                                                    notFoundText="Bu parça için tanımlı araç tipi bulunmuyor."
+                                                    allowClear
+                                                />
+                                            ) : (
+                                                <Input
+                                                    id="vehicle_type"
+                                                    name="vehicle_type"
+                                                    value={formData.vehicle_type}
+                                                    onChange={handleInputChange}
+                                                    placeholder={
+                                                        controlPlan
+                                                            ? 'Planda araç tipi yok, serbest giriş yapabilirsiniz'
+                                                            : 'Önce parça kodu girin'
+                                                    }
+                                                />
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="vehicle_serial_no" className="flex items-center gap-2">
+                                                <HashIcon className="h-4 w-4 text-muted-foreground" />
+                                                Araç Seri / Şase No
+                                            </Label>
+                                            <Input
+                                                id="vehicle_serial_no"
+                                                name="vehicle_serial_no"
+                                                value={formData.vehicle_serial_no}
+                                                onChange={handleInputChange}
+                                                placeholder="Örn: KDM-2025-00123"
+                                                disabled={isViewMode}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="inspector_personnel_id" className="flex items-center gap-2">
+                                                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                                Muayeneyi Yapan Personel
+                                            </Label>
+                                            {isViewMode ? (
+                                                <Input
+                                                    id="inspector_personnel_id"
+                                                    name="inspector_name"
+                                                    value={formData.inspector_name}
+                                                    placeholder="Muayeneyi yapan personel"
+                                                    disabled
+                                                />
+                                            ) : (
+                                                <SearchableSelectDialog
+                                                    options={inspectorOptions}
+                                                    value={formData.inspector_personnel_id || ''}
+                                                    onChange={handleInspectorChange}
+                                                    triggerPlaceholder="Personel seçin..."
+                                                    dialogTitle="Muayeneyi Yapan Personel"
+                                                    searchPlaceholder="Personel ara..."
+                                                    notFoundText="Personel bulunamadı."
+                                                    allowClear
+                                                />
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1495,6 +1703,33 @@ const ProcessInspectionFormModal = ({
                                             Operatör
                                         </span>
                                         <span className="font-semibold">{formData.operator_name || '-'}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="flex items-center gap-2 text-muted-foreground">
+                                            <UserCheck className="h-4 w-4" />
+                                            Muayeneyi Yapan
+                                        </span>
+                                        <span className="truncate font-semibold text-right max-w-[55%]">
+                                            {formData.inspector_name || '-'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="flex items-center gap-2 text-muted-foreground">
+                                            <Car className="h-4 w-4" />
+                                            Araç Tipi
+                                        </span>
+                                        <span className="truncate font-semibold text-right max-w-[55%]">
+                                            {formData.vehicle_type || '-'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="flex items-center gap-2 text-muted-foreground">
+                                            <HashIcon className="h-4 w-4" />
+                                            Araç Seri
+                                        </span>
+                                        <span className="truncate font-semibold text-right max-w-[55%]">
+                                            {formData.vehicle_serial_no || '-'}
+                                        </span>
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="flex items-center gap-2 text-muted-foreground">

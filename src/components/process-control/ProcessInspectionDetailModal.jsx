@@ -5,6 +5,7 @@ import {
     AlertTriangle,
     Box,
     CalendarDays,
+    Car,
     CheckCircle2,
     Download,
     FileImage,
@@ -14,6 +15,7 @@ import {
     Paperclip,
     Ruler,
     User,
+    UserCheck,
     X,
     XCircle,
 } from 'lucide-react';
@@ -238,7 +240,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
             quantity_accepted: acceptedQuantity,
             status: inspection?.decision || inspection?.status || 'Beklemede',
             prepared_by: inspection?.operator_name || '',
-            controlled_by: '',
+            controlled_by: inspection?.inspector_name || '',
             created_by: '',
             results: enhancedResults.map((row) => ({
                 ...row,
@@ -364,9 +366,9 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                             />
                             <InspectionStatCard
                                 icon={User}
-                                label="Operatör"
+                                label="Üretim Operatörü"
                                 value={inspection.operator_name || '-'}
-                                helper="Kaydı oluşturan sorumlu"
+                                helper="Parçanın üretim/montaj sorumlusu"
                             />
                             <InspectionStatCard
                                 icon={CalendarDays}
@@ -379,6 +381,29 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                 label="Ölçüm Satırı"
                                 value={measurementStats.total}
                                 helper={`${measurementStats.passed} uygun / ${measurementStats.failed} uygunsuz`}
+                                tone="green"
+                            />
+                        </section>
+
+                        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <InspectionStatCard
+                                icon={Car}
+                                label="Araç Tipi"
+                                value={inspection.vehicle_type || '-'}
+                                helper="Kontrol planında tanımlı araç modeli"
+                                tone="blue"
+                            />
+                            <InspectionStatCard
+                                icon={Hash}
+                                label="Araç Seri / Şase No"
+                                value={inspection.vehicle_serial_no || '-'}
+                                helper="Parçanın kullanılacağı araç"
+                            />
+                            <InspectionStatCard
+                                icon={UserCheck}
+                                label="Muayeneyi Yapan"
+                                value={inspection.inspector_name || '-'}
+                                helper="Kontrolü fiilen gerçekleştiren personel"
                                 tone="green"
                             />
                         </section>

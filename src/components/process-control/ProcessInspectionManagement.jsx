@@ -62,7 +62,9 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
 
             if (debouncedSearch) {
                 const term = debouncedSearch;
-                query = query.or(`record_no.ilike.%${term}%,part_code.ilike.%${term}%,part_name.ilike.%${term}%`);
+                query = query.or(
+                    `record_no.ilike.%${term}%,part_code.ilike.%${term}%,part_name.ilike.%${term}%,vehicle_type.ilike.%${term}%,vehicle_serial_no.ilike.%${term}%,inspector_name.ilike.%${term}%`
+                );
             }
 
             if (decisionFilter && decisionFilter !== 'all') {
@@ -227,7 +229,7 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                         <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                         <input
                             type="text"
-                            placeholder="Kayıt No, Parça Kodu veya Adı ile ara..."
+                            placeholder="Kayıt No, parça, araç, seri no veya personel ile ara..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="search-input h-11"
@@ -308,6 +310,8 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                             <TableHead>Kayıt No</TableHead>
                             <TableHead>Tarih</TableHead>
                             <TableHead>Parça Kodu / Adı</TableHead>
+                            <TableHead>Araç</TableHead>
+                            <TableHead>Muayeneyi Yapan</TableHead>
                             <TableHead>Üretilen Miktar</TableHead>
                             <TableHead>Operatör</TableHead>
                             <TableHead>Karar</TableHead>
@@ -317,11 +321,11 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Yükleniyor...</TableCell>
+                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Yükleniyor...</TableCell>
                             </TableRow>
                         ) : inspections.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                     Henüz muayene kaydı bulunmuyor.
                                 </TableCell>
                             </TableRow>
@@ -340,6 +344,19 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                                             <span className="text-xs text-muted-foreground line-clamp-1">{inspection.part_name}</span>
                                         </div>
                                     </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm">
+                                                {inspection.vehicle_type || '-'}
+                                            </span>
+                                            {inspection.vehicle_serial_no && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    SN: {inspection.vehicle_serial_no}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{inspection.inspector_name || '-'}</TableCell>
                                     <TableCell>{inspection.quantity_produced}</TableCell>
                                     <TableCell>{inspection.operator_name || '-'}</TableCell>
                                     <TableCell>{getDecisionBadge(inspection.decision)}</TableCell>
