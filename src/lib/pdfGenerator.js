@@ -1181,6 +1181,11 @@ export const generateVehicleReport = async (vehicle, timeline, faults, equipment
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <p style="margin: 0; font-size: 14px; font-weight: 600; color: #991b1b;">${fault.category?.name || 'Kategori Belirtilmemiş'}</p>
                         <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                            ${fault.category?.discipline || fault.discipline ? `
+                                <span style="background-color: #ede9fe; color: #5b21b6; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
+                                    ${fault.category?.discipline || fault.discipline}
+                                </span>
+                            ` : ''}
                             ${fault.arge_approved ? `
                                 <span style="background-color: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                                     Ar-Ge Onaylı

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { fetchProducedVehiclesMerged } from '@/lib/fetchProducedVehiclesMerged';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { normalizeCostSettingsRows, normalizeCostSettingsJoin, normalizeNonConformityUnitFields } from '@/lib/utils';
+import { normalizeCostSettingsRows, normalizeCostSettingsJoin, normalizeNonConformityUnitFields, normalizeToTitleCase } from '@/lib/utils';
 
 const DataContext = createContext();
 
@@ -371,6 +371,11 @@ export const DataProvider = ({ children }) => {
                 let data = (val && !val.error && val.data) ? val.data : [];
                 if (key === 'unitCostSettings' && Array.isArray(data)) {
                     data = normalizeCostSettingsRows(data);
+                } else if (key === 'productionDepartments' && Array.isArray(data)) {
+                    data = data.map((d) => ({
+                        ...d,
+                        name: d?.name != null ? normalizeToTitleCase(String(d.name)) : d.name,
+                    }));
                 } else if (key === 'personnel' && Array.isArray(data)) {
                     data = data.map((p) => ({
                         ...p,

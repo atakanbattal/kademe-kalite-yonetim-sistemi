@@ -21,19 +21,26 @@ import {
     syncVehicleFaultGroupNonconformity,
     syncVehicleFaultNonconformity
 } from '@/lib/vehicleFaultNonconformitySync';
+import {
+    DisciplineBadge,
+    VEHICLE_FAULT_DISCIPLINES,
+    buildVehicleFaultCategoryOptions,
+    getDisciplineMeta
+} from '@/lib/vehicleFaultDisciplines';
+import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 
 const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate, onOpenNCForm }) => {
     const { toast } = useToast();
     const { user, profile } = useAuth();
     const { unitCostSettings, refreshData, qualityCosts } = useData();
     const [faults, setFaults] = useState([]);
-    const [newFault, setNewFault] = useState({ description: '', department_id: '', category_id: '', quantity: 1 });
+    const [newFault, setNewFault] = useState({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
     const [filteredCategories, setFilteredCategories] = useState([]);
     const [isFaultCostModalOpen, setIsFaultCostModalOpen] = useState(false);
     const [editingFault, setEditingFault] = useState(null);
-    const [editFaultData, setEditFaultData] = useState({ description: '', department_id: '', category_id: '', quantity: 1 });
+    const [editFaultData, setEditFaultData] = useState({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
     const [hasExistingCosts, setHasExistingCosts] = useState(false);
 
     const hasSpecialAccess = () => {
@@ -65,6 +72,31 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
     const categoriesById = useMemo(
         () => Object.fromEntries((categories || []).map(category => [String(category.id), category])),
         [categories]
+    );
+
+    const activeFormData = editingFault ? editFaultData : newFault;
+
+    const disciplineFilteredCategories = useMemo(() => {
+        if (!activeFormData.discipline) return filteredCategories;
+        return (filteredCategories || []).filter(
+            (category) => (category.discipline || 'Genel') === activeFormData.discipline
+        );
+    }, [filteredCategories, activeFormData.discipline]);
+
+    const availableDisciplinesForDepartment = useMemo(() => {
+        const keys = new Set();
+        (filteredCategories || []).forEach((category) => {
+            const key = category.discipline || 'Genel';
+            keys.add(key);
+        });
+        return VEHICLE_FAULT_DISCIPLINES.filter((discipline) => keys.has(discipline.key));
+    }, [filteredCategories]);
+
+    const categoryOptions = useMemo(
+        () => buildVehicleFaultCategoryOptions(disciplineFilteredCategories, {
+            existingValue: activeFormData.category_id
+        }),
+        [disciplineFilteredCategories, activeFormData.category_id]
     );
 
     const departmentsById = useMemo(
@@ -115,7 +147,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
         try {
             const { data, error } = await supabase
                 .from('quality_inspection_faults')
-                .select('*, department:production_departments(name), category:fault_categories(name)')
+                .select('*, department:production_departments(name), category:fault_categories(name, discipline)')
                 .eq('inspection_id', vehicle.id)
                 .order('created_at', { ascending: false });
 
@@ -158,11 +190,13 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
 
     useEffect(() => {
         const fetchInitialData = async () => {
-            const { data, error } = await supabase.from('fault_categories').select('*');
+            const { data, error } = await supabase
+                .from('fault_categories')
+                .select('id, name, department_id, discipline');
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Kategoriler alınamadı.' });
             } else {
-                setCategories(data);
+                setCategories(data || []);
             }
         };
 
@@ -246,7 +280,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
     }, [vehicle?.id, isOpen, fetchFaults]);
 
     const handleDepartmentChange = (deptId) => {
-        setNewFault(prev => ({ ...prev, department_id: deptId, category_id: '' }));
+        setNewFault(prev => ({ ...prev, department_id: deptId, category_id: '', discipline: '' }));
         const filtered = categories.filter(c => c.department_id === deptId);
         setFilteredCategories(filtered);
     };
@@ -269,7 +303,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 is_resolved: false,
                 user_id: user?.id || null // Hatayı giren kullanıcının ID'sini kaydet
             })
-            .select(`*, department:production_departments(name), category:fault_categories(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name, discipline)`)
             .single();
 
         if (error) {
@@ -293,7 +327,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
             });
 
             setFaults(prev => [newFaultWithDept, ...prev]);
-            setNewFault({ description: '', department_id: '', category_id: '', quantity: 1 });
+            setNewFault({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
             setFilteredCategories([]);
             if (onUpdate) {
                 await onUpdate();
@@ -341,7 +375,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 resolved_at: !currentStatus ? new Date().toISOString() : null
             })
             .eq('id', faultId)
-            .select(`*, department:production_departments(name), category:fault_categories(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name, discipline)`)
             .single();
 
         if (error) {
@@ -376,7 +410,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 arge_approved_by: !currentStatus ? profile.id : null
             })
             .eq('id', faultId)
-            .select(`*, department:production_departments(name), category:fault_categories(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name, discipline)`)
             .single();
 
         if (error) {
@@ -396,10 +430,14 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
 
     const handleEditFault = (fault) => {
         setEditingFault(fault);
+        const resolvedDiscipline =
+            fault.discipline || fault.category?.discipline ||
+            categories.find(c => String(c.id) === String(fault.category_id))?.discipline || '';
         setEditFaultData({
             description: fault.description || '',
             department_id: fault.department_id || '',
             category_id: fault.category_id || '',
+            discipline: resolvedDiscipline,
             quantity: fault.quantity || 1
         });
         // Kategorileri filtrele
@@ -422,7 +460,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 quantity: editFaultData.quantity,
             })
             .eq('id', editingFault.id)
-            .select(`*, department:production_departments(name), category:fault_categories(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name, discipline)`)
             .single();
 
         if (error) {
@@ -460,7 +498,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
 
             setFaults(prev => prev.map(f => f.id === editingFault.id ? updatedFault : f));
             setEditingFault(null);
-            setEditFaultData({ description: '', department_id: '', category_id: '', quantity: 1 });
+            setEditFaultData({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
             setFilteredCategories([]);
             if (onUpdate) {
                 await onUpdate();
@@ -471,7 +509,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
 
     const handleCancelEdit = () => {
         setEditingFault(null);
-        setEditFaultData({ description: '', department_id: '', category_id: '', quantity: 1 });
+        setEditFaultData({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
         setFilteredCategories([]);
     };
 
@@ -513,8 +551,13 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                                         {faults.map(fault => (
                                             <div key={fault.id} className={cn("p-3 rounded-md border flex items-center justify-between", fault.is_resolved ? "bg-green-100/50 border-green-200" : "bg-red-100/50 border-red-200", fault.arge_approved && "ring-2 ring-purple-300")}>
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex flex-wrap items-center gap-2">
                                                         <p className="font-medium">{fault.description}</p>
+                                                        {(fault.discipline || fault.category?.discipline) && (
+                                                            <DisciplineBadge
+                                                                discipline={fault.discipline || fault.category?.discipline}
+                                                            />
+                                                        )}
                                                         {fault.category_name && (
                                                             <Badge variant="outline" className="bg-white/80">
                                                                 {fault.category_name}
@@ -613,23 +656,93 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="fault-cat">Kategori</Label>
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="fault-discipline">Hata Disiplini</Label>
+                                            {activeFormData.discipline && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (editingFault) {
+                                                            setEditFaultData({ ...editFaultData, discipline: '', category_id: '' });
+                                                        } else {
+                                                            setNewFault({ ...newFault, discipline: '', category_id: '' });
+                                                        }
+                                                    }}
+                                                    className="text-xs text-muted-foreground hover:text-foreground"
+                                                >
+                                                    Filtreyi temizle
+                                                </button>
+                                            )}
+                                        </div>
                                         <Select
-                                            value={editingFault ? editFaultData.category_id : newFault.category_id}
+                                            value={activeFormData.discipline || ''}
                                             onValueChange={(value) => {
+                                                if (editingFault) {
+                                                    setEditFaultData({ ...editFaultData, discipline: value, category_id: '' });
+                                                } else {
+                                                    setNewFault({ ...newFault, discipline: value, category_id: '' });
+                                                }
+                                            }}
+                                            disabled={editingFault ? !editFaultData.department_id : !newFault.department_id}
+                                        >
+                                            <SelectTrigger id="fault-discipline">
+                                                <SelectValue placeholder={availableDisciplinesForDepartment.length ? 'Disiplin seçin (Elektrik, Mekanik, Boya, Hidrolik, Pnömatik...)' : 'Önce birim seçin'} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableDisciplinesForDepartment.map(discipline => {
+                                                    const meta = getDisciplineMeta(discipline.key);
+                                                    return (
+                                                        <SelectItem key={discipline.key} value={discipline.key}>
+                                                            <div className="flex items-center gap-2">
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={`shrink-0 text-[10px] font-medium ${meta?.badgeClassName || ''}`}
+                                                                >
+                                                                    {discipline.label}
+                                                                </Badge>
+                                                                <span className="text-xs text-muted-foreground">{discipline.description}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fault-cat">Kategori / Detay Hata</Label>
+                                        <SearchableSelectDialog
+                                            options={categoryOptions}
+                                            value={activeFormData.category_id ? String(activeFormData.category_id) : ''}
+                                            onChange={(value) => {
                                                 if (editingFault) {
                                                     setEditFaultData({ ...editFaultData, category_id: value });
                                                 } else {
                                                     setNewFault({ ...newFault, category_id: value });
                                                 }
                                             }}
-                                            disabled={editingFault ? !editFaultData.department_id : !newFault.department_id}
-                                        >
-                                            <SelectTrigger id="fault-cat"><SelectValue placeholder="Kategori Seçin" /></SelectTrigger>
-                                            <SelectContent>
-                                                {filteredCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                                            triggerPlaceholder={
+                                                !activeFormData.department_id
+                                                    ? 'Önce birim seçin'
+                                                    : categoryOptions.length === 0
+                                                        ? 'Bu disiplin için kategori yok'
+                                                        : 'Kategori seçin...'
+                                            }
+                                            dialogTitle="Hata Kategorisi Seçin"
+                                            searchPlaceholder="Kategori ara... (örn: elektrik, kaynak, hidrolik)"
+                                            notFoundText="Bu kriterler için kategori bulunamadı."
+                                            allowClear
+                                        />
+                                        {activeFormData.category_id && (() => {
+                                            const selected = categoriesById[String(activeFormData.category_id)];
+                                            if (!selected) return null;
+                                            return (
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <span>Seçilen:</span>
+                                                    <span className="font-medium text-foreground">{selected.name}</span>
+                                                    <DisciplineBadge discipline={selected.discipline} />
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="fault-desc">Hata Açıklaması</Label>

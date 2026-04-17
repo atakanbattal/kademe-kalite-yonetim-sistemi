@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
-    import { defaultEightDSteps, ncOrganizationalUnitFromPersonnel } from '@/hooks/useNCForm';
+    import { defaultEightDSteps, ncOrganizationalUnitFromPersonnel } from '@/lib/ncFormDefaults';
     import { addMonths } from 'date-fns';
 
     export const NCFormContext = createContext();

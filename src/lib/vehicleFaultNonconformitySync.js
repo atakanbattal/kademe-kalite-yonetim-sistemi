@@ -34,7 +34,8 @@ export const enrichVehicleFaultRecord = (fault, { categoriesById = {}, departmen
         category,
         department,
         category_name: category?.name || fault.category_name || 'Kategorisiz',
-        department_name: department?.name || fault.department_name || 'Bilinmeyen'
+        department_name: department?.name || fault.department_name || 'Bilinmeyen',
+        discipline: category?.discipline || fault.discipline || null
     };
 };
 
@@ -192,7 +193,7 @@ const fetchVehicleFaults = async (supabase, vehicleId) => {
         .select(`
             *,
             department:production_departments(name),
-            category:fault_categories(name)
+            category:fault_categories(name, discipline)
         `)
         .eq('inspection_id', vehicleId)
         .order('created_at', { ascending: true });
@@ -433,7 +434,7 @@ export const backfillVehicleFaultNonconformities = async ({ supabase, reporterNa
             .select(`
                 *,
                 department:production_departments(name),
-                category:fault_categories(name),
+                category:fault_categories(name, discipline),
                 inspection:quality_inspections(id, serial_no, chassis_no, vehicle_type, customer_name)
             `)
             .order('created_at', { ascending: true })

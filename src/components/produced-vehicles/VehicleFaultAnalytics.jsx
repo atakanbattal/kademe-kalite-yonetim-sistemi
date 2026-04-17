@@ -163,7 +163,7 @@ const DurationTooltip = ({ active, payload, label }) => {
             try {
                 // Tüm kayıtları paginated olarak çek (1000'er kayıt)
                 const [allFaults, allVehicles, allDepts, allTimeline] = await Promise.all([
-                    fetchAllPages('quality_inspection_faults', `*, department:production_departments(id, name), inspection:quality_inspections(vehicle_type, serial_no, id), category:fault_categories(name)`),
+                    fetchAllPages('quality_inspection_faults', `*, department:production_departments(id, name), inspection:quality_inspections(vehicle_type, serial_no, id), category:fault_categories(name, discipline)`),
                     fetchAllPages('quality_inspections', 'id, created_at'),
                     supabase.from('production_departments').select('id, name').then(r => r.data || []),
                     fetchAllPages('vehicle_timeline_events', '*')
@@ -304,6 +304,7 @@ const DurationTooltip = ({ active, payload, label }) => {
             }, {});
 
             const faultCategoryData = {};
+            const faultDisciplineData = {};
             const vehicleTypeData = {};
             const faultyVehiclesWithAnyFault = new Set();
             let totalFaults = 0;
@@ -380,6 +381,9 @@ const DurationTooltip = ({ active, payload, label }) => {
                 
                 const categoryName = fault.category?.name || 'Kategorisiz';
                 faultCategoryData[categoryName] = (faultCategoryData[categoryName] || 0) + quantity;
+
+                const disciplineName = fault.category?.discipline || fault.discipline || 'Genel';
+                faultDisciplineData[disciplineName] = (faultDisciplineData[disciplineName] || 0) + quantity;
                 
                 const vehicleType = fault.inspection?.vehicle_type || 'Bilinmeyen';
                 vehicleTypeData[vehicleType] = (vehicleTypeData[vehicleType] || 0) + quantity;
@@ -470,6 +474,7 @@ const DurationTooltip = ({ active, payload, label }) => {
                 byDepartment: departmentChartData,
                 byDepartmentTotalFaults: processChartData(departmentTotalFaultsSimple, 10),
                 byFaultCategory: processChartData(faultCategoryData, 10),
+                byFaultDiscipline: processChartData(faultDisciplineData, 14),
                 byVehicleType: processChartData(vehicleTypeData, 10),
                 totalFaults,
                 faultyVehicleCount,
@@ -495,6 +500,9 @@ const DurationTooltip = ({ active, payload, label }) => {
             } else if (type === 'category') {
                 filteredFaultsList = filteredData.faults.filter(f => (f.category?.name || 'Kategorisiz') === name);
                 title = `${name} Kategorisi Hata Detayları`;
+            } else if (type === 'discipline') {
+                filteredFaultsList = filteredData.faults.filter(f => (f.category?.discipline || f.discipline || 'Genel') === name);
+                title = `${name} Disiplini Hata Detayları`;
             } else if (type === 'vehicleType') {
                 filteredFaultsList = filteredData.faults.filter(f => (f.inspection?.vehicle_type || 'Bilinmeyen') === name);
                 title = `${name} Araç Tipi Hata Detayları`;
@@ -642,6 +650,7 @@ const DurationTooltip = ({ active, payload, label }) => {
 
                     {renderHorizontalChart(analyticsData.byDepartmentTotalFaults, 'Birimlere Göre Toplam Hata Dağılımı (Top 10)', 'count', 'department')}
                     {renderHorizontalChart(analyticsData.byVehicleType, 'Araç Tipine Göre Hata Dağılımı (Top 10)', 'count', 'vehicleType')}
+                    {renderHorizontalChart(analyticsData.byFaultDiscipline, 'Disipline Göre Hata Dağılımı (Elektrik, Mekanik, Hidrolik, Pnömatik, Boya...)', 'count', 'discipline')}
                     {renderHorizontalChart(analyticsData.byFaultCategory, 'Hata Kategorisi Dağılımı (Adet - Top 10)', 'count', 'category')}
                 </div>
 

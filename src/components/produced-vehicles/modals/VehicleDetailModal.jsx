@@ -198,7 +198,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         .select(`
                             *,
                             department:production_departments(id, name),
-                            category:fault_categories(id, name)
+                            category:fault_categories(id, name, discipline)
                         `)
                         .eq('inspection_id', vehicle.id)
                         .order('fault_date', { ascending: false });

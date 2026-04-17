@@ -51,7 +51,7 @@ async function mergeInspectionsWithFaults(inspections) {
     const [faultsRes, timelineRes, historyRes] = await Promise.all([
         fetchByInspectionIdsPaginated(
             'quality_inspection_faults',
-            '*, fault_category:fault_categories(name)',
+            '*, fault_category:fault_categories(name, discipline)',
             idChunks
         ),
         fetchByInspectionIdsPaginated('vehicle_timeline_events', '*', idChunks),

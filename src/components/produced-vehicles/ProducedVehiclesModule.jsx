@@ -178,7 +178,7 @@ import { useSearchParams } from 'react-router-dom';
                         const { data, error } = await supabase
                             .from('quality_inspections')
                             .select(
-                                '*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)'
+                                '*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name, discipline)), vehicle_timeline_events(*)'
                             )
                             .eq('id', inspectionId)
                             .maybeSingle();

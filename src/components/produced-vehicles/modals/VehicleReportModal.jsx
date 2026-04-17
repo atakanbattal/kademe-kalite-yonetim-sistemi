@@ -198,7 +198,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
             // Paginated fetch ile tüm verileri çek
             const [timelineDataArr, faultsDataArr] = await Promise.all([
                 fetchAllPagesWithFilter('vehicle_timeline_events', '*', 'inspection_id', vehicleIds, 'event_timestamp'),
-                fetchAllPagesWithFilter('quality_inspection_faults', '*, department:production_departments(name), category:fault_categories(name)', 'inspection_id', vehicleIds)
+                fetchAllPagesWithFilter('quality_inspection_faults', '*, department:production_departments(name), category:fault_categories(name, discipline)', 'inspection_id', vehicleIds)
             ]);
 
             console.log('🔍 VehicleReportModal - Toplam hata kaydı:', faultsDataArr.length);
