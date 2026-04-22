@@ -772,7 +772,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const mostCommonVehicle = topVehicles[0]?.[0] || '';
 
     const ncFormData = {
-      title: `[UYG-GRUP] ${group.category} — ${group.detection_area} (${group.records.length} kayıt, ${group.totalQuantity} adet)`,
+      title: `Grup: ${group.category} · ${group.detection_area} (${group.records.length} kayıt, ${group.totalQuantity} adet)`,
       description: descLines.join('\n'),
       type: selectedType,
       department: mostCommonDept,

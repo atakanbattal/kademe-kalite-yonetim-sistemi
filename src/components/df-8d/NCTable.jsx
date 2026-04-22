@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -18,10 +18,49 @@ function displayNcUnitName(v) {
     return normalizeUnitNameForSettings(String(v));
 }
 
+const DF8D_LIST_TYPE_ORDER = ['DF', '8D', 'MDI'];
+
+const TYPE_SECTION_LABEL = {
+    DF: 'DF — Düzeltici faaliyet',
+    '8D': '8D — Sekiz disiplin',
+    MDI: 'MDI — Modül içi kayıt',
+};
+
+function buildGroupedDf8dTableRows(records) {
+    const byType = new Map();
+    for (const r of records) {
+        const t = r.type || 'Diğer';
+        if (!byType.has(t)) byType.set(t, []);
+        byType.get(t).push(r);
+    }
+    const rows = [];
+    let dataAnimIndex = 0;
+    const pushType = (t, list) => {
+        rows.push({ kind: 'header', key: `h-${t}`, type: t, count: list.length });
+        for (const record of list) {
+            rows.push({ kind: 'row', key: record.id, record, animIndex: dataAnimIndex });
+            dataAnimIndex += 1;
+        }
+    };
+    for (const t of DF8D_LIST_TYPE_ORDER) {
+        const list = byType.get(t);
+        if (!list?.length) continue;
+        pushType(t, list);
+        byType.delete(t);
+    }
+    for (const [t, list] of [...byType.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'tr'))) {
+        if (!list.length) continue;
+        pushType(t, list);
+    }
+    return rows;
+}
+
 const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDelete, onReject, onForward, onInProgress, onUpdateDueDate }) => {
     const { profile } = useAuth();
     const userRole = profile?.role;
     const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, recordId: null });
+
+    const groupedRows = useMemo(() => buildGroupedDf8dTableRows(records || []), [records]);
 
     const formatDate = (dateString) => {
         if (!dateString) return '-';
@@ -107,7 +146,22 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                 </tr>
                             </thead>
                             <tbody>
-                                {records.map((record, rowIndex) => {
+                                {groupedRows.map((item) => {
+                                    if (item.kind === 'header') {
+                                        const label = TYPE_SECTION_LABEL[item.type] || `${item.type}`;
+                                        return (
+                                            <tr
+                                                key={item.key}
+                                                className="bg-muted/50 border-y border-border"
+                                            >
+                                                <td colSpan={9} className="py-2 px-3 text-xs font-semibold text-foreground/90 tracking-wide">
+                                                    {label}
+                                                    <span className="text-muted-foreground font-normal"> ({item.count})</span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+                                    const record = item.record;
                                     const isOpen = record.status !== 'Kapatıldı' && record.status !== 'Reddedildi';
                                     const pdfDisabled = record.type === 'MDI';
 
@@ -116,7 +170,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                             key={record.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            transition={{ delay: rowIndex * 0.05 }}
+                                            transition={{ delay: item.animIndex * 0.05 }}
                                             className="hover:bg-accent cursor-pointer"
                                             onClick={() => onView(record)}
                                         >

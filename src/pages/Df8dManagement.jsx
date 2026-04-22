@@ -69,6 +69,15 @@ const sortRecordsByNewest = (a, b) => {
     return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' });
 };
 
+/** Liste sekmesi: önce tip (DF → 8D → MDI), sonra yeniden eskiye */
+const sortRecordsForDf8dListView = (a, b) => {
+    const rank = (t) => (t === 'DF' ? 0 : t === '8D' ? 1 : t === 'MDI' ? 2 : 3);
+    const ra = rank(a.type);
+    const rb = rank(b.type);
+    if (ra !== rb) return ra - rb;
+    return sortRecordsByNewest(a, b);
+};
+
 const recordMatchesDateFilter = (record, filters) => {
     if (!filters.dateFrom && !filters.dateTo) {
         return true;
@@ -233,6 +242,11 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         const filteredRecords = useMemo(() => {
             return filterNonConformityRecords(normalizedNonConformities, filters);
         }, [normalizedNonConformities, filters]);
+
+        const listViewRecords = useMemo(
+            () => [...filteredRecords].sort(sortRecordsForDf8dListView),
+            [filteredRecords]
+        );
 
         const reportableRecords = useMemo(() => (
             filterNonConformityRecords(normalizedNonConformities, filters, { ignoreDepartment: true })
@@ -561,7 +575,7 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                         </TabsContent>
                         <TabsContent value="list">
                             <NCTable
-                                records={filteredRecords}
+                                records={listViewRecords}
                                 onView={onOpenNCView}
                                 onEdit={(record) => onOpenNCForm(record, refreshData)}
                                 onToggleStatus={handleToggleStatus}

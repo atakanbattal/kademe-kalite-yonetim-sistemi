@@ -61,8 +61,52 @@ export function stripRootCauseAnalysisPromptFromTitle(title) {
   return s;
 }
 
+/** Uygunsuzluk modülü "Grup Özeti Kategori : … Tespit Alanı : … Toplam Kayıt …" tek satır başlığı */
+export function shortenGrupOzetiStyleTitle(title) {
+  if (title == null || typeof title !== 'string') return title;
+  let t = title.trim();
+  t = stripSquareBullets(t).trim();
+  const fold = t.replace(/\u0307/g, '').toLowerCase();
+  if (!fold.includes('grup') || !fold.includes('özet')) return title;
+  const m = t.match(/Kategori\s*:\s*(.+?)\s*Tespit\s*Alan[ıiİ]\s*:\s*(.+?)\s+Toplam\s*Kayıt/i);
+  if (!m) return title;
+  const cat = m[1].trim().replace(/\s+/g, ' ');
+  const area = m[2].trim().replace(/\s+/g, ' ');
+  return `Grup: ${cat} · ${area}`;
+}
+
+/** Kalite maliyetinden gelen "Maliyet Kaydı Detayları Maliyet Türü: … Parça Adı: …" başlığı */
+export function shortenMaliyetKaydiDetailsTitle(title) {
+  if (title == null || typeof title !== 'string') return title;
+  let t = title.trim();
+  t = stripSquareBullets(t).trim();
+  const fold = t.replace(/\u0307/g, '').toLowerCase();
+  if (!fold.includes('maliyet') || !fold.includes('detay')) return title;
+  const turM = t.match(/Maliyet\s*Türü\s*:\s*(.+?)\s*Tarih\s*:/i);
+  const parcaM = t.match(/Parça\s*Adı\s*:\s*(.+?)\s*Parça\s*Kodu\s*:/i);
+  const tur = turM ? turM[1].trim().replace(/\s+/g, ' ') : null;
+  const parca = parcaM ? parcaM[1].trim().replace(/\s+/g, ' ') : null;
+  if (tur && parca) return `Maliyet: ${tur} — ${parca}`;
+  if (parca) return `Maliyet — ${parca}`;
+  if (tur) return `Maliyet: ${tur}`;
+  return title;
+}
+
+/** Kayıt kaydında başlık alanını depolamadan önce şablonları kısaltır */
+export function condenseNonConformityTitleString(title) {
+  if (title == null || typeof title !== 'string') return title;
+  let s = title.trim();
+  s = shortenGrupOzetiStyleTitle(s);
+  s = shortenMaliyetKaydiDetailsTitle(s);
+  s = stripRootCauseAnalysisPromptFromTitle(s);
+  return s;
+}
+
 function normalizeNcTitleForList(rawTitle, { maxLen = 160 } = {}) {
-  const shortened = stripRootCauseAnalysisPromptFromTitle(rawTitle.trim());
+  let pass = rawTitle.trim();
+  pass = shortenGrupOzetiStyleTitle(pass);
+  pass = shortenMaliyetKaydiDetailsTitle(pass);
+  const shortened = stripRootCauseAnalysisPromptFromTitle(pass);
   let s = stripSquareBullets(shortened.trim());
   if (!s) return null;
   if (s.length > maxLen) return `${s.slice(0, maxLen - 1)}…`;

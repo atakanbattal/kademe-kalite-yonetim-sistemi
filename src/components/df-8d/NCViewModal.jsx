@@ -244,6 +244,15 @@ function getHeaderTitleParts(record) {
     };
   }
 
+  if (/^Grup:/i.test(raw)) {
+    return {
+      line1: nc || '—',
+      line2: raw,
+      isGroup: true,
+      badge: 'Grup özeti',
+    };
+  }
+
   if (raw.includes('GRUP ÖZETİ') || (raw.length > 200 && /\bKategori\s*:/i.test(raw))) {
     const firstLine = raw.split('\n')[0].trim();
     return {
