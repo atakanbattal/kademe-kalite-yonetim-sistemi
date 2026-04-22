@@ -56,3 +56,7 @@ tmp
 
 # IDE specific
 .eslintignore
+
+# Claude / Cursor worktrees (agent metadata - not part of project)
+.claude/
+.cursor/
