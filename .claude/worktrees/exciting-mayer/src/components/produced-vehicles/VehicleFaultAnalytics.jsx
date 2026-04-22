@@ -1,0 +1,773 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+    import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, CartesianGrid, LineChart, Line, ComposedChart } from 'recharts';
+    import { supabase } from '@/lib/customSupabaseClient';
+    import { useToast } from '@/components/ui/use-toast';
+    import { useData } from '@/contexts/DataContext';
+    import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    import { Skeleton } from '@/components/ui/skeleton';
+    import { Badge } from '@/components/ui/badge';
+    import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+    import { AlertCircle, Car, Percent, GitCommitVertical, Clock } from 'lucide-react';
+    import DepartmentFaultDetailModal from './DepartmentFaultDetailModal';
+    import { format, parseISO, startOfMonth, eachMonthOfInterval, isValid, getYear, getMonth, differenceInMilliseconds } from 'date-fns';
+    import { tr } from 'date-fns/locale';
+    import { formatDuration } from '@/lib/formatDuration.js';
+
+    const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#10b981', '#f59e0b'];
+
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="p-3 bg-background/95 backdrop-blur-sm border rounded-lg shadow-xl text-sm transition-all">
+                <p className="label font-bold text-foreground mb-2">{`${label}`}</p>
+                {payload.map(pld => (
+                    <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex justify-between items-center">
+                        <span className='mr-4'>{pld.name}:</span>
+                        <span className="font-semibold">{pld.value}{pld.unit || ''}</span>
+                    </p>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
+
+const DurationTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="p-3 bg-background/95 backdrop-blur-sm border rounded-lg shadow-xl text-sm transition-all">
+                <p className="label font-bold text-foreground mb-2">{`${label}`}</p>
+                {payload.map(pld => {
+                    const durationInMillis = pld.value * 60000;
+                    const formattedDuration = formatDuration(durationInMillis);
+                    return (
+                        <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex justify-between items-center gap-4">
+                            <span>{pld.name}:</span>
+                            <span className="font-semibold">{formattedDuration}</span>
+                        </p>
+                    );
+                })}
+            </div>
+        );
+    }
+    return null;
+};
+
+
+    // Sayı formatlama fonksiyonu - tüm sayıları doğru gösterir
+    const formatNumber = (value, decimals = 0) => {
+        if (value === null || value === undefined || value === '') return '0';
+        
+        // Yüzde değerleri için
+        if (typeof value === 'string' && value.startsWith('%')) {
+            return value;
+        }
+        
+        // Eğer zaten number ise direkt kullan
+        if (typeof value === 'number') {
+            if (isNaN(value) || !isFinite(value)) return '0';
+            return value.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+        
+        // String ise parse et - dikkat: İngilizce formatlı ondalık sayılar (13.76 gibi) olabilir
+        // Eğer string tek nokta içeriyorsa ve ondalık sayı gibi görünüyorsa, direkt parse et
+        const strValue = String(value);
+        const dotCount = (strValue.match(/\./g) || []).length;
+        
+        let numValue;
+        if (dotCount === 1 && strValue.match(/^\d+\.\d+$/)) {
+            // İngilizce formatlı ondalık sayı (örn: "13.76")
+            numValue = parseFloat(strValue);
+        } else {
+            // Türkçe formatındaki binlik ayırıcıları temizle (1.000 -> 1000)
+            const cleanValue = strValue.replace(/\./g, '').replace(',', '.');
+            numValue = parseFloat(cleanValue);
+        }
+        
+        if (isNaN(numValue) || !isFinite(numValue)) {
+            // Parse edilemezse orijinal değeri döndür
+            return strValue;
+        }
+        
+        // Ondalık kısım varsa koru
+        const hasDecimals = numValue % 1 !== 0;
+        return numValue.toLocaleString('tr-TR', { 
+            minimumFractionDigits: hasDecimals ? 2 : decimals, 
+            maximumFractionDigits: hasDecimals ? 2 : decimals 
+        });
+    };
+
+    const StatCard = ({ title, value, icon, description, loading }) => (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                {icon}
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <>
+                        <Skeleton className="h-8 w-1/2 mb-2" />
+                        <Skeleton className="h-4 w-3/4" />
+                    </>
+                ) : (
+                    <>
+                        <div className="text-2xl font-bold">{formatNumber(value)}</div>
+                        <p className="text-xs text-muted-foreground">{description}</p>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    );
+
+    const VehicleFaultAnalytics = ({ refreshTrigger }) => {
+        const { toast } = useToast();
+        const { producedVehicles } = useData();
+        const [faults, setFaults] = useState([]);
+        const [vehicles, setVehicles] = useState([]);
+        const [timelineEvents, setTimelineEvents] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [period, setPeriod] = useState('all'); // 'all' or 'YYYY-MM'
+        const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+        const [detailModalData, setDetailModalData] = useState({ title: '', faults: [] });
+        const [allDepartments, setAllDepartments] = useState([]);
+
+        // Supabase 1000 kayıt limiti - paginated fetch ile tüm verileri çek
+        const fetchAllPages = async (tableName, selectQuery, pageSize = 1000) => {
+            let allData = [];
+            let from = 0;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const { data, error } = await supabase
+                    .from(tableName)
+                    .select(selectQuery)
+                    .range(from, from + pageSize - 1);
+                
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    allData = [...allData, ...data];
+                    from += pageSize;
+                    hasMore = data.length === pageSize;
+                } else {
+                    hasMore = false;
+                }
+            }
+            
+            return allData;
+        };
+
+        const fetchAnalyticsData = useCallback(async () => {
+            setLoading(true);
+            try {
+                // Tüm kayıtları paginated olarak çek (1000'er kayıt)
+                const [allFaults, allVehicles, allDepts, allTimeline] = await Promise.all([
+                    fetchAllPages('quality_inspection_faults', `*, department:production_departments(id, name), inspection:quality_inspections(vehicle_type, serial_no, id), category:fault_categories(name)`),
+                    fetchAllPages('quality_inspections', 'id, created_at'),
+                    supabase.from('production_departments').select('id, name').then(r => r.data || []),
+                    fetchAllPages('vehicle_timeline_events', '*')
+                ]);
+
+                console.log('🔍 VehicleFaultAnalytics - Toplam hata kaydı (paginated):', allFaults.length);
+                setFaults(allFaults);
+                setVehicles(allVehicles);
+                setAllDepartments(allDepts);
+                setTimelineEvents(allTimeline);
+
+            } catch (error) {
+                toast({ variant: "destructive", title: "Hata", description: "Analiz verileri alınamadı: " + error.message });
+            } finally {
+                setLoading(false);
+            }
+        }, [toast]);
+
+        useEffect(() => {
+            fetchAnalyticsData();
+        }, [fetchAnalyticsData]);
+
+        // producedVehicles veya refreshTrigger değiştiğinde verileri yenile
+        useEffect(() => {
+            if (refreshTrigger || producedVehicles) {
+                fetchAnalyticsData();
+            }
+        }, [refreshTrigger, producedVehicles?.length, fetchAnalyticsData]);
+
+        const filteredData = useMemo(() => {
+            if (period === 'all') {
+                return { faults, vehicles, timelineEvents };
+            }
+            const [year, month] = period.split('-').map(Number);
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 1);
+
+            const periodFaults = faults.filter(f => {
+                // fault_date yoksa created_at kullan veya tüm zamanlar için dahil et
+                const dateToCheck = f.fault_date || f.created_at;
+                if (!dateToCheck) return true; // Tarih yoksa dahil et
+                const faultDate = parseISO(dateToCheck);
+                if (!isValid(faultDate)) return true; // Geçersiz tarihse dahil et
+                return faultDate >= startDate && faultDate < endDate;
+            });
+            const periodVehicles = vehicles.filter(v => {
+                const vehicleDate = parseISO(v.created_at);
+                return isValid(vehicleDate) && vehicleDate >= startDate && vehicleDate < endDate;
+            });
+            const periodTimelineEvents = timelineEvents.filter(e => {
+                const eventDate = parseISO(e.event_timestamp);
+                return isValid(eventDate) && eventDate >= startDate && eventDate < endDate;
+            });
+
+            return { faults: periodFaults, vehicles: periodVehicles, timelineEvents: periodTimelineEvents };
+        }, [period, faults, vehicles, timelineEvents]);
+
+        // Marka, Müşteri, Marka-Kategori analizi (producedVehicles'dan, dönem filtresiyle)
+        const brandCustomerData = useMemo(() => {
+            if (!producedVehicles || producedVehicles.length === 0) return { brands: [], customers: [], brandCategory: [] };
+
+            let filteredVehicles = producedVehicles;
+            if (period !== 'all') {
+                const [year, month] = period.split('-').map(Number);
+                const startDate = new Date(year, month - 1, 1);
+                const endDate = new Date(year, month, 1);
+                filteredVehicles = producedVehicles.filter(v => {
+                    const d = v.created_at ? parseISO(v.created_at) : null;
+                    return d && isValid(d) && d >= startDate && d < endDate;
+                });
+            }
+
+            const faultsByBrand = {};
+            const faultsByCustomer = {};
+            const brandCategoryCross = {};
+
+            filteredVehicles.forEach(vehicle => {
+                const faults = vehicle.quality_inspection_faults || [];
+                const faultCount = faults.length;
+                const brand = vehicle.vehicle_brand || '-';
+                const customer = vehicle.customer_name || '-';
+
+                if (!faultsByBrand[brand]) faultsByBrand[brand] = { total: 0, clean: 0, defects: 0 };
+                faultsByBrand[brand].total++;
+                if (faultCount === 0) faultsByBrand[brand].clean++;
+                faultsByBrand[brand].defects += faultCount;
+
+                if (!faultsByCustomer[customer]) faultsByCustomer[customer] = { total: 0, clean: 0, defects: 0 };
+                faultsByCustomer[customer].total++;
+                if (faultCount === 0) faultsByCustomer[customer].clean++;
+                faultsByCustomer[customer].defects += faultCount;
+
+                if (!brandCategoryCross[brand]) brandCategoryCross[brand] = {};
+                faults.forEach(f => {
+                    let cat = (f.category?.name || f.fault_category?.name || f.fault_category?.label || 'Diğer');
+                    brandCategoryCross[brand][cat] = (brandCategoryCross[brand][cat] || 0) + (f.quantity || 1);
+                });
+            });
+
+            const brandTableData = Object.entries(faultsByBrand).map(([name, data]) => ({
+                name,
+                total: data.total,
+                ftt: ((data.clean / data.total) * 100).toFixed(1),
+                dpu: (data.defects / data.total).toFixed(2),
+                defectCount: data.defects,
+                defectRate: (((data.total - data.clean) / data.total) * 100).toFixed(1),
+            })).sort((a, b) => b.total - a.total);
+
+            const customerTableData = Object.entries(faultsByCustomer).map(([name, data]) => ({
+                name,
+                total: data.total,
+                ftt: ((data.clean / data.total) * 100).toFixed(1),
+                dpu: (data.defects / data.total).toFixed(2),
+                defectCount: data.defects,
+                defectRate: (((data.total - data.clean) / data.total) * 100).toFixed(1),
+            })).sort((a, b) => b.total - a.total).slice(0, 15);
+
+            const brandCategoryTableData = Object.entries(brandCategoryCross).map(([brand, cats]) => {
+                const topCategories = Object.entries(cats)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([cat, count]) => `${cat} (${count})`)
+                    .join(', ');
+                const totalBrandFaults = Object.values(cats).reduce((s, c) => s + c, 0);
+                return { brand, topCategories, totalFaults: totalBrandFaults };
+            }).sort((a, b) => b.totalFaults - a.totalFaults);
+
+            return { brands: brandTableData, customers: customerTableData, brandCategory: brandCategoryTableData };
+        }, [producedVehicles, period]);
+
+        const analyticsData = useMemo(() => {
+            const { faults: currentFaults, vehicles: currentVehicles, timelineEvents: currentTimelineEvents } = filteredData;
+            const totalVehiclesInPeriod = currentVehicles.length;
+            
+            const departmentStats = allDepartments.reduce((acc, dept) => {
+                acc[dept.name] = { totalFaults: 0, faultyVehicles: new Set() };
+                return acc;
+            }, {});
+
+            const faultCategoryData = {};
+            const vehicleTypeData = {};
+            const faultyVehiclesWithAnyFault = new Set();
+            let totalFaults = 0;
+
+            const monthlyData = {};
+
+            const processTimeline = (events) => {
+                let totalInspectionMillis = 0;
+                let inspectionCount = 0;
+                let totalReworkMillis = 0;
+                let reworkCount = 0;
+
+                for (let i = 0; i < events.length; i++) {
+                    const currentEvent = events[i];
+                    if (currentEvent.event_type === 'control_start') {
+                        const nextEnd = events.slice(i + 1).find(e => e.event_type === 'control_end' && e.inspection_id === currentEvent.inspection_id);
+                        if (nextEnd) {
+                            totalInspectionMillis += differenceInMilliseconds(parseISO(nextEnd.event_timestamp), parseISO(currentEvent.event_timestamp));
+                            inspectionCount++;
+                        }
+                    } else if (currentEvent.event_type === 'rework_start') {
+                        const nextEnd = events.slice(i + 1).find(e => e.event_type === 'rework_end' && e.inspection_id === currentEvent.inspection_id);
+                        // Eğer rework_end yoksa, şu anki zamana kadar hesapla (dinamik)
+                        if (nextEnd) {
+                            totalReworkMillis += differenceInMilliseconds(parseISO(nextEnd.event_timestamp), parseISO(currentEvent.event_timestamp));
+                            reworkCount++;
+                        } else {
+                            // Devam eden yeniden işlem - şu anki zamana kadar hesapla
+                            totalReworkMillis += differenceInMilliseconds(new Date(), parseISO(currentEvent.event_timestamp));
+                            reworkCount++;
+                        }
+                    }
+                }
+                return {
+                    avgInspectionTime: inspectionCount > 0 ? totalInspectionMillis / inspectionCount : 0,
+                    avgReworkTime: reworkCount > 0 ? totalReworkMillis / reworkCount : 0,
+                };
+            };
+
+            const allDates = [...currentFaults.map(f => f.fault_date), ...currentVehicles.map(v => v.created_at)].filter(Boolean);
+            const minDate = allDates.length > 0 ? parseISO(allDates.reduce((a, b) => a < b ? a : b)) : new Date();
+            const maxDate = allDates.length > 0 ? parseISO(allDates.reduce((a, b) => a > b ? a : b)) : new Date();
+            
+            if (isValid(minDate) && isValid(maxDate)) {
+                const monthInterval = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) });
+                monthInterval.forEach(m => {
+                    const monthKey = format(m, 'yyyy-MM');
+                    monthlyData[monthKey] = { name: format(m, 'MMM yy', { locale: tr }), faultCount: 0, vehicleCount: 0, timelineEvents: [], sortKey: m };
+                });
+            }
+
+            console.log('🔍 analyticsData - currentFaults sayısı:', currentFaults.length);
+            
+            currentFaults.forEach(fault => {
+                // quantity değerini sayıya çevir - string formatındaki binlik ayırıcıları temizle
+                let quantity = fault.quantity;
+                if (quantity === null || quantity === undefined || quantity === '') {
+                    quantity = 1;
+                } else if (typeof quantity === 'string') {
+                    // Türkçe formatındaki binlik ayırıcıları temizle (1.000 -> 1000)
+                    quantity = parseFloat(quantity.replace(/\./g, '').replace(',', '.')) || 1;
+                } else {
+                    quantity = Number(quantity) || 1;
+                }
+                totalFaults += quantity;
+
+                const deptName = fault.department?.name || 'Bilinmeyen';
+                if (departmentStats[deptName]) {
+                    departmentStats[deptName].totalFaults += quantity;
+                    if (fault.inspection?.id) departmentStats[deptName].faultyVehicles.add(fault.inspection.id);
+                }
+
+                if (fault.inspection?.id) faultyVehiclesWithAnyFault.add(fault.inspection.id);
+                
+                const categoryName = fault.category?.name || 'Kategorisiz';
+                faultCategoryData[categoryName] = (faultCategoryData[categoryName] || 0) + quantity;
+                
+                const vehicleType = fault.inspection?.vehicle_type || 'Bilinmeyen';
+                vehicleTypeData[vehicleType] = (vehicleTypeData[vehicleType] || 0) + quantity;
+
+                // fault_date yoksa created_at kullan
+                const dateToCheck = fault.fault_date || fault.created_at;
+                if (dateToCheck) {
+                    const faultDate = parseISO(dateToCheck);
+                    if (isValid(faultDate)) {
+                        const monthKey = format(faultDate, 'yyyy-MM');
+                        if (monthlyData[monthKey]) {
+                            monthlyData[monthKey].faultCount += quantity;
+                        } else {
+                            // Eğer ay verisi yoksa, bugünün ayına ekle
+                            const today = new Date();
+                            const todayMonthKey = format(today, 'yyyy-MM');
+                            if (!monthlyData[todayMonthKey]) {
+                                monthlyData[todayMonthKey] = { 
+                                    name: format(today, 'MMM yy', { locale: tr }), 
+                                    faultCount: 0, 
+                                    vehicleCount: 0, 
+                                    timelineEvents: [], 
+                                    sortKey: startOfMonth(today) 
+                                };
+                            }
+                            monthlyData[todayMonthKey].faultCount += quantity;
+                        }
+                    }
+                }
+            });
+
+            currentVehicles.forEach(vehicle => {
+                const vehicleDate = parseISO(vehicle.created_at);
+                if (isValid(vehicleDate)) {
+                    const monthKey = format(vehicleDate, 'yyyy-MM');
+                    if (monthlyData[monthKey]) monthlyData[monthKey].vehicleCount++;
+                }
+            });
+
+            currentTimelineEvents.forEach(event => {
+                const eventDate = parseISO(event.event_timestamp);
+                if (isValid(eventDate)) {
+                    const monthKey = format(eventDate, 'yyyy-MM');
+                    if (monthlyData[monthKey]) monthlyData[monthKey].timelineEvents.push(event);
+                }
+            });
+
+            const monthlyTrendData = Object.values(monthlyData).map(data => {
+                const { avgInspectionTime, avgReworkTime } = processTimeline(data.timelineEvents);
+                return {
+                    name: data.name,
+                    "Hata Sayısı": data.faultCount,
+                    "Araç Sayısı": data.vehicleCount,
+                    "Ort. Kontrol Süresi": parseFloat((avgInspectionTime / 60000).toFixed(1)),
+                    "Ort. Yeniden İşlem Süresi": parseFloat((avgReworkTime / 60000).toFixed(1)),
+                    sortKey: data.sortKey,
+                };
+            }).sort((a, b) => a.sortKey - b.sortKey);
+            
+            const faultyVehicleCount = faultyVehiclesWithAnyFault.size;
+            const faultyVehicleRate = totalVehiclesInPeriod > 0 ? ((faultyVehicleCount / totalVehiclesInPeriod) * 100).toFixed(1) : 0;
+            const avgFaultsPerFaultyVehicle = faultyVehicleCount > 0 ? (totalFaults / faultyVehicleCount).toFixed(2) : 0;
+            
+            const processChartData = (data, topN = 10) => {
+                const sortedData = Object.entries(data).map(([name, value]) => ({ name, count: value })).sort((a, b) => b.count - a.count);
+                if (sortedData.length <= topN) return sortedData;
+                const topData = sortedData.slice(0, topN);
+                const otherCount = sortedData.slice(topN).reduce((acc, item) => acc + item.count, 0);
+                return [...topData, { name: 'Diğer', count: otherCount }];
+            };
+            
+            const departmentTotalFaultsSimple = Object.entries(departmentStats).reduce((acc, [name, stats]) => {
+                acc[name] = stats.totalFaults;
+                return acc;
+            }, {});
+
+            const departmentChartData = Object.entries(departmentStats).map(([deptName, stats]) => ({
+                name: deptName,
+                "Toplam Hata": stats.totalFaults,
+                "Hatalı Araç": stats.faultyVehicles.size,
+                "İşlem Gören Araç": totalVehiclesInPeriod,
+                "Araç Başına Hata Ort.": totalVehiclesInPeriod > 0 ? parseFloat((stats.totalFaults / totalVehiclesInPeriod).toFixed(2)) : 0,
+            })).filter(dept => dept["Toplam Hata"] > 0).sort((a, b) => b["Toplam Hata"] - a["Toplam Hata"]);
+
+            console.log('🔍 analyticsData - Hesaplanan totalFaults:', totalFaults);
+            
+            return {
+                byDepartment: departmentChartData,
+                byDepartmentTotalFaults: processChartData(departmentTotalFaultsSimple, 10),
+                byFaultCategory: processChartData(faultCategoryData, 10),
+                byVehicleType: processChartData(vehicleTypeData, 10),
+                totalFaults,
+                faultyVehicleCount,
+                faultyVehicleRate,
+                avgFaultsPerFaultyVehicle,
+                totalVehiclesInPeriod,
+                monthlyTrendData,
+            };
+        }, [filteredData, allDepartments]);
+
+        const handleBarClick = (data, type) => {
+            if (!data || !data.activePayload || !data.activePayload.length) return;
+            const payload = data.activePayload[0].payload;
+            const name = payload.name;
+            if (name === 'Diğer') return;
+            
+            let filteredFaultsList = [];
+            let title = '';
+
+            if(type === 'department'){
+                filteredFaultsList = filteredData.faults.filter(f => (f.department?.name || 'Bilinmeyen') === name);
+                title = `${name} Departmanı Hata Detayları`;
+            } else if (type === 'category') {
+                filteredFaultsList = filteredData.faults.filter(f => (f.category?.name || 'Kategorisiz') === name);
+                title = `${name} Kategorisi Hata Detayları`;
+            } else if (type === 'vehicleType') {
+                filteredFaultsList = filteredData.faults.filter(f => (f.inspection?.vehicle_type || 'Bilinmeyen') === name);
+                title = `${name} Araç Tipi Hata Detayları`;
+            }
+            
+            setDetailModalData({ title: title, faults: filteredFaultsList });
+            setDetailModalOpen(true);
+        };
+
+        const periodOptions = useMemo(() => {
+            const options = [{ value: 'all', label: 'Tüm Zamanlar' }];
+            const allDates = faults.map(f => f.fault_date).filter(Boolean);
+            if (allDates.length === 0) return options;
+            
+            const minDate = parseISO(allDates.reduce((a, b) => a < b ? a : b));
+            const maxDate = parseISO(allDates.reduce((a, b) => a > b ? a : b));
+
+            if (isValid(minDate) && isValid(maxDate)) {
+                const monthInterval = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) });
+                monthInterval.reverse().forEach(m => {
+                    options.push({
+                        value: format(m, 'yyyy-MM'),
+                        label: format(m, 'MMMM yyyy', { locale: tr })
+                    });
+                });
+            }
+            return options;
+        }, [faults]);
+
+        const renderHorizontalChart = (data, title, dataKey, type) => (
+          <Card className="col-span-1 lg:col-span-2">
+              <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+              <CardContent>
+                  {loading ? <Skeleton className="h-[400px] w-full" /> : data.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={400}>
+                          <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 100, bottom: 5 }} barCategoryGap="35%" onClick={(payload) => handleBarClick(payload, type)}>
+                              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                              <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                              <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} interval={0} stroke="hsl(var(--muted-foreground))" />
+                              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted-foreground) / 0.1)' }} />
+                              <Bar dataKey={dataKey} name="Adet" radius={[0, 4, 4, 0]} className="cursor-pointer">
+                                 {data.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                              </Bar>
+                          </BarChart>
+                      </ResponsiveContainer>
+                  ) : <div className="h-[400px] flex items-center justify-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+              </CardContent>
+          </Card>
+        );
+
+        const dynamicHeight = useMemo(() => {
+            const baseHeight = 150;
+            const heightPerItem = 50;
+            return baseHeight + analyticsData.byDepartment.length * heightPerItem;
+        }, [analyticsData.byDepartment]);
+
+        return (
+            <div className="space-y-6">
+                <DepartmentFaultDetailModal isOpen={isDetailModalOpen} setIsOpen={setDetailModalOpen} departmentName={detailModalData.title} faults={detailModalData.faults} />
+                <div className="flex items-center gap-4">
+                     <Select value={period} onValueChange={setPeriod}>
+                        <SelectTrigger className="w-[220px]"><SelectValue placeholder="Dönem Seçin" /></SelectTrigger>
+                        <SelectContent>{periodOptions.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                </div>
+                
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                     <StatCard title="Toplam Hatalı Araç" value={analyticsData.faultyVehicleCount} description={`${analyticsData.totalVehiclesInPeriod} araç içerisinden`} icon={<Car className="h-4 w-4 text-muted-foreground" />} loading={loading} />
+                     <StatCard title="Hatalı Araç Oranı" value={`%${analyticsData.faultyVehicleRate}`} description="Dönemdeki araçlara göre" icon={<Percent className="h-4 w-4 text-muted-foreground" />} loading={loading} />
+                     <StatCard title="Toplam Hata Adedi" value={analyticsData.totalFaults} description="Seçilen dönemdeki toplam hata sayısı" icon={<AlertCircle className="h-4 w-4 text-muted-foreground" />} loading={loading} />
+                     <StatCard title="Hatalı Araç Başına Hata" value={analyticsData.avgFaultsPerFaultyVehicle} description="Hatalı araç başına düşen ortalama" icon={<GitCommitVertical className="h-4 w-4 text-muted-foreground" />} loading={loading} />
+                </div>
+
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <BarChart className="h-5 w-5" />
+                                Aylık Adet Trendi
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loading ? <Skeleton className="h-[400px] w-full" /> : (
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <LineChart data={analyticsData.monthlyTrendData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={13} />
+                                        <YAxis label={{ value: 'Adet', angle: -90, position: 'insideLeft' }} stroke="hsl(var(--muted-foreground))" fontSize={13} />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                        <Line type="monotone" dataKey="Hata Sayısı" name="Hata Sayısı" stroke="#ef4444" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
+                                        <Line type="monotone" dataKey="Araç Sayısı" name="Araç Sayısı" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                Aylık Süre Performansı
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loading ? <Skeleton className="h-[400px] w-full" /> : (
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <LineChart data={analyticsData.monthlyTrendData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={13} />
+                                        <YAxis label={{ value: 'Süre (dk)', angle: -90, position: 'insideLeft' }} unit=" dk" stroke="hsl(var(--muted-foreground))" fontSize={13} />
+                                        <Tooltip content={<DurationTooltip />} />
+                                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                        <Line type="monotone" dataKey="Ort. Kontrol Süresi" name="Ort. Kontrol Süresi" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
+                                        <Line type="monotone" dataKey="Ort. Yeniden İşlem Süresi" name="Ort. Yeniden İşlem Süresi" stroke="#f97316" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <Card className="col-span-1 lg:col-span-2">
+                        <CardHeader><CardTitle>Birim Performans Karnesi</CardTitle></CardHeader>
+                        <CardContent>
+                            {loading ? <Skeleton className="h-[400px] w-full" /> : analyticsData.byDepartment.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={dynamicHeight}>
+                                    <BarChart data={analyticsData.byDepartment} layout="vertical" margin={{ left: 100, right: 20 }} barCategoryGap="20%">
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                        <XAxis type="number" hide />
+                                        <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} interval={0} stroke="hsl(var(--muted-foreground))" />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted-foreground) / 0.1)' }} />
+                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                        <Bar dataKey="İşlem Gören Araç" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="Hatalı Araç" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="Araç Başına Hata Ort." fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : <div className="h-[400px] flex items-center justify-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+                        </CardContent>
+                    </Card>
+
+                    {renderHorizontalChart(analyticsData.byDepartmentTotalFaults, 'Birimlere Göre Toplam Hata Dağılımı (Top 10)', 'count', 'department')}
+                    {renderHorizontalChart(analyticsData.byVehicleType, 'Araç Tipine Göre Hata Dağılımı (Top 10)', 'count', 'vehicleType')}
+                    {renderHorizontalChart(analyticsData.byFaultCategory, 'Hata Kategorisi Dağılımı (Adet - Top 10)', 'count', 'category')}
+                </div>
+
+                {/* Marka Bazlı Hata Analizi - Grafikte sadece Üretim Adedi ve Hata Adedi, Hata Oranı % çizgisi yok */}
+                <Card className="col-span-1 lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Marka Bazlı Hata Analizi</CardTitle>
+                        <CardDescription>Markalara göre üretim adedi ve hata adedi karşılaştırması</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-6">
+                            <div className="h-[300px] w-full">
+                                {loading ? <Skeleton className="h-[300px] w-full" /> : brandCustomerData.brands.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={brandCustomerData.brands} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                            <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" height={60} stroke="hsl(var(--muted-foreground))" />
+                                            <YAxis label={{ value: 'Adet', angle: -90, position: 'insideLeft', fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Legend />
+                                            <Bar dataKey="total" name="Üretim Adedi" fill="#94A3B8" radius={[4, 4, 0, 0]} barSize={28} />
+                                            <Bar dataKey="defectCount" name="Hata Adedi" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={28} />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                ) : <div className="h-[300px] flex items-center justify-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Marka</TableHead>
+                                        <TableHead className="text-center">Üretim</TableHead>
+                                        <TableHead className="text-center">Hata Adedi</TableHead>
+                                        <TableHead className="text-center">Hata Oranı %</TableHead>
+                                        <TableHead className="text-center">FTQ %</TableHead>
+                                        <TableHead className="text-center">DPU</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {brandCustomerData.brands.map((brand) => (
+                                        <TableRow key={brand.name}>
+                                            <TableCell className="font-medium">{brand.name}</TableCell>
+                                            <TableCell className="text-center">{brand.total}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant={brand.defectCount > 0 ? 'destructive' : 'secondary'}>{brand.defectCount}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center">%{brand.defectRate}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant={parseFloat(brand.ftt) >= 90 ? 'success' : parseFloat(brand.ftt) >= 75 ? 'warning' : 'destructive'}>%{brand.ftt}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center text-muted-foreground">{brand.dpu}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Müşteri Bazlı Hata Analizi ve Marka Bazlı Hata Kategorisi Dağılımı - Alt alta tam genişlik */}
+                <div className="space-y-6 col-span-1 lg:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Müşteri Bazlı Hata Analizi</CardTitle>
+                            <CardDescription>Müşterilere göre kalite metrikleri</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {brandCustomerData.customers.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Müşteri</TableHead>
+                                            <TableHead className="text-center">Üretim</TableHead>
+                                            <TableHead className="text-center">Hata Adedi</TableHead>
+                                            <TableHead className="text-center">Hata Oranı %</TableHead>
+                                            <TableHead className="text-center">FTQ %</TableHead>
+                                            <TableHead className="text-center">DPU</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {brandCustomerData.customers.map((c) => (
+                                            <TableRow key={c.name}>
+                                                <TableCell className="font-medium">{c.name}</TableCell>
+                                                <TableCell className="text-center">{c.total}</TableCell>
+                                                <TableCell className="text-center"><Badge variant={c.defectCount > 0 ? 'destructive' : 'secondary'}>{c.defectCount}</Badge></TableCell>
+                                                <TableCell className="text-center">%{c.defectRate}</TableCell>
+                                                <TableCell className="text-center"><Badge variant={parseFloat(c.ftt) >= 90 ? 'success' : parseFloat(c.ftt) >= 75 ? 'warning' : 'destructive'}>%{c.ftt}</Badge></TableCell>
+                                                <TableCell className="text-center text-muted-foreground">{c.dpu}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : <div className="py-8 text-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Marka Bazlı Hata Kategorisi Dağılımı</CardTitle>
+                            <CardDescription>Her marka için en sık görülen hata kategorileri</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {brandCustomerData.brandCategory.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Marka</TableHead>
+                                            <TableHead>En Çok Hata Yapan Kategoriler</TableHead>
+                                            <TableHead className="text-right">Toplam Hata</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {brandCustomerData.brandCategory.map((row) => (
+                                            <TableRow key={row.brand}>
+                                                <TableCell className="font-medium">{row.brand}</TableCell>
+                                                <TableCell className="text-muted-foreground">{row.topCategories || '-'}</TableCell>
+                                                <TableCell className="text-right font-medium">{row.totalFaults}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : <div className="py-8 text-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    };
+
+    export default VehicleFaultAnalytics;

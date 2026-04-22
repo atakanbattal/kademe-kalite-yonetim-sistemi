@@ -1,0 +1,6 @@
+{
+  "git.postCommitCommand": "push",
+  "git.enableSmartCommit": true,
+  "git.confirmEmptyCommits": true,
+  "git.confirmSync": false
+}

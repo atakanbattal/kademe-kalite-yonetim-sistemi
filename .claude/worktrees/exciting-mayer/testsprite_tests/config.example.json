@@ -1,0 +1,9 @@
+{
+  "localPort": 3003,
+  "type": "frontend",
+  "scope": "codebase",
+  "pathname": "",
+  "loginUser": "atakan.battal@kademe.com.tr",
+  "loginPassword": "atakan1234.",
+  "baseUrl": "http://localhost:3003"
+}

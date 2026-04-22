@@ -1,0 +1,179 @@
+[
+  {
+    "id": "TC001",
+    "title": "Başarılı login - geçerli kimlik bilgileri",
+    "description": "Login sayfasına git, geçerli email ve şifre gir, giriş yap, dashboard yüklendiğini doğrula.",
+    "category": "authentication",
+    "priority": "High",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds for page load"},
+      {"type": "action", "description": "Fill element [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill element [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click element [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard' with timeout 30000"},
+      {"type": "assertion", "description": "Verify page body contains text 'Ana Panel'"},
+      {"type": "assertion", "description": "Verify current URL contains '/dashboard'"}
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Login başarısız - geçersiz kimlik bilgileri",
+    "description": "Yanlış email/şifre ile giriş denemesi, hata mesajı ve login sayfasında kalma.",
+    "category": "authentication",
+    "priority": "High",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill element [data-testid='login-email'] with 'wrong@example.com'"},
+      {"type": "action", "description": "Fill element [data-testid='login-password'] with 'wrongpass'"},
+      {"type": "action", "description": "Click element [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait 4 seconds"},
+      {"type": "assertion", "description": "Verify element [data-testid='login-submit'] is still visible"},
+      {"type": "assertion", "description": "Verify URL contains '/login'"}
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Dashboard yükleme ve istatistikler",
+    "description": "Login sonrası dashboard sayfasının yüklenmesi ve temel içeriğin görünmesi.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard'"},
+      {"type": "action", "description": "Wait 3 seconds for content"},
+      {"type": "assertion", "description": "Verify body contains 'Kalite Yönetim Sistemi'"},
+      {"type": "assertion", "description": "Verify body contains 'Ana Panel'"}
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "KPI modülüne navigasyon",
+    "description": "Sidebar üzerinden KPI modülüne gidildiğinde sayfa yüklenir.",
+    "category": "navigation",
+    "priority": "Medium",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard'"},
+      {"type": "action", "description": "Navigate to http://localhost:3003/kpi"},
+      {"type": "action", "description": "Wait 3 seconds"},
+      {"type": "assertion", "description": "Verify URL contains '/kpi'"},
+      {"type": "assertion", "description": "Verify body text length greater than 100"}
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "DF-8D modülüne navigasyon",
+    "description": "DF ve 8D Yönetimi modülüne gidildiğinde sayfa yüklenir.",
+    "category": "navigation",
+    "priority": "Medium",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard'"},
+      {"type": "action", "description": "Navigate to http://localhost:3003/df-8d"},
+      {"type": "action", "description": "Wait 3 seconds"},
+      {"type": "assertion", "description": "Verify URL contains '/df-8d'"},
+      {"type": "assertion", "description": "Verify page does not show login form"}
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Kalite Maliyetleri modülüne navigasyon",
+    "description": "Kalite Maliyetleri modülüne gidildiğinde sayfa yüklenir.",
+    "category": "navigation",
+    "priority": "Medium",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard'"},
+      {"type": "action", "description": "Navigate to http://localhost:3003/quality-cost"},
+      {"type": "action", "description": "Wait 3 seconds"},
+      {"type": "assertion", "description": "Verify URL contains '/quality-cost'"}
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Müşteri Şikayetleri modülüne navigasyon",
+    "description": "Müşteri Şikayetleri modülüne gidildiğinde sayfa yüklenir.",
+    "category": "navigation",
+    "priority": "Medium",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard'"},
+      {"type": "action", "description": "Navigate to http://localhost:3003/customer-complaints"},
+      {"type": "action", "description": "Wait 3 seconds"},
+      {"type": "assertion", "description": "Verify URL contains '/customer-complaints'"}
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Görev Yönetimi modülüne navigasyon",
+    "description": "Görev Yönetimi (Kanban) modülüne gidildiğinde sayfa yüklenir.",
+    "category": "navigation",
+    "priority": "Medium",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard'"},
+      {"type": "action", "description": "Navigate to http://localhost:3003/tasks"},
+      {"type": "action", "description": "Wait 3 seconds"},
+      {"type": "assertion", "description": "Verify URL contains '/tasks'"}
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Logout - çıkış yap ve login sayfasına dön",
+    "description": "Çıkış Yap tıklandığında session sonlanır ve login sayfasına yönlendirilir.",
+    "category": "authentication",
+    "priority": "High",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/login"},
+      {"type": "action", "description": "Wait 2 seconds"},
+      {"type": "action", "description": "Fill [data-testid='login-email'] with 'atakan.battal@kademe.com.tr'"},
+      {"type": "action", "description": "Fill [data-testid='login-password'] with 'atakan1234.'"},
+      {"type": "action", "description": "Click [data-testid='login-submit']"},
+      {"type": "action", "description": "Wait for URL to contain '/dashboard'"},
+      {"type": "action", "description": "Wait 3 seconds"},
+      {"type": "action", "description": "Click element containing text 'Çıkış Yap'"},
+      {"type": "action", "description": "Wait for URL to contain '/login'"},
+      {"type": "assertion", "description": "Verify URL contains '/login'"},
+      {"type": "assertion", "description": "Verify [data-testid='login-email'] is visible"}
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Yetkisiz erişim - login olmadan dashboard",
+    "description": "Login olmadan /dashboard'a gidildiğinde login sayfasına yönlendirilir.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {"type": "action", "description": "Navigate to http://localhost:3003/dashboard"},
+      {"type": "action", "description": "Wait 4 seconds for redirect"},
+      {"type": "assertion", "description": "Verify URL contains '/login'"},
+      {"type": "assertion", "description": "Verify login form is visible"}
+    ]
+  }
+]

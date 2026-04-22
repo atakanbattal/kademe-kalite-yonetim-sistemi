@@ -1,0 +1,250 @@
+import React, { useState, useEffect, useCallback } from 'react';
+    import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+    import { Button } from '@/components/ui/button';
+    import { Input } from '@/components/ui/input';
+    import { Label } from '@/components/ui/label';
+    import { Textarea } from '@/components/ui/textarea';
+    import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+    import { Calendar as CalendarIcon, GraduationCap } from 'lucide-react';
+    import { Calendar } from '@/components/ui/calendar';
+    import { cn } from '@/lib/utils';
+    import { format } from 'date-fns';
+    import { tr } from 'date-fns/locale';
+    import { useToast } from '@/components/ui/use-toast';
+    import { supabase } from '@/lib/customSupabaseClient';
+    import { useData } from '@/contexts/DataContext';
+    import { MultiSelect } from '@/components/ui/multi-select';
+    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+    const TRAINING_CATEGORIES = ['Oryantasyon', 'Teknik', 'İSG', 'Kalite', 'Yönetim', 'Polivalans', 'Diğer'];
+    const TRAINING_TYPES = ['İç', 'Dış', 'Online', 'Hibrit'];
+    const TRAINING_STATUSES = ['Planlandı', 'Aktif', 'Onay Bekliyor', 'Onaylandı', 'Tamamlandı', 'İptal'];
+
+    const TrainingFormModal = ({ isOpen, setIsOpen, training, onSave, polyvalenceData = null }) => {
+        const { toast } = useToast();
+        const { personnel } = useData();
+        const [formData, setFormData] = useState({});
+        const [selectedParticipants, setSelectedParticipants] = useState([]);
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [skills, setSkills] = useState([]);
+
+        const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
+
+        const resetForm = useCallback(() => {
+            setFormData({
+                title: '',
+                description: '',
+                instructor: '',
+                start_date: null,
+                end_date: null,
+                category: '',
+                training_type: '',
+                location: '',
+                duration_hours: 0,
+                capacity: 0,
+                target_audience: '',
+                objectives: '',
+                prerequisites: '',
+                status: 'Planlandı',
+                polyvalence_skill_id: null
+            });
+            setSelectedParticipants([]);
+        }, []);
+
+        useEffect(() => {
+            const fetchSkills = async () => {
+                const { data, error } = await supabase
+                    .from('skills')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('name');
+                if (!error && data) {
+                    setSkills(data);
+                }
+            };
+            fetchSkills();
+        }, []);
+
+        useEffect(() => {
+            const initialize = async () => {
+                if (training) {
+                    setFormData({
+                        ...training,
+                        start_date: training.start_date ? new Date(training.start_date) : null,
+                        end_date: training.end_date ? new Date(training.end_date) : null,
+                        polyvalence_skill_id: training.polyvalence_skill_id || null
+                    });
+                    const { data, error } = await supabase
+                        .from('training_participants')
+                        .select('personnel_id')
+                        .eq('training_id', training.id);
+                    if (!error) {
+                        setSelectedParticipants(data.map(p => p.personnel_id));
+                    }
+                } else if (polyvalenceData) {
+                    // Polivalans modülünden geldiyse
+                    const selectedSkill = skills.find(s => s.id === polyvalenceData.selectedSkillId);
+                    resetForm();
+                    setFormData(prev => ({
+                        ...prev,
+                        title: selectedSkill ? `${selectedSkill.name} Eğitimi` : '',
+                        category: 'Polivalans',
+                        polyvalence_skill_id: polyvalenceData.selectedSkillId,
+                        objectives: selectedSkill ? `${selectedSkill.name} yetkinliğinin geliştirilmesi` : ''
+                    }));
+                    setSelectedParticipants(polyvalenceData.selectedPersonnel);
+                } else {
+                    resetForm();
+                }
+            };
+            if (isOpen) initialize();
+        }, [training, isOpen, resetForm, polyvalenceData, skills]);
+
+        const handleChange = (e) => {
+            const { name, value } = e.target;
+            setFormData(prev => ({ ...prev, [name]: value }));
+        };
+
+        const handleSelectChange = (name, value) => {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        };
+
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            setIsSubmitting(true);
+
+            let training_id = training?.id;
+            const { training_participants, ...dbData } = formData;
+
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dbData) {
+                if (dbData[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = dbData[key];
+                }
+            }
+
+            if (training) {
+                const { error } = await supabase.from('trainings').update(cleanedData).eq('id', training.id);
+                if (error) {
+                    toast({ variant: 'destructive', title: 'Hata', description: `Eğitim güncellenemedi: ${error.message}` });
+                    setIsSubmitting(false);
+                    return;
+                }
+            } else {
+                const { data: codeData, error: codeError } = await supabase.rpc('generate_training_code');
+                if (codeError) {
+                    toast({ variant: 'destructive', title: 'Hata', description: `Eğitim kodu oluşturulamadı: ${codeError.message}` });
+                    setIsSubmitting(false);
+                    return;
+                }
+                cleanedData.training_code = codeData;
+                const { data, error } = await supabase.from('trainings').insert(cleanedData).select().single();
+                if (error) {
+                    toast({ variant: 'destructive', title: 'Hata', description: `Eğitim oluşturulamadı: ${error.message}` });
+                    setIsSubmitting(false);
+                    return;
+                }
+                training_id = data.id;
+            }
+
+            const { data: existingParticipantsData } = await supabase.from('training_participants').select('personnel_id').eq('training_id', training_id);
+            const existingParticipants = existingParticipantsData.map(p => p.personnel_id);
+            const toAdd = selectedParticipants.filter(p => !existingParticipants.includes(p));
+            const toRemove = existingParticipants.filter(p => !selectedParticipants.includes(p));
+
+            if (toAdd.length > 0) {
+                await supabase.from('training_participants').insert(toAdd.map(personnel_id => ({ training_id, personnel_id, status: 'Kayıtlı' })));
+            }
+            if (toRemove.length > 0) {
+                await supabase.from('training_participants').delete().eq('training_id', training_id).in('personnel_id', toRemove);
+            }
+
+            toast({ title: 'Başarılı', description: `Eğitim başarıyla ${training ? 'güncellendi' : 'oluşturuldu'}.` });
+            setIsSubmitting(false);
+            onSave();
+        };
+
+        return (
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="sr-only"><DialogTitle>{training ? 'Eğitimi Düzenle' : 'Yeni Eğitim Planı Oluştur'}</DialogTitle></DialogHeader>
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><GraduationCap className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">{training ? 'Eğitimi Düzenle' : 'Yeni Eğitim Planı Oluştur'}</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Eğitim Yönetimi</p>
+                            </div>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{training ? 'Düzenleme' : 'Yeni'}</span>
+                        </div>
+                    </header>
+                    <div className="flex flex-1 min-h-0 overflow-hidden">
+                    <form id="training-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="space-y-2"><Label>Eğitim Adı *</Label><Input name="title" value={formData.title || ''} onChange={handleChange} required /></div>
+                                <div className="space-y-2"><Label>Kategori</Label><Select name="category" value={formData.category || ''} onValueChange={(v) => handleSelectChange('category', v)}><SelectTrigger><SelectValue placeholder="Kategori seçin" /></SelectTrigger><SelectContent>{TRAINING_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Eğitim Türü</Label><Select name="training_type" value={formData.training_type || ''} onValueChange={(v) => handleSelectChange('training_type', v)}><SelectTrigger><SelectValue placeholder="Tür seçin" /></SelectTrigger><SelectContent>{TRAINING_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
+                                {formData.category === 'Polivalans' && (
+                                    <div className="space-y-2 col-span-full">
+                                        <Label>İlgili Yetkinlik (Opsiyonel)</Label>
+                                        <Select name="polyvalence_skill_id" value={formData.polyvalence_skill_id || 'none'} onValueChange={(v) => handleSelectChange('polyvalence_skill_id', v === 'none' ? null : v)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Yetkinlik seçin (opsiyonel)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Seçim yapma</SelectItem>
+                                                {skills.map(s => (
+                                                    <SelectItem key={s.id} value={s.id}>
+                                                        {s.code ? `${s.code} - ` : ''}{s.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">
+                                            Bu eğitim bir polivalans yetkinliği için ise, yetkinliği seçin
+                                        </p>
+                                    </div>
+                                )}
+                                <div className="space-y-2"><Label>Eğitmen</Label><Input name="instructor" value={formData.instructor || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2"><Label>Başlangıç Tarihi</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.start_date && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{formData.start_date ? format(formData.start_date, "PPP", { locale: tr }) : <span>Tarih seçin</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.start_date} onSelect={(d) => setFormData(p => ({ ...p, start_date: d }))} initialFocus locale={tr} /></PopoverContent></Popover></div>
+                                <div className="space-y-2"><Label>Bitiş Tarihi</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.end_date && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{formData.end_date ? format(formData.end_date, "PPP", { locale: tr }) : <span>Tarih seçin</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.end_date} onSelect={(d) => setFormData(p => ({ ...p, end_date: d }))} initialFocus locale={tr} /></PopoverContent></Popover></div>
+                                <div className="space-y-2"><Label>Eğitim Yeri/Platform</Label><Input name="location" value={formData.location || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2"><Label>Süre (saat)</Label><Input type="number" name="duration_hours" value={formData.duration_hours || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2"><Label>Kontenjan</Label><Input type="number" name="capacity" value={formData.capacity || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2"><Label>Durum</Label><Select name="status" value={formData.status || ''} onValueChange={(v) => handleSelectChange('status', v)}><SelectTrigger><SelectValue placeholder="Durum seçin" /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="space-y-2 col-span-full"><Label>Hedef Kitle</Label><Input name="target_audience" value={formData.target_audience || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2 col-span-full"><Label>Açıklama</Label><Textarea name="description" value={formData.description || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2 col-span-full"><Label>Eğitim Hedefleri</Label><Textarea name="objectives" value={formData.objectives || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2 col-span-full"><Label>Ön Koşullar</Label><Textarea name="prerequisites" value={formData.prerequisites || ''} onChange={handleChange} /></div>
+                                <div className="space-y-2 col-span-full"><Label>Katılımcılar</Label><MultiSelect options={personnelOptions} value={selectedParticipants} onChange={setSelectedParticipants} placeholder="Personel seçin..." /></div>
+                            </div>
+                        </div>
+                    </form>
+                    <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
+                        <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
+                        <div className="space-y-3">
+                            <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Eğitim</p>
+                                <p className="font-bold text-foreground truncate">{formData.title || '-'}</p>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Kategori:</span><span className="font-semibold text-foreground">{formData.category || '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Başlangıç:</span><span className="font-semibold text-foreground">{formData.start_date ? format(formData.start_date, 'dd.MM.yyyy') : '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Katılımcı:</span><span className="font-semibold text-foreground">{selectedParticipants.length} kişi</span></div>
+                            </div>
+                        </div>
+                    </aside>
+                    </div>
+                    <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
+                        <Button form="training-form" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
+                    </footer>
+                </DialogContent>
+            </Dialog>
+        );
+    };
+
+    export default TrainingFormModal;

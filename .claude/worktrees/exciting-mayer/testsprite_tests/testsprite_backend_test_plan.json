@@ -1,0 +1,39 @@
+[
+  {
+    "id": "BE001",
+    "title": "Supabase Auth - Geçerli kimlik bilgileri ile giriş",
+    "description": "Supabase Auth API ile email/password ile token alınır.",
+    "category": "authentication",
+    "priority": "High",
+    "steps": [
+      {"type": "action", "description": "Send POST request to {{SUPABASE_URL}}/auth/v1/token?grant_type=password with headers apikey: {{SUPABASE_ANON_KEY}}, Content-Type: application/json and body {\"email\":\"{{LOGIN_EMAIL}}\",\"password\":\"{{LOGIN_PASSWORD}}\"}"},
+      {"type": "assertion", "description": "Verify response status code is 200"},
+      {"type": "assertion", "description": "Verify response body contains access_token"}
+    ]
+  },
+  {
+    "id": "BE002",
+    "title": "Supabase Auth - Geçersiz kimlik bilgileri ile giriş reddi",
+    "description": "Yanlış şifre ile giriş denemesinde 400 hata döner.",
+    "category": "authentication",
+    "priority": "High",
+    "steps": [
+      {"type": "action", "description": "Send POST request to {{SUPABASE_URL}}/auth/v1/token?grant_type=password with headers apikey: {{SUPABASE_ANON_KEY}}, Content-Type: application/json and body {\"email\":\"wrong@example.com\",\"password\":\"wrongpass\"}"},
+      {"type": "assertion", "description": "Verify response status code is 400"},
+      {"type": "assertion", "description": "Verify response indicates invalid credentials"}
+    ]
+  },
+  {
+    "id": "BE003",
+    "title": "Supabase REST - profiles tablosu erişimi",
+    "description": "Geçerli token ile profiles tablosuna GET isteği başarılı döner.",
+    "category": "data",
+    "priority": "Medium",
+    "steps": [
+      {"type": "action", "description": "First obtain access_token via POST {{SUPABASE_URL}}/auth/v1/token?grant_type=password with body {\"email\":\"{{LOGIN_EMAIL}}\",\"password\":\"{{LOGIN_PASSWORD}}\"}"},
+      {"type": "action", "description": "Send GET request to {{SUPABASE_URL}}/rest/v1/profiles?select=id,full_name&limit=1 with headers apikey: {{SUPABASE_ANON_KEY}}, Authorization: Bearer {{access_token}}"},
+      {"type": "assertion", "description": "Verify response status code is 200"},
+      {"type": "assertion", "description": "Verify response is valid JSON array"}
+    ]
+  }
+]
