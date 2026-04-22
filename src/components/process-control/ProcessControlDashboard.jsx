@@ -15,12 +15,21 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { getProcessInkrDisplayNumber } from './processInkrUtils';
+import { RESOLUTION_STATUS } from './processInspectionResolution';
 
 const decisionBadgeVariant = (decision) => {
     if (decision === 'Kabul') return 'success';
     if (decision === 'Ret') return 'destructive';
     if (decision === 'Şartlı Kabul') return 'warning';
     return 'secondary';
+};
+
+const isOpenRejection = (inspection) => {
+    const decision = inspection?.decision;
+    const resolution = inspection?.resolution_status;
+    if (decision === 'Şartlı Kabul') return true;
+    if (decision !== 'Ret') return false;
+    return resolution !== RESOLUTION_STATUS.RESOLVED;
 };
 
 const ProcessControlDashboard = ({
@@ -30,13 +39,18 @@ const ProcessControlDashboard = ({
     loading,
     onTabChange,
 }) => {
+    const resolvedRejections = inspections.filter(
+        (inspection) =>
+            inspection.decision === 'Ret' &&
+            inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+    ).length;
+
     const stats = {
         totalPlans: plans.length,
         totalInkrReports: inkrReports.length,
         totalInspections: inspections.length,
-        actionNeeded: inspections.filter(
-            (inspection) => inspection.decision === 'Ret' || inspection.decision === 'Şartlı Kabul'
-        ).length,
+        actionNeeded: inspections.filter(isOpenRejection).length,
+        resolvedRejections,
     };
 
     const recentInspections = inspections.slice(0, 6);
@@ -96,7 +110,12 @@ const ProcessControlDashboard = ({
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{stats.actionNeeded}</div>
-                            <p className="mt-1 text-xs text-muted-foreground">Ret veya şartlı kabul kayıtları</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Açık ret / şartlı kabul
+                                {stats.resolvedRejections > 0
+                                    ? ` · ${stats.resolvedRejections} ret çözüldü`
+                                    : ''}
+                            </p>
                         </CardContent>
                     </Card>
                 </motion.div>
@@ -140,6 +159,12 @@ const ProcessControlDashboard = ({
                                                     <Badge variant={decisionBadgeVariant(inspection.decision)}>
                                                         {inspection.decision || 'Beklemede'}
                                                     </Badge>
+                                                    {inspection.decision === 'Ret' &&
+                                                    inspection.resolution_status === RESOLUTION_STATUS.RESOLVED ? (
+                                                        <Badge className="border-transparent bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                                            Çözüldü
+                                                        </Badge>
+                                                    ) : null}
                                                 </div>
                                                 <p className="mt-1 text-sm font-medium text-foreground">
                                                     {inspection.part_code || '-'}

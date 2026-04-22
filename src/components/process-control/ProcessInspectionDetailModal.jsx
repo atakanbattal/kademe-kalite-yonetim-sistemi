@@ -12,13 +12,17 @@ import {
     FileText,
     Gauge,
     Hash,
+    History,
     Paperclip,
     Ruler,
+    ShieldCheck,
     User,
     UserCheck,
+    Wrench,
     X,
     XCircle,
 } from 'lucide-react';
+import { RESOLUTION_STATUS } from './processInspectionResolution';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,7 +85,7 @@ const InspectionStatCard = ({ icon: Icon, label, value, helper, tone = 'slate' }
     );
 };
 
-const getDecisionBadge = (decision, dark = false) => {
+const getDecisionBadge = (decision, dark = false, resolutionStatus = null) => {
     const baseClass = dark ? 'border-white/15 text-white' : 'border-transparent';
 
     switch (decision) {
@@ -95,6 +99,22 @@ const getDecisionBadge = (decision, dark = false) => {
         case 'Şartlı Kabul':
             return <Badge className={`bg-amber-500/90 ${baseClass}`}>Şartlı Kabul</Badge>;
         case 'Ret':
+            if (resolutionStatus === RESOLUTION_STATUS.RESOLVED) {
+                return (
+                    <Badge className={`bg-emerald-600/90 ${baseClass}`}>
+                        <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                        Ret · Çözüldü
+                    </Badge>
+                );
+            }
+            if (resolutionStatus === RESOLUTION_STATUS.IN_PROGRESS) {
+                return (
+                    <Badge className={`bg-amber-600/90 ${baseClass}`}>
+                        <Wrench className="mr-1.5 h-3.5 w-3.5" />
+                        Ret · Çözümleniyor
+                    </Badge>
+                );
+            }
             return (
                 <Badge className={`bg-rose-500/90 ${baseClass}`}>
                     <XCircle className="mr-1.5 h-3.5 w-3.5" />
@@ -118,12 +138,13 @@ const getRowStatusBadge = (row) => {
     return <Badge variant="secondary">Bekliyor</Badge>;
 };
 
-const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
+const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection, onOpenResolution }) => {
     const { toast } = useToast();
     const { characteristics, equipment } = useData();
     const [referencePlan, setReferencePlan] = useState(null);
     const [isLoadingReference, setIsLoadingReference] = useState(false);
     const [referenceError, setReferenceError] = useState('');
+    const [resolutionHistory, setResolutionHistory] = useState([]);
 
     useEffect(() => {
         let isMounted = true;
@@ -181,6 +202,37 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
             isMounted = false;
         };
     }, [inspection?.part_code, isOpen]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadResolutionHistory = async () => {
+            if (!isOpen || !inspection?.id) {
+                if (isMounted) setResolutionHistory([]);
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('process_inspection_resolutions')
+                    .select('*')
+                    .eq('inspection_id', inspection.id)
+                    .order('actioned_at', { ascending: false });
+
+                if (error) throw error;
+                if (isMounted) setResolutionHistory(data || []);
+            } catch (error) {
+                console.error('Çözüm geçmişi yüklenemedi:', error);
+                if (isMounted) setResolutionHistory([]);
+            }
+        };
+
+        loadResolutionHistory();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [inspection?.id, isOpen]);
 
     const { measurementSummary, enhancedResults } = useMemo(() => {
         if (!inspection) {
@@ -305,7 +357,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                         <Badge className="border-white/15 bg-white/10 text-white">
                                             Proses Muayene
                                         </Badge>
-                                        {getDecisionBadge(inspection.decision, true)}
+                                        {getDecisionBadge(inspection.decision, true, inspection.resolution_status)}
                                     </div>
                                     <div>
                                         <h1 className="break-words text-xl font-semibold leading-snug tracking-tight sm:text-2xl lg:text-3xl">
@@ -333,6 +385,28 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 self-start">
+                                {inspection.decision === 'Ret' && onOpenResolution && (
+                                    <Button
+                                        className={
+                                            inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                                : 'bg-amber-500 text-white hover:bg-amber-600'
+                                        }
+                                        onClick={() => {
+                                            onOpenResolution(inspection);
+                                            setIsOpen(false);
+                                        }}
+                                    >
+                                        {inspection.resolution_status === RESOLUTION_STATUS.RESOLVED ? (
+                                            <ShieldCheck className="mr-2 h-4 w-4" />
+                                        ) : (
+                                            <Wrench className="mr-2 h-4 w-4" />
+                                        )}
+                                        {inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                            ? 'Çözüm Detayını Aç'
+                                            : 'Sorunu Çözümle'}
+                                    </Button>
+                                )}
                                 <Button
                                     variant="secondary"
                                     className="border-white/15 bg-white/10 text-white hover:bg-white/20"
@@ -419,7 +493,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                     </h2>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {getDecisionBadge(inspection.decision)}
+                                    {getDecisionBadge(inspection.decision, false, inspection.resolution_status)}
                                     {totalDefects > 0 ? (
                                         <Badge className="border-transparent bg-rose-100 text-rose-700">
                                             {totalDefects} toplam kusur
@@ -469,6 +543,182 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                 <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-amber-950/80">
                                     {inspection.notes}
                                 </p>
+                            </section>
+                        ) : null}
+
+                        {(inspection.decision === 'Ret' ||
+                            Number(inspection.quantity_rejected) > 0 ||
+                            inspection.resolution_status ||
+                            resolutionHistory.length > 0) ? (
+                            <section
+                                className={`rounded-[28px] border shadow-sm overflow-hidden ${
+                                    inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                        ? 'border-emerald-200 bg-emerald-50/40'
+                                        : inspection.resolution_status === RESOLUTION_STATUS.IN_PROGRESS
+                                          ? 'border-amber-200 bg-amber-50/40'
+                                          : 'border-rose-200 bg-rose-50/40'
+                                }`}
+                            >
+                                <div className="border-b border-white/60 px-5 py-4">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                {inspection.resolution_status === RESOLUTION_STATUS.RESOLVED ? (
+                                                    <ShieldCheck className="h-5 w-5 text-emerald-700" />
+                                                ) : (
+                                                    <Wrench className="h-5 w-5 text-rose-700" />
+                                                )}
+                                                <h2 className="text-lg font-semibold text-slate-900">
+                                                    Ret Çözümü
+                                                </h2>
+                                            </div>
+                                            <p className="mt-1 text-sm text-slate-600">
+                                                {inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                    ? 'Bu kayıt ret aldı fakat sorun giderildi. Aşağıda çözüm detayları ve geçmişi görüntüleniyor.'
+                                                    : inspection.resolution_status === RESOLUTION_STATUS.IN_PROGRESS
+                                                      ? 'Sorun için aksiyon başlatıldı, henüz kapatılmadı.'
+                                                      : 'Bu kayıt ret aldı. Düzenle görünümünden çözüm aksiyonunu kaydedebilirsiniz.'}
+                                            </p>
+                                        </div>
+                                        {inspection.resolution_status ? (
+                                            <Badge
+                                                className={
+                                                    inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                        ? 'border-transparent bg-emerald-500 text-white'
+                                                        : inspection.resolution_status === RESOLUTION_STATUS.IN_PROGRESS
+                                                          ? 'border-transparent bg-amber-500 text-white'
+                                                          : 'border-transparent bg-rose-500 text-white'
+                                                }
+                                            >
+                                                {inspection.resolution_status}
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline">Çözüm girilmedi</Badge>
+                                        )}
+                                    </div>
+
+                                    {inspection.resolution_status ? (
+                                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                            <div className="rounded-2xl border border-white/70 bg-white px-4 py-3">
+                                                <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">
+                                                    Çözüm Tipi
+                                                </p>
+                                                <p className="mt-2 text-sm font-semibold text-slate-900">
+                                                    {inspection.resolution_type || '-'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-2xl border border-white/70 bg-white px-4 py-3">
+                                                <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">
+                                                    Çözüm Tarihi
+                                                </p>
+                                                <p className="mt-2 text-sm font-semibold text-slate-900">
+                                                    {inspection.resolution_date
+                                                        ? format(new Date(inspection.resolution_date), 'dd.MM.yyyy', {
+                                                              locale: tr,
+                                                          })
+                                                        : '-'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-2xl border border-white/70 bg-white px-4 py-3">
+                                                <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">
+                                                    Çözüm Sorumlusu
+                                                </p>
+                                                <p className="mt-2 text-sm font-semibold text-slate-900">
+                                                    {inspection.resolved_by_name || '-'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-2xl border border-white/70 bg-white px-4 py-3">
+                                                <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">
+                                                    Kapatıldı mı?
+                                                </p>
+                                                <p className="mt-2 text-sm font-semibold text-slate-900">
+                                                    {inspection.resolved_at
+                                                        ? format(new Date(inspection.resolved_at), 'dd.MM.yyyy HH:mm', {
+                                                              locale: tr,
+                                                          })
+                                                        : inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                          ? 'Evet'
+                                                          : 'Hayır'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {inspection.resolution_notes ? (
+                                        <div className="mt-4 rounded-2xl border border-white/70 bg-white px-4 py-3">
+                                            <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">
+                                                Çözüm Açıklaması
+                                            </p>
+                                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                                                {inspection.resolution_notes}
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                {resolutionHistory.length > 0 ? (
+                                    <div className="px-5 py-4">
+                                        <div className="mb-3 flex items-center gap-2 text-slate-700">
+                                            <History className="h-4 w-4" />
+                                            <h3 className="text-sm font-semibold tracking-wide">
+                                                Çözüm Geçmişi
+                                            </h3>
+                                            <Badge variant="secondary">{resolutionHistory.length}</Badge>
+                                        </div>
+                                        <ol className="relative space-y-3 border-l border-slate-200 pl-5">
+                                            {resolutionHistory.map((event) => (
+                                                <li key={event.id} className="relative">
+                                                    <span
+                                                        className={`absolute -left-[9px] top-1 inline-flex h-3 w-3 items-center justify-center rounded-full ${
+                                                            event.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                                ? 'bg-emerald-500'
+                                                                : event.resolution_status === RESOLUTION_STATUS.IN_PROGRESS
+                                                                  ? 'bg-amber-500'
+                                                                  : 'bg-rose-500'
+                                                        }`}
+                                                    />
+                                                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <Badge
+                                                                    className={
+                                                                        event.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                                            ? 'border-transparent bg-emerald-100 text-emerald-700'
+                                                                            : event.resolution_status === RESOLUTION_STATUS.IN_PROGRESS
+                                                                              ? 'border-transparent bg-amber-100 text-amber-700'
+                                                                              : 'border-transparent bg-rose-100 text-rose-700'
+                                                                    }
+                                                                >
+                                                                    {event.resolution_status || 'Güncelleme'}
+                                                                </Badge>
+                                                                {event.resolution_type ? (
+                                                                    <Badge variant="outline">{event.resolution_type}</Badge>
+                                                                ) : null}
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">
+                                                                {event.actioned_at
+                                                                    ? format(new Date(event.actioned_at), 'dd.MM.yyyy HH:mm', {
+                                                                          locale: tr,
+                                                                      })
+                                                                    : '-'}
+                                                            </span>
+                                                        </div>
+                                                        {event.actioned_by_name ? (
+                                                            <p className="mt-1 text-xs text-slate-500">
+                                                                Sorumlu: {event.actioned_by_name}
+                                                            </p>
+                                                        ) : null}
+                                                        {event.resolution_notes ? (
+                                                            <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                                                                {event.resolution_notes}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    </div>
+                                ) : null}
                             </section>
                         ) : null}
 

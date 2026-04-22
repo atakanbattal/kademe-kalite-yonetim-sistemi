@@ -69,6 +69,8 @@ const DeviationFormModal = ({
     existingDeviation,
     quarantineDecisionFinalize = null,
     onConsumedQuarantineDecision,
+    prefillData = null,
+    onDeviationCreated,
 }) => {
     const { toast } = useToast();
     const { products, productCategories } = useData();
@@ -227,21 +229,37 @@ const DeviationFormModal = ({
         } else {
             // Yeni sapma modu: Sadece modal YENİ açıldığında sıfırla
             console.log('➕ Yeni sapma kaydı modu');
+            const basePrefill = prefillData && typeof prefillData === 'object' ? prefillData : {};
+            const nextDeviationType =
+                basePrefill.deviation_type || 'Üretim';
+
             const initialData = {
                 request_no: '',
-                vehicle_type: '',
-                part_code: '',
-                description: '',
-                source: '',
-                requesting_unit: '',
-                requesting_person: '',
-                deviation_type: 'Girdi Kontrolü',
-                record_date: new Date(),
+                vehicle_type: basePrefill.vehicle_type || '',
+                part_code: basePrefill.part_code || '',
+                description: basePrefill.description || '',
+                source: basePrefill.source || '',
+                requesting_unit: basePrefill.requesting_unit || '',
+                requesting_person: basePrefill.requesting_person || '',
+                deviation_type: nextDeviationType,
+                record_date: basePrefill.record_date
+                    ? new Date(basePrefill.record_date)
+                    : new Date(),
+                source_type: basePrefill.source_type || null,
+                source_record_id: basePrefill.source_record_id || null,
+                source_record_details: basePrefill.source_record_details || null,
             };
             setFormData(initialData);
-            setDeviationType('Girdi Kontrolü');
-            setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '', part_quantity_per_vehicle: '' }]);
+            setDeviationType(nextDeviationType);
+            setVehicles(
+                Array.isArray(basePrefill.vehicles) && basePrefill.vehicles.length > 0
+                    ? basePrefill.vehicles
+                    : [{ customer_name: '', chassis_no: '', vehicle_serial_no: '', part_quantity_per_vehicle: '' }]
+            );
             setExistingAttachments([]);
+            if (prefillData) {
+                setCreationMode('from_record');
+            }
         }
         setFiles([]);
         setDeletedAttachmentIds([]);
@@ -895,6 +913,14 @@ const DeviationFormModal = ({
             onConsumedQuarantineDecision?.();
         }
         
+        if (!isEditMode && onDeviationCreated) {
+            try {
+                await onDeviationCreated(deviationData);
+            } catch (err) {
+                console.error('onDeviationCreated callback hatası:', err);
+            }
+        }
+
         toast({
             title: 'Başarılı!',
             description:

@@ -9,14 +9,24 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import ListTableShell from '@/components/ui/ListTableShell';
-import { MoreVertical, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { MoreVertical, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight, Filter, ShieldCheck, Wrench } from 'lucide-react';
 import { formatInspectionDateOnly } from '@/lib/dateDisplay';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useNavigate } from 'react-router-dom';
 import ProcessInspectionFormModal from './ProcessInspectionFormModal';
 import ProcessInspectionDetailModal from './ProcessInspectionDetailModal';
+import ProcessInspectionResolutionModal from './ProcessInspectionResolutionModal';
+import { RESOLUTION_STATUS } from './processInspectionResolution';
+import {
+    PROCESS_INSPECTION_DEVIATION_FLOW_KEY,
+    PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY,
+    writeProcessInspectionFlow,
+} from '@/lib/processInspectionFlowKeys';
+import { startProcessInspectionResolution } from '@/lib/finalizeProcessInspectionResolution';
 
 const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenConsumed }) => {
     const { toast } = useToast();
+    const navigate = useNavigate();
     const [inspections, setInspections] = useState([]);
     const [loading, setLoading] = useState(true);
     
@@ -27,6 +37,7 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [decisionFilter, setDecisionFilter] = useState('all');
+    const [resolutionFilter, setResolutionFilter] = useState('all');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
@@ -37,15 +48,17 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
 
     useEffect(() => {
         setPage(0);
-    }, [searchTerm, decisionFilter, dateFrom, dateTo]);
+    }, [searchTerm, decisionFilter, resolutionFilter, dateFrom, dateTo]);
 
     // Modals
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false);
     
     // Selected data for modals
     const [selectedInspectionForEdit, setSelectedInspectionForEdit] = useState(null);
     const [selectedInspectionForView, setSelectedInspectionForView] = useState(null);
+    const [selectedInspectionForResolution, setSelectedInspectionForResolution] = useState(null);
     
     // View Mode flag (true if viewing, false if editing)
     const [isViewMode, setIsViewMode] = useState(false);
@@ -71,6 +84,18 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                 query = query.eq('decision', decisionFilter);
             }
 
+            if (resolutionFilter && resolutionFilter !== 'all') {
+                if (resolutionFilter === 'resolved') {
+                    query = query.eq('resolution_status', RESOLUTION_STATUS.RESOLVED);
+                } else if (resolutionFilter === 'in_progress') {
+                    query = query.eq('resolution_status', RESOLUTION_STATUS.IN_PROGRESS);
+                } else if (resolutionFilter === 'open') {
+                    query = query
+                        .eq('decision', 'Ret')
+                        .or('resolution_status.is.null,resolution_status.eq.Açık');
+                }
+            }
+
             if (dateFrom) {
                 query = query.gte('inspection_date', dateFrom);
             }
@@ -94,18 +119,49 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, debouncedSearch, decisionFilter, dateFrom, dateTo, toast]);
+    }, [page, pageSize, debouncedSearch, decisionFilter, resolutionFilter, dateFrom, dateTo, toast]);
 
     useEffect(() => {
         fetchInspections();
     }, [fetchInspections]);
 
-    const getDecisionBadge = (decision) => {
+    const getDecisionBadge = (inspection) => {
+        const decision = inspection?.decision;
+        const resolution = inspection?.resolution_status;
+
         switch (decision) {
-            case 'Kabul': return <Badge variant="success">Kabul</Badge>;
-            case 'Şartlı Kabul': return <Badge className="bg-orange-500 text-white hover:bg-orange-600">Şartlı Kabul</Badge>;
-            case 'Ret': return <Badge variant="destructive">Ret</Badge>;
-            default: return <Badge variant="secondary">Beklemede</Badge>;
+            case 'Kabul':
+                return <Badge variant="success">Kabul</Badge>;
+            case 'Şartlı Kabul':
+                return (
+                    <Badge className="bg-orange-500 text-white hover:bg-orange-600">Şartlı Kabul</Badge>
+                );
+            case 'Ret':
+                if (resolution === RESOLUTION_STATUS.RESOLVED) {
+                    return (
+                        <div className="flex flex-wrap items-center gap-1">
+                            <Badge variant="destructive">Ret</Badge>
+                            <Badge className="border-transparent bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                <ShieldCheck className="mr-1 h-3 w-3" />
+                                Çözüldü
+                            </Badge>
+                        </div>
+                    );
+                }
+                if (resolution === RESOLUTION_STATUS.IN_PROGRESS) {
+                    return (
+                        <div className="flex flex-wrap items-center gap-1">
+                            <Badge variant="destructive">Ret</Badge>
+                            <Badge className="border-transparent bg-amber-100 text-amber-700 hover:bg-amber-100">
+                                <Wrench className="mr-1 h-3 w-3" />
+                                Çözümleniyor
+                            </Badge>
+                        </div>
+                    );
+                }
+                return <Badge variant="destructive">Ret</Badge>;
+            default:
+                return <Badge variant="secondary">Beklemede</Badge>;
         }
     };
 
@@ -189,6 +245,148 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
             toast({ variant: 'destructive', title: 'Hata!', description: 'Muayene detayı açılamadı.' });
         }
     };
+
+    const handleOpenResolution = (inspection) => {
+        setSelectedInspectionForResolution(inspection);
+        setIsResolutionModalOpen(true);
+    };
+
+    const buildPartIdentifier = useCallback((inspection) => {
+        const recordNo = inspection?.record_no ? `Muayene #${inspection.record_no}` : null;
+        const part = inspection?.part_code ? `Parça: ${inspection.part_code}` : null;
+        const partName = inspection?.part_name ? inspection.part_name : null;
+        return [recordNo, part, partName].filter(Boolean).join(' · ');
+    }, []);
+
+    const handleCreateDeviationFromResolution = useCallback(
+        async (inspection, extras = {}) => {
+            if (!inspection?.id) return;
+
+            const started = await startProcessInspectionResolution({
+                inspectionId: inspection.id,
+                resolutionType: 'Sapma ile Kabul',
+                actionedByName: extras.personnelName || null,
+            });
+            if (!started) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description:
+                        'Çözüm durumu başlatılamadı. Lütfen tekrar deneyin.',
+                });
+                return;
+            }
+
+            const descriptionLines = [
+                `Bu sapma talebi, proses kontrol modülündeki bir ret kaydına bağlı olarak açılmıştır.`,
+                buildPartIdentifier(inspection),
+                inspection?.vehicle_type ? `Araç Tipi: ${inspection.vehicle_type}` : null,
+                inspection?.vehicle_serial_no ? `Araç Seri No: ${inspection.vehicle_serial_no}` : null,
+                inspection?.quantity_rejected != null
+                    ? `Ret Miktarı: ${inspection.quantity_rejected}`
+                    : null,
+                extras.notes ? `Çözüm Notu: ${extras.notes}` : null,
+            ].filter(Boolean);
+
+            const prefill = {
+                deviation_type: 'Üretim',
+                source: 'Proses Kontrol',
+                part_code: inspection?.part_code || '',
+                vehicle_type: inspection?.vehicle_type || '',
+                description: descriptionLines.join('\n'),
+                source_type: 'process_inspection',
+                source_record_id: inspection.id,
+                source_record_details: {
+                    source_type: 'process_inspection',
+                    inspection_id: inspection.id,
+                    record_no: inspection?.record_no,
+                    part_code: inspection?.part_code,
+                    part_name: inspection?.part_name,
+                    vehicle_type: inspection?.vehicle_type,
+                    vehicle_serial_no: inspection?.vehicle_serial_no,
+                    quantity_rejected: inspection?.quantity_rejected,
+                    decision: inspection?.decision,
+                },
+                requesting_person: extras.personnelName || null,
+            };
+
+            writeProcessInspectionFlow(PROCESS_INSPECTION_DEVIATION_FLOW_KEY, {
+                inspectionId: inspection.id,
+                prefill,
+                openedFrom: 'process-control',
+                timestamp: Date.now(),
+            });
+
+            toast({
+                title: 'Sapma Yönetimi açılıyor',
+                description:
+                    'Form ön-doldurulmuş olarak açılacak. Kaydedince ret kaydı otomatik çözüme alınır.',
+            });
+
+            navigate('/deviation');
+        },
+        [navigate, toast, buildPartIdentifier]
+    );
+
+    const handleCreateScrapCostFromResolution = useCallback(
+        async (inspection, extras = {}) => {
+            if (!inspection?.id) return;
+
+            const started = await startProcessInspectionResolution({
+                inspectionId: inspection.id,
+                resolutionType: 'Hurda',
+                actionedByName: extras.personnelName || null,
+            });
+            if (!started) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description:
+                        'Çözüm durumu başlatılamadı. Lütfen tekrar deneyin.',
+                });
+                return;
+            }
+
+            const descriptionParts = [
+                `Proses kontrol modülündeki ret kaydına bağlı hurda maliyeti.`,
+                buildPartIdentifier(inspection),
+                inspection?.vehicle_type ? `Araç Tipi: ${inspection.vehicle_type}` : null,
+                inspection?.quantity_rejected != null
+                    ? `Ret Miktarı: ${inspection.quantity_rejected}`
+                    : null,
+                extras.notes ? `Çözüm Notu: ${extras.notes}` : null,
+            ].filter(Boolean);
+
+            const prefill = {
+                cost_type: 'Hurda Maliyeti',
+                vehicle_type: inspection?.vehicle_type || '',
+                part_code: inspection?.part_code || '',
+                part_name: inspection?.part_name || '',
+                quantity:
+                    inspection?.quantity_rejected != null
+                        ? String(inspection.quantity_rejected)
+                        : '',
+                measurement_unit: 'Adet',
+                description: descriptionParts.join('\n'),
+            };
+
+            writeProcessInspectionFlow(PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY, {
+                inspectionId: inspection.id,
+                prefill,
+                openedFrom: 'process-control',
+                timestamp: Date.now(),
+            });
+
+            toast({
+                title: 'Kalite Maliyetleri açılıyor',
+                description:
+                    'Hurda maliyet formu ön-doldurulmuş olarak açılacak. Kaydedince ret kaydı otomatik çözüme alınır.',
+            });
+
+            navigate('/quality-cost');
+        },
+        [navigate, toast, buildPartIdentifier]
+    );
     
     const handleDelete = async (inspection) => {
         const { id: inspectionId } = inspection;
@@ -262,6 +460,22 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                         </Select>
                     </div>
                     <div className="space-y-1.5">
+                        <Label htmlFor="pi-resolution" className="text-xs text-muted-foreground">
+                            Çözüm Durumu
+                        </Label>
+                        <Select value={resolutionFilter} onValueChange={setResolutionFilter}>
+                            <SelectTrigger id="pi-resolution" className="h-10 w-[190px]">
+                                <SelectValue placeholder="Tümü" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tümü</SelectItem>
+                                <SelectItem value="open">Çözüm bekleyen retler</SelectItem>
+                                <SelectItem value="in_progress">Çözümleniyor</SelectItem>
+                                <SelectItem value="resolved">Çözüldü</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1.5">
                         <Label htmlFor="pi-from" className="text-xs text-muted-foreground">
                             Tarih başlangıç
                         </Label>
@@ -285,7 +499,7 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                             className="flex h-10 w-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                     </div>
-                    {(dateFrom || dateTo || decisionFilter !== 'all') && (
+                    {(dateFrom || dateTo || decisionFilter !== 'all' || resolutionFilter !== 'all') && (
                         <Button
                             type="button"
                             variant="ghost"
@@ -293,6 +507,7 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                             className="mb-0.5"
                             onClick={() => {
                                 setDecisionFilter('all');
+                                setResolutionFilter('all');
                                 setDateFrom('');
                                 setDateTo('');
                             }}
@@ -359,9 +574,38 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                                     <TableCell>{inspection.inspector_name || '-'}</TableCell>
                                     <TableCell>{inspection.quantity_produced}</TableCell>
                                     <TableCell>{inspection.operator_name || '-'}</TableCell>
-                                    <TableCell>{getDecisionBadge(inspection.decision)}</TableCell>
+                                    <TableCell>{getDecisionBadge(inspection)}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="inline-flex items-center justify-end gap-0.5">
+                                            {inspection.decision === 'Ret' && (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className={`h-8 w-8 ${
+                                                                inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                                    ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                                                    : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'
+                                                            }`}
+                                                            onClick={() => handleOpenResolution(inspection)}
+                                                            aria-label="Sorunu Çözümle"
+                                                        >
+                                                            {inspection.resolution_status === RESOLUTION_STATUS.RESOLVED ? (
+                                                                <ShieldCheck className="h-4 w-4" />
+                                                            ) : (
+                                                                <Wrench className="h-4 w-4" />
+                                                            )}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom">
+                                                        {inspection.resolution_status === RESOLUTION_STATUS.RESOLVED
+                                                            ? 'Çözüm Detayını Görüntüle'
+                                                            : 'Sorunu Çözümle'}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleViewDetail(inspection)} aria-label="Görüntüle">
@@ -376,10 +620,18 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                                                         <MoreVertical className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-40">
+                                                <DropdownMenuContent align="end" className="w-48">
                                                     <DropdownMenuItem className="text-sm" onClick={() => handleEdit(inspection)}>
                                                         <Edit className="mr-2 h-4 w-4 shrink-0" /> Düzenle
                                                     </DropdownMenuItem>
+                                                    {inspection.decision === 'Ret' && (
+                                                        <DropdownMenuItem
+                                                            className="text-sm text-amber-700 focus:text-amber-800 focus:bg-amber-50"
+                                                            onClick={() => handleOpenResolution(inspection)}
+                                                        >
+                                                            <Wrench className="mr-2 h-4 w-4 shrink-0" /> Sorunu Çözümle
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem
                                                         className="text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -466,6 +718,16 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                 isOpen={isDetailModalOpen}
                 setIsOpen={setIsDetailModalOpen}
                 inspection={selectedInspectionForView}
+                onOpenResolution={handleOpenResolution}
+            />
+
+            <ProcessInspectionResolutionModal
+                isOpen={isResolutionModalOpen}
+                setIsOpen={setIsResolutionModalOpen}
+                inspection={selectedInspectionForResolution}
+                onResolved={fetchInspections}
+                onCreateDeviation={handleCreateDeviationFromResolution}
+                onCreateScrapCost={handleCreateScrapCostFromResolution}
             />
         </div>
         </TooltipProvider>

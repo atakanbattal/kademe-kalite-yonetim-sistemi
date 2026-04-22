@@ -33,6 +33,12 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { filterCostsByYear, summarizeCostRows } from '@/lib/qualityCostAnalysis';
+import {
+    PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY,
+    readProcessInspectionFlow,
+    clearProcessInspectionFlow,
+} from '@/lib/processInspectionFlowKeys';
+import { finalizeProcessInspectionResolution } from '@/lib/finalizeProcessInspectionResolution';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Building2, BarChart3 } from 'lucide-react';
 
@@ -77,6 +83,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedCost, setSelectedCost] = useState(null);
+    const [costPrefill, setCostPrefill] = useState(null);
+    const [processInspectionCostFlow, setProcessInspectionCostFlow] = useState(null);
     const [selectedLineItem, setSelectedLineItem] = useState(null);
     const [dateRange, setDateRange] = useState({ key: 'all', startDate: null, endDate: null, label: 'Tüm Zamanlar' });
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
@@ -103,6 +111,17 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const handleVehicleTargetsApplied = useCallback(() => {
         setVehicleTargetsRefreshKey((k) => k + 1);
+    }, []);
+
+    // Proses muayenesi Ret çözüm akışı: Hurda Maliyeti formunu ön-doldurulmuş aç.
+    useEffect(() => {
+        const flow = readProcessInspectionFlow(PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY);
+        if (flow?.inspectionId) {
+            setProcessInspectionCostFlow(flow);
+            setCostPrefill(flow.prefill || null);
+            setSelectedCost(null);
+            setFormModalOpen(true);
+        }
     }, []);
 
     const hasNCAccess = useMemo(() => {
@@ -860,16 +879,44 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         <div className="space-y-6">
             <CostFormModal
                 open={isFormModalOpen}
-                setOpen={setFormModalOpen}
+                setOpen={(open) => {
+                    if (!open) {
+                        setCostPrefill(null);
+                        setProcessInspectionCostFlow(null);
+                        clearProcessInspectionFlow(PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY);
+                    }
+                    setFormModalOpen(open);
+                }}
                 refreshCosts={refreshQualityCosts}
                 unitCostSettings={unitCostSettings}
                 materialCostSettings={materialCostSettings}
                 personnelList={personnel}
                 existingCost={selectedCost}
-                onCostCreated={(newCost) => {
+                prefillData={costPrefill}
+                onCostCreated={async (newCost) => {
                     setSelectedCost(newCost);
                     setSelectedLineItem(null);
                     setIsViewModalOpen(true);
+
+                    if (processInspectionCostFlow?.inspectionId) {
+                        const ok = await finalizeProcessInspectionResolution({
+                            inspectionId: processInspectionCostFlow.inspectionId,
+                            resolutionType: 'Hurda',
+                            linkedRecordNo: newCost?.id ? String(newCost.id).slice(0, 8) : undefined,
+                            linkedRecordLabel: 'Hurda Maliyet Kaydı',
+                            notes: 'Hurda maliyet kaydı oluşturuldu ve bu ret kaydına bağlandı.',
+                        });
+                        if (ok) {
+                            toast({
+                                title: 'Proses muayene güncellendi',
+                                description:
+                                    'İlgili ret kaydı "Çözüldü" (Hurda) olarak işaretlendi.',
+                            });
+                        }
+                        setProcessInspectionCostFlow(null);
+                        setCostPrefill(null);
+                        clearProcessInspectionFlow(PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY);
+                    }
                 }}
             />
             {selectedCost && (

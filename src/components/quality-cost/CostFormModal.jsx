@@ -208,6 +208,7 @@ const BUCKET_NAME = 'quality_costs';
         personnelList,
         existingCost,
         onCostCreated,
+        prefillData = null,
     }) => {
         const { toast } = useToast();
         const { user } = useAuth();
@@ -310,7 +311,9 @@ const BUCKET_NAME = 'quality_costs';
 
         useEffect(() => {
             const initialData = getInitialFormData();
-            let costData = isEditMode ? { ...initialData, ...existingCost } : initialData;
+            let costData = isEditMode
+                ? { ...initialData, ...existingCost }
+                : { ...initialData, ...(prefillData && typeof prefillData === 'object' ? prefillData : {}) };
             
             // Join edilmiş objeleri temizle (sadece ID'ler kalmalı)
             if (costData.responsible_personnel) {
@@ -397,7 +400,7 @@ const BUCKET_NAME = 'quality_costs';
               setTotalReworkCost(0);
             }
             setPendingDocuments([]);
-        }, [existingCost, isEditMode, open, getInitialFormData]);
+        }, [existingCost, isEditMode, open, getInitialFormData, prefillData]);
 
         const handleInputChange = (e) => {
             const { id, value } = e.target;

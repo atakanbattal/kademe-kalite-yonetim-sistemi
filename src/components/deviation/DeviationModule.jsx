@@ -20,12 +20,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 import { compareDeviationsByRequestNo } from '@/lib/deviationRequestNoSort';
+import {
+    PROCESS_INSPECTION_DEVIATION_FLOW_KEY,
+    readProcessInspectionFlow,
+    clearProcessInspectionFlow,
+} from '@/lib/processInspectionFlowKeys';
+import { finalizeProcessInspectionResolution } from '@/lib/finalizeProcessInspectionResolution';
 
 const DeviationModule = ({ onOpenNCForm }) => {
     const { toast } = useToast();
     const { deviations, loading, refreshData } = useData();
     const [isFormOpen, setFormOpen] = useState(false);
     const [quarantineDecisionFinalize, setQuarantineDecisionFinalize] = useState(null);
+    const [processInspectionFlow, setProcessInspectionFlow] = useState(null);
     const [isDetailOpen, setDetailOpen] = useState(false);
     const [isApprovalOpen, setApprovalOpen] = useState(false);
     const [isCreateNCOpen, setCreateNCOpen] = useState(false);
@@ -52,6 +59,17 @@ const DeviationModule = ({ onOpenNCForm }) => {
             }
         } catch {
             sessionStorage.removeItem(QUARANTINE_DEVIATION_FLOW_KEY);
+        }
+    }, []);
+
+    // Proses muayenesi Ret çözüm akışı: Sapma formunu ön-doldurulmuş aç.
+    useEffect(() => {
+        const flow = readProcessInspectionFlow(PROCESS_INSPECTION_DEVIATION_FLOW_KEY);
+        if (flow?.inspectionId) {
+            setProcessInspectionFlow(flow);
+            setActiveTab('list');
+            setSelectedDeviation(null);
+            setFormOpen(true);
         }
     }, []);
 
@@ -264,6 +282,8 @@ const DeviationModule = ({ onOpenNCForm }) => {
                         if (!open) {
                             setQuarantineDecisionFinalize(null);
                             sessionStorage.removeItem(QUARANTINE_DEVIATION_FLOW_KEY);
+                            setProcessInspectionFlow(null);
+                            clearProcessInspectionFlow(PROCESS_INSPECTION_DEVIATION_FLOW_KEY);
                         }
                         setFormOpen(open);
                     }}
@@ -273,6 +293,26 @@ const DeviationModule = ({ onOpenNCForm }) => {
                     onConsumedQuarantineDecision={() => {
                         setQuarantineDecisionFinalize(null);
                         sessionStorage.removeItem(QUARANTINE_DEVIATION_FLOW_KEY);
+                    }}
+                    prefillData={processInspectionFlow?.prefill || null}
+                    onDeviationCreated={async (deviation) => {
+                        if (!processInspectionFlow?.inspectionId) return;
+                        const ok = await finalizeProcessInspectionResolution({
+                            inspectionId: processInspectionFlow.inspectionId,
+                            resolutionType: 'Sapma ile Kabul',
+                            linkedRecordNo: deviation?.request_no,
+                            linkedRecordLabel: 'Sapma Talebi',
+                            notes: 'Sapma talebi oluşturuldu ve bu ret kaydına bağlandı.',
+                        });
+                        if (ok) {
+                            toast({
+                                title: 'Proses muayene güncellendi',
+                                description:
+                                    'İlgili ret kaydı "Çözüldü" (Sapma ile Kabul) olarak işaretlendi.',
+                            });
+                        }
+                        setProcessInspectionFlow(null);
+                        clearProcessInspectionFlow(PROCESS_INSPECTION_DEVIATION_FLOW_KEY);
                     }}
                 />
             )}
