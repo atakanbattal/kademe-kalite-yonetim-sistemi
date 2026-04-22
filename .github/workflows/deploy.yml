@@ -1,6 +1,5 @@
-# Netlify: main → production (--prod), diğer dallar → taslak deploy (her push tetikler).
-# Gerekli GitHub secret: NETLIFY_AUTH_TOKEN, NETLIFY_SITE_ID
-name: Build & Deploy
+# CI: test + build. Yayın: Netlify (Git entegrasyonu) — tüm dal push'larında build alınır, çift deploy olmasın.
+name: CI
 
 on:
   push:
@@ -30,7 +29,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      # package-lock repoda olmadığı için (gitignore) npm ci değil:
       - name: Install dependencies
         run: npm install
 
@@ -49,31 +47,3 @@ jobs:
           name: dist
           path: dist/
           retention-days: 1
-
-  deploy-netlify:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      - name: Install Netlify CLI
-        run: npm install -g netlify-cli
-
-      - name: Deploy to Netlify
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            netlify deploy --prod --dir=dist
-          else
-            netlify deploy --dir=dist --message "Preview ${{ github.ref_name }} @ ${{ github.sha }}"
-          fi
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
