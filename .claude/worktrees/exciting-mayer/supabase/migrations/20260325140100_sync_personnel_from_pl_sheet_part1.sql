@@ -1,0 +1,115 @@
+WITH pl(sicil, ad_soyad, departman, birim, yaka_unvan, sirket_unvan) AS (
+  VALUES
+    ('A033148', 'KASIM ÇAKIL', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ FORMENİ'),
+    ('A033792', 'HÜSEYİN GÜL', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A034483', 'ERKAN KOZAK', 'YURT İÇİ SATIŞ MÜDÜRLÜĞÜ', 'YURT İÇİ SATIŞ', 'BEYAZ', 'PROJE YÖNETİCİSİ'),
+    ('A035105', 'MUSTAFA CEM BİLİR', 'YURT İÇİ SATIŞ MÜDÜRLÜĞÜ', 'YURT İÇİ SATIŞ', 'BEYAZ', 'YURT İÇİ SATIŞ MÜDÜRÜ'),
+    ('A035168', 'ZAFER ÖZCAN', 'DEPO ŞEFLİĞİ', 'DEPO', 'MAVİ', 'DEPO AMİRİ'),
+    ('A036227', 'TEOMAN KABAKCI', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİKHANE FORMENİ'),
+    ('A036257', 'İBRAHİM KILICIKAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A036401', 'MÜCAHİT IRK', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ FORMENİ'),
+    ('A036707', 'HİKMET YARAŞ', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ FORMEN YARDIMCISI'),
+    ('A036998', 'AHMET SAİT KAYA', 'LOJİSTİK YÖNETİCİLİĞİ', 'LOJİSTİK', 'BEYAZ', 'LOJİSTİK YÖNETİCİSİ'),
+    ('A037032', 'İHSAN GÜVENÇ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A037031', 'SÜLEYMAN BAĞCI', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'FORKLİFT OPERATÖRÜ'),
+    ('A037437', 'TAHSİN ÜNVER', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAKHANE FORMENİ'),
+    ('A037620', 'ONUR ORAK', 'DEPO ŞEFLİĞİ', 'DEPO', 'MAVİ', 'DEPO GÖREVLİSİ'),
+    ('A037970', 'SEYFETTİN YAKICI', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A037999', 'SİNAN ÇELİK', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'KAYNAK FORMEN YARDIMCISI'),
+    ('A038030', 'DURMUŞ YARAŞ', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A038387', 'SABRİ CAN ÇEVİK', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A038405', 'RAMAZAN BOZTİLKİ', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE KONTROL', 'MAVİ', 'KALİTE KONTROL FORMENİ'),
+    ('A038422', 'SELMAN KÜÇÜKTUNÇ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A038603', 'OKAN BİRİCİK', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'KABİN DESTEK PERSONELİ'),
+    ('A039472', 'ARİF BAYRAKCI', 'SATINALMA MÜDÜRLÜĞÜ', 'SATINALMA', 'BEYAZ', 'SATINALMA ŞEFİ'),
+    ('A039766', 'SEYİT MEHMET YETİŞMİŞ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'LAZER KESİM OPERATÖRÜ'),
+    ('A040333', 'METİN TÜRKMEN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ FORMENİ'),
+    ('A040608', 'OSMAN GÜLLÜ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'TORNACI'),
+    ('A041716', 'AHMET KARAPINAR', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'MAVİ', 'SATIŞ SONRASI HİZMETLER GÖREVLİSİ'),
+    ('A037908', 'ATİLA ERDEN', 'KADEME GENEL MÜDÜRLÜĞÜ', 'GENEL MÜDÜRLÜK', 'BEYAZ', 'GENEL MÜDÜR DANIŞMANI'),
+    ('A043892', 'MAHİR GÜNGÖREN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A043982', 'SOFIANE SOUKHAL', 'YURT DIŞI SATIŞ MÜDÜRLÜĞÜ', 'YURT DIŞI SATIŞ', 'BEYAZ', 'YURT DIŞI SATIŞ BÖLGE UZMANI'),
+    ('A044067', 'KEREM AKINCI', 'MALİ İŞLER', 'MALİ İŞLER', 'BEYAZ', 'MALİ İŞLER ŞEFİ'),
+    ('A044267', 'MUSTAFA GÖKKAYA', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A044400', 'ALİ GÖKÇAY', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A044431', 'SEYİT ALİ TÜRKAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A044572', 'FATİH DEMİR', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'BEYAZ', 'İŞ GELİŞTİRME YÖNETİCİSİ'),
+    ('A045766', 'BEKİR ÇAKMAK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAKHANE FORMENİ'),
+    ('A045819', 'ABDULLAH KILIÇ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ FORMENİ'),
+    ('A045869', 'İBRAHİM SEYREK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A038675', 'AHMET KARADAL', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A015480', 'İLKER YAVUZ', 'YURT İÇİ SATIŞ MÜDÜRLÜĞÜ', 'YURT İÇİ SATIŞ', 'BEYAZ', 'YURT İÇİ SATIŞ BÖLGE UZMANI'),
+    ('A046385', 'ERMAN ERBEN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A046404', 'İSMAİL UZUNAY', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'BEYAZ', 'ÖN MUHASEBE UZMANI'),
+    ('A046395', 'MUAMMER SARIKAYA', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE KONTROL', 'MAVİ', 'KABİN KALİTE KONTROL GÖREVLİSİ'),
+    ('A046499', 'ÖMER ARI', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'MAVİ', 'SATIŞ SONRASI HİZMETLER GÖREVLİSİ'),
+    ('A046527', 'OSMAN KABAKYER', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A046607', 'FATİH DÖNMEZ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A046700', 'CEMAL GÜVEN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A046723', 'SERDAR ÇALIŞKAN', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'BEYAZ', 'ÜRETİM MÜDÜRÜ'),
+    ('A047204', 'ÜNAL ERDEMLİ', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A047262', 'MUSTAFA AYGÜN', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A047456', 'ALİ AYBEY', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'KABİN DESTEK PERSONELİ'),
+    ('A049041', 'SEFA İNAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'BOYAHANE', 'BEYAZ', 'BOYAHANE ŞEFİ'),
+    ('A049428', 'ABDULLAH KAPLAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A050350', 'TUNCAY MENEKŞE', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A050403', 'ALİ YÜCE', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A050411', 'CELAL TURAN', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A050525', 'İSA ŞAHİN', 'SATINALMA MÜDÜRLÜĞÜ', 'SATINALMA', 'BEYAZ', 'SATINALMA UZMANI'),
+    ('A050917', 'KAMİL AKBAŞ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'CNC ABKANT (PRES) OPERATÖRÜ'),
+    ('A044190', 'ERDOĞAN ÇAKAN', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'MAVİ', 'SATIŞ SONRASI HİZMETLER GÖREVLİSİ'),
+    ('A038697', 'KÜRŞAD ATALAY', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE DİREKTÖRÜ'),
+    ('A052920', 'HAKAN ÇALIŞKAN', 'YURT İÇİ SATIŞ MÜDÜRLÜĞÜ', 'YURT İÇİ SATIŞ', 'BEYAZ', 'YURT İÇİ SATIŞ BÖLGE MÜDÜRÜ'),
+    ('A053103', 'ABDURRAHMAN BÜĞRÜ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'BEYAZ', 'ELEKTRİKHANE ŞEFİ'),
+    ('A016417', 'SİNAN ACAR', 'DEPO ŞEFLİĞİ', 'DEPO', 'BEYAZ', 'DEPO ŞEFİ'),
+    ('A053462', 'ALİ KANAR', 'DEPO ŞEFLİĞİ', 'DEPO', 'MAVİ', 'DEPO GÖREVLİSİ'),
+    ('A004029', 'VELİ MUAMMER İNYAYLA', 'İDARİ İŞLER MÜDÜRLÜĞÜ', 'İDARİ İŞLER', 'BEYAZ', 'İDARİ İŞLER MÜDÜRÜ'),
+    ('A053800', 'CANKAT AKMAN', 'KURUMSAL İLETİŞİM VE DİJİTAL PAZARLAMA', 'KURUMSAL İLETİŞİM', 'BEYAZ', 'PAZARLAMA UZMANI'),
+    ('A054036', 'NURULLAH SEVENCAN', 'YURT DIŞI SATIŞ MÜDÜRLÜĞÜ', 'YURT DIŞI SATIŞ', 'BEYAZ', 'YURT DIŞI SATIŞ BÖLGE UZMANI'),
+    ('A054040', 'MEHMET SAKMAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A054642', 'MURAT DEMİR', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A054738', 'FATİH GİDER', 'MALİ İŞLER', 'MALİ İŞLER', 'BEYAZ', 'MALİ İŞLER UZMAN YARDIMCISI'),
+    ('A055136', 'ABDULLAH SAYLAN', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'MAVİ', 'SATIŞ SONRASI HİZMETLER GÖREVLİSİ'),
+    ('A055258', 'İSMAİL ÇAYLAK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A055713', 'MEVLÜT YAMAN', 'DEPO ŞEFLİĞİ', 'DEPO', 'MAVİ', 'DEPO GÖREVLİSİ'),
+    ('A056349', 'YÜCEL TAVŞAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A056762', 'MUSTAFA BURAK MERGEN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A056786', 'GÖKHAN ÖZEN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A057908', 'NURİ ŞAHİN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'BOYAHANE', 'MAVİ', 'BOYA OPERATÖRÜ'),
+    ('A057966', 'KADİR TORAMAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'BEYAZ', 'KAYNAKHANE ŞEFİ'),
+    ('A057952', 'MEHMET KAÇMAZ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A058022', 'MUHAMMET KORKMAZ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A058123', 'MUHİTTİN ONURLU', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'CNC ABKANT (PRES) OPERATÖRÜ'),
+    ('A044943', 'HAKAN SÜLEYMAN BAYRAMOĞLU', 'YURT İÇİ SATIŞ MÜDÜRLÜĞÜ', 'YURT İÇİ SATIŞ', 'BEYAZ', 'YURT İÇİ SATIŞ BÖLGE MÜDÜRÜ'),
+    ('A030290', 'KENAN ÇELİK', 'KADEME GENEL MÜDÜRLÜĞÜ', 'GENEL MÜDÜRLÜK', 'BEYAZ', 'GENEL MÜDÜR'),
+    ('A036956', 'MEHMET ÖZTÜRK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'TESTERE OPERATÖRÜ'),
+    ('A058276', 'AHMET SEYREK', 'MALİ İŞLER', 'MALİ İŞLER', 'BEYAZ', 'FİNANS UZMANI'),
+    ('A058280', 'MURAT İBAR', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A058360', 'MEVLÜT ŞAL', 'DEPO ŞEFLİĞİ', 'DEPO', 'MAVİ', 'FORKLİFT OPERATÖRÜ')
+),
+norm AS (
+  SELECT
+    *,
+    lower(trim(regexp_replace(sicil, E'\\s+', '', 'g'))) AS sicil_n,
+    lower(trim(ad_soyad)) AS ad_n
+  FROM pl
+)
+UPDATE public.personnel p
+SET
+  management_department = n.departman,
+  collar_type = NULLIF(trim(n.yaka_unvan), ''),
+  job_title = CASE WHEN trim(n.sirket_unvan) <> '' THEN trim(n.sirket_unvan) ELSE p.job_title END,
+  unit_id = COALESCE(cs.id, p.unit_id),
+  department = CASE WHEN cs.id IS NOT NULL THEN cs.unit_name ELSE p.department END
+FROM norm n
+LEFT JOIN public.cost_settings cs ON lower(trim(cs.unit_name)) = lower(trim(n.birim))
+WHERE (
+    n.sicil_n <> ''
+    AND n.sicil_n <> '-'
+    AND lower(trim(regexp_replace(coalesce(p.registration_number, ''), E'\\s+', '', 'g'))) = n.sicil_n
+  )
+  OR (
+    (n.sicil_n = '' OR n.sicil_n = '-')
+    AND n.ad_n <> ''
+    AND lower(trim(p.full_name)) = n.ad_n
+  );

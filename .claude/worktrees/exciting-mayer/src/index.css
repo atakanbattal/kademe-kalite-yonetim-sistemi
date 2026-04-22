@@ -1,0 +1,292 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add fadeIn animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   MOBILE RESPONSIVE UTILITIES
+   ============================================ */
+
+/* Safe area insets for notched devices */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 768px) {
+  button, 
+  [role="button"], 
+  a, 
+  input, 
+  select, 
+  textarea {
+    min-height: 44px;
+  }
+  
+  /* Reduce animations on mobile for performance */
+  *, *::before, *::after {
+    animation-duration: 0.2s !important;
+    transition-duration: 0.2s !important;
+  }
+}
+
+/* Mobile overlay for sidebar */
+.mobile-sidebar-overlay {
+  @apply fixed inset-0 bg-black/50 z-30 lg:hidden;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Mobile table scroll container */
+.mobile-table-container {
+  @apply w-full overflow-x-auto -mx-4 px-4;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .mobile-table-container {
+    @apply mx-0 px-0;
+  }
+}
+
+/* Card view for mobile tables */
+.mobile-card-view {
+  @apply block md:hidden space-y-3;
+}
+
+.mobile-card-item {
+  @apply bg-card rounded-lg p-4 border border-border shadow-sm;
+}
+
+.mobile-card-row {
+  @apply flex justify-between items-center py-1.5 border-b border-border/50 last:border-0;
+}
+
+.mobile-card-label {
+  @apply text-xs text-muted-foreground font-medium;
+}
+
+.mobile-card-value {
+  @apply text-sm font-medium text-foreground text-right;
+}
+
+/* Hide on mobile / desktop utilities */
+.hide-on-mobile {
+  @apply hidden md:block;
+}
+
+.show-on-mobile {
+  @apply block md:hidden;
+}
+
+/* Mobile-friendly form layout */
+.mobile-form-grid {
+  @apply grid grid-cols-1 gap-4 md:grid-cols-2;
+}
+
+/* Mobile modal adjustments */
+@media (max-width: 640px) {
+  [role="dialog"] > div {
+    max-height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom) - 2rem) !important;
+    margin: 1rem !important;
+    width: calc(100% - 2rem) !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Touch-friendly scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Sticky header on mobile */
+.mobile-sticky-header {
+  @apply sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border;
+  padding-top: var(--safe-area-inset-top);
+}
+
+/* Bottom safe area padding */
+.safe-bottom {
+  padding-bottom: calc(var(--safe-area-inset-bottom) + 1rem);
+}
+
+:root {
+  --background: 0 0% 100%; /* Beyaz */
+  --foreground: 222.2 47.4% 11.2%; /* Koyu Mavi/Siyah */
+  --card: 0 0% 100%; /* Kartlar için beyaz */
+  --card-foreground: 222.2 47.4% 11.2%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --primary: 217 91% 60%; /* Canlı Mavi */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%; /* Açık Gri */
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%; /* Soluk Gri */
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%; /* Canlı Kırmızı */
+  --destructive-foreground: 210 40% 98%;
+  --border: 210 40% 90%; /* Daha belirgin border */
+  --input: 210 40% 90%;
+  --ring: 217 91% 60%;
+  --radius: 0.75rem;
+
+  --chart-1: 34.9 98.6% 72.9%;
+  --chart-2: 217 91% 60%;
+  --chart-3: 0 84.2% 60.2%;
+  --chart-4: 142.1 76.2% 36.3%;
+  --chart-5: 262.1 83.3% 57.8%;
+}
+
+body {
+  @apply bg-secondary text-foreground;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Updated dashboard widget for light theme */
+.dashboard-widget {
+  @apply bg-card text-card-foreground rounded-xl p-4 sm:p-5 shadow-sm border border-border transition-all duration-300;
+}
+
+.dashboard-widget:hover {
+    @apply shadow-lg border-primary/50;
+}
+
+/* Updated titles for better readability */
+.widget-title {
+  @apply text-sm font-medium text-muted-foreground;
+}
+
+.widget-value {
+  @apply text-3xl font-bold text-foreground;
+}
+
+/* Updated table styles for light theme - Mobile Responsive */
+.data-table {
+  @apply w-full border-collapse;
+}
+
+
+/* DF/8D table specific - override w-full */
+.data-table-wide {
+  @apply border-collapse min-w-[600px];
+  width: max-content !important;
+  max-width: none !important;
+}
+
+.data-table th {
+  @apply bg-secondary/50 px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border;
+}
+
+@media (min-width: 768px) {
+  .data-table th {
+    @apply px-6 py-3;
+  }
+}
+
+.data-table td {
+  @apply px-3 py-3 whitespace-nowrap text-sm text-foreground/90 border-b border-border/50;
+}
+
+@media (min-width: 768px) {
+  .data-table td {
+    @apply px-6 py-4;
+  }
+}
+
+.data-table tr:hover {
+  @apply bg-secondary;
+}
+
+/* Responsive table wrapper */
+.table-responsive {
+  @apply w-full overflow-x-auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-responsive {
+    @apply -mx-4;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+.search-input {
+  @apply w-full pl-10 pr-4 py-2 border border-input rounded-md shadow-sm focus:ring-2 focus:ring-ring focus:border-ring text-sm;
+}
+
+/* Ensure search icon doesn't overlap with text */
+.search-box .search-input {
+  padding-left: 2.5rem; /* 40px - enough space for icon */
+}
+
+.search-box {
+  @apply relative;
+}
+
+/* Fix for search icons in search-box - ensure proper spacing */
+.search-box svg[class*="Search"],
+.search-box .lucide-search {
+  left: 0.625rem !important; /* 10px - consistent with pl-10 */
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.status-indicator {
+    @apply px-2 py-1 text-xs font-semibold rounded-full inline-block;
+}
+
+/* Fix for shadcn/ui Dialog scroll issue */
+[role='dialog'] [data-radix-scroll-area-viewport] {
+  max-height: 80vh; /* Adjust as needed */
+  overflow-y: auto;
+}
+
+/* Global Print Style Overrides to remove URLs from PDFs */
+@media print {
+  /* Tarayıcı/ütüleyici kütüphanelerin eklediği "(href)" uzantılarını kapat */
+  a[href]::after { content: "" !important; }
+  a[href]::before { content: "" !important; }
+  /* Linkleri normal metin gibi göster */
+  a, a:visited { color: inherit !important; text-decoration: none !important; }
+  /* Tooltip/title kaynaklı döküme düşebilecek metinleri engelle */
+  [title]::after { content: "" !important; }
+}

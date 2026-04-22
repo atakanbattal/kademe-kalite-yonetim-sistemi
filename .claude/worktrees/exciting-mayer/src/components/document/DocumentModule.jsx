@@ -1,0 +1,620 @@
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import UploadDocumentModal from '@/components/document/UploadDocumentModal';
+import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { useData } from '@/contexts/DataContext';
+import PdfViewerModal from '@/components/document/PdfViewerModal';
+import DocumentDetailModal from '@/components/document/DocumentDetailModal';
+import FolderDownloadModal from '@/components/document/FolderDownloadModal';
+import { openPrintableReport } from '@/lib/reportUtils';
+import { normalizeTurkishForSearch } from '@/lib/utils';
+
+const DOCUMENT_CATEGORIES = [
+    { value: 'Tümü', label: 'Tümü', icon: FileText, addText: 'Yeni Doküman Ekle' },
+    { value: 'Kalite Sertifikaları', label: 'Kalite Sertifikaları', icon: Certificate, addText: 'Yeni Kalite Sertifikası Ekle' },
+    { value: 'Personel Sertifikaları', label: 'Personel Sertifikaları', icon: HardHat, addText: 'Yeni Personel Sertifikası Ekle' },
+    { value: 'Prosedürler', label: 'Prosedürler', icon: FileText, addText: 'Yeni Prosedür Ekle' },
+    { value: 'Talimatlar', label: 'Talimatlar', icon: FileText, addText: 'Yeni Talimat Ekle' },
+    { value: 'Formlar', label: 'Formlar', icon: FileText, addText: 'Yeni Form Ekle' },
+    { value: 'El Kitapları', label: 'El Kitapları', icon: FileText, addText: 'Yeni El Kitabı Ekle' },
+    { value: 'Şemalar', label: 'Şemalar', icon: FileText, addText: 'Yeni Şema Ekle' },
+    { value: 'Görev Tanımları', label: 'Görev Tanımları', icon: FileText, addText: 'Yeni Görev Tanımı Ekle' },
+    { value: 'Süreçler', label: 'Süreçler', icon: FileText, addText: 'Yeni Süreç Ekle' },
+    { value: 'Planlar', label: 'Planlar', icon: FileText, addText: 'Yeni Plan Ekle' },
+    { value: 'Listeler', label: 'Listeler', icon: FileText, addText: 'Yeni Liste Ekle' },
+    { value: 'Şartnameler', label: 'Şartnameler', icon: FileText, addText: 'Yeni Şartname Ekle' },
+    { value: 'Politikalar', label: 'Politikalar', icon: FileText, addText: 'Yeni Politika Ekle' },
+    { value: 'Tablolar', label: 'Tablolar', icon: FileText, addText: 'Yeni Tablo Ekle' },
+    { value: 'Antetler', label: 'Antetler', icon: FileText, addText: 'Yeni Antet Ekle' },
+    { value: 'Sözleşmeler', label: 'Sözleşmeler', icon: FileText, addText: 'Yeni Sözleşme Ekle' },
+    { value: 'Yönetmelikler', label: 'Yönetmelikler', icon: FileText, addText: 'Yeni Yönetmelik Ekle' },
+    { value: 'Kontrol Planları', label: 'Kontrol Planları', icon: FileText, addText: 'Yeni Kontrol Planı Ekle' },
+    { value: 'FMEA Planları', label: 'FMEA Planları', icon: FileText, addText: 'Yeni FMEA Planı Ekle' },
+    { value: 'Proses Kontrol Kartları', label: 'Proses Kontrol Kartları', icon: FileText, addText: 'Yeni Proses Kontrol Kartı Ekle' },
+    { value: 'Görsel Yardımcılar', label: 'Görsel Yardımcılar', icon: FileText, addText: 'Yeni Görsel Yardımcı Ekle' },
+    { value: 'Diğer', label: 'Diğer', icon: FileText, addText: 'Yeni Doküman Ekle' },
+];
+
+const DOCUMENT_TYPE_MAPPING = {
+    'Prosedürler': ['Prosedürler', 'Prosedür', 'Prosedurler', 'Prosedur'],
+    'Talimatlar': ['Talimatlar', 'Talimat', 'Talimatlari', 'Talimati'],
+    'Formlar': ['Formlar', 'Form'],
+    'El Kitapları': ['El Kitapları', 'El Kitabı', 'El Kitaplari', 'El Kitabi'],
+    'Şemalar': ['Şemalar', 'Şema', 'Semalar', 'Sema'],
+    'Görev Tanımları': ['Görev Tanımları', 'Görev Tanımı', 'Gorev Tanimlari', 'Gorev Tanimi'],
+    'Süreçler': ['Süreçler', 'Süreç', 'Surecler', 'Surec'],
+    'Planlar': ['Planlar', 'Plan'],
+    'Listeler': ['Listeler', 'Liste'],
+    'Şartnameler': ['Şartnameler', 'Şartname', 'Sartnameler', 'Sartname'],
+    'Politikalar': ['Politikalar', 'Politika'],
+    'Tablolar': ['Tablolar', 'Tablo'],
+    'Antetler': ['Antetler', 'Antet'],
+    'Sözleşmeler': ['Sözleşmeler', 'Sözleşme', 'Sozlesmeler', 'Sozlesme'],
+    'Yönetmelikler': ['Yönetmelikler', 'Yönetmelik', 'Yonetmelikler', 'Yonetmelik'],
+    'Kontrol Planları': ['Kontrol Planları', 'Kontrol Planı', 'Kontrol Planlari', 'Kontrol Plani'],
+    'FMEA Planları': ['FMEA Planları', 'FMEA Planı', 'FMEA Planlari', 'FMEA Plani'],
+    'Proses Kontrol Kartları': ['Proses Kontrol Kartları', 'Proses Kontrol Kartı', 'Proses Kontrol Kartlari', 'Proses Kontrol Karti'],
+    'Görsel Yardımcılar': ['Görsel Yardımcılar', 'Görsel Yardımcı', 'Gorsel Yardimcilar', 'Gorsel Yardimci'],
+    'Kalite Sertifikaları': ['Kalite Sertifikaları', 'Kalite Sertifikası', 'Kalite Sertifikalari', 'Kalite Sertifikasi'],
+    'Personel Sertifikaları': ['Personel Sertifikaları', 'Personel Sertifikası', 'Personel Sertifikalari', 'Personel Sertifikasi'],
+    'Diğer': ['Diğer', 'Diger']
+};
+
+const CERTIFICATE_CATEGORY_TABS = new Set(['Kalite Sertifikaları', 'Personel Sertifikaları']);
+
+const DEPARTMENT_FILTERABLE_CATEGORIES = new Set([
+    'Tümü', 'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar',
+    'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler',
+    'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler',
+    'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'
+]);
+
+const BUCKET_NAME = 'documents';
+
+const resolveCurrentRevision = (revisions, currentRevisionId) => {
+    if (Array.isArray(revisions) && revisions.length > 0) {
+        if (currentRevisionId) {
+            const currentRevision = revisions.find(revision => revision.id === currentRevisionId);
+            if (currentRevision) {
+                return currentRevision;
+            }
+        }
+
+        return [...revisions].sort((a, b) => {
+            const numA = parseInt(a.revision_number, 10) || 0;
+            const numB = parseInt(b.revision_number, 10) || 0;
+            return numB - numA;
+        })[0] || null;
+    }
+
+    return Array.isArray(revisions) ? null : revisions || null;
+};
+
+// Doküman tipine göre klasör adı döndürür (Storage klasör yapısına uygun)
+const getDocumentFolder = (documentType) => {
+    const folderMap = {
+        'Kalite Sertifikaları': 'Kalite-Sertifikalari',
+        'Personel Sertifikaları': 'Personel-Sertifikalari',
+        'Prosedürler': 'documents',
+        'Talimatlar': 'documents',
+        'Formlar': 'documents',
+        'El Kitapları': 'documents',
+        'Şemalar': 'documents',
+        'Görev Tanımları': 'documents',
+        'Süreçler': 'documents',
+        'Planlar': 'documents',
+        'Listeler': 'documents',
+        'Şartnameler': 'documents',
+        'Politikalar': 'documents',
+        'Tablolar': 'documents',
+        'Antetler': 'documents',
+        'Sözleşmeler': 'documents',
+        'Yönetmelikler': 'documents',
+        'Kontrol Planları': 'documents',
+        'FMEA Planları': 'documents',
+        'Proses Kontrol Kartları': 'documents',
+        'Görsel Yardımcılar': 'documents',
+        'Diğer': 'documents',
+    };
+    return folderMap[documentType] || 'documents';
+};
+
+// Eski path formatını yeni klasör yapısına uyarlar (eğer gerekirse)
+const normalizeDocumentPath = (path, documentType) => {
+    if (!path) return null;
+    // Eğer path zaten klasör yapısında ise (örn: "Kalite-Sertifikalari/..."), olduğu gibi döndür
+    if (path.includes('/') && !path.startsWith('documents/') && !path.includes('Kalite') && !path.includes('Personel')) {
+        // Eski format: "user-id/documentId-filename" -> yeni format: "folder/documentId-filename"
+        const folderName = getDocumentFolder(documentType);
+        const parts = path.split('/');
+        if (parts.length >= 2) {
+            // user-id kısmını klasör adıyla değiştir
+            return `${folderName}/${parts.slice(1).join('/')}`;
+        }
+    }
+    // Eğer path zaten doğru formatta ise, olduğu gibi döndür
+    return path;
+};
+
+const ValidityStatus = ({ validUntil }) => {
+    if (!validUntil) {
+        return <Badge variant="secondary">Süresiz</Badge>;
+    }
+
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const expiryDate = new Date(validUntil);
+
+        // Geçersiz tarih kontrolü
+        if (isNaN(expiryDate.getTime())) {
+            return <Badge variant="secondary">Geçersiz Tarih</Badge>;
+        }
+
+        const diffTime = expiryDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return <Badge variant="destructive">Süresi Doldu ({Math.abs(diffDays)} gün önce)</Badge>;
+        }
+        if (diffDays <= 30) {
+            return <Badge variant="warning" className="bg-yellow-500 text-white">{diffDays} gün kaldı</Badge>;
+        }
+        return <Badge variant="success" className="bg-green-600 text-white">{diffDays} gün kaldı</Badge>;
+    } catch (error) {
+        console.error('ValidityStatus error:', error, validUntil);
+        return <Badge variant="secondary">Geçersiz Tarih</Badge>;
+    }
+};
+
+const DocumentModule = () => {
+    const { toast } = useToast();
+    const { documents, personnel, loading, refreshData, unitCostSettings } = useData();
+    const [isUploadModalOpen, setUploadModalOpen] = useState(false);
+    const [editingDocument, setEditingDocument] = useState(null);
+    const [isRevisionMode, setIsRevisionMode] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+    const [activeTab, setActiveTab] = useState('Tümü');
+    const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isFolderDownloadModalOpen, setIsFolderDownloadModalOpen] = useState(false);
+    const [selectedDocument, setSelectedDocument] = useState(null);
+    const deferredSearchTerm = useDeferredValue(searchTerm);
+
+    const preparedDocuments = useMemo(() => {
+        if (!Array.isArray(documents)) {
+            return [];
+        }
+
+        return documents
+            .map(doc => {
+                const allDocumentRevisions = Array.isArray(doc.document_revisions)
+                    ? doc.document_revisions
+                    : [doc.document_revisions].filter(Boolean);
+                const currentRevision = resolveCurrentRevision(doc.document_revisions, doc.current_revision_id);
+                const searchIndex = normalizeTurkishForSearch([
+                    doc.title,
+                    doc.document_number,
+                    doc.document_type,
+                    doc.personnel?.full_name,
+                    doc.owner?.full_name,
+                    doc.department?.unit_name
+                ].filter(Boolean).join(' '));
+
+                return {
+                    ...doc,
+                    allDocumentRevisions,
+                    searchIndex,
+                    document_revisions: currentRevision
+                };
+            })
+            .sort((a, b) => {
+                try {
+                    const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+                    const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+                    if (isNaN(dateA.getTime())) return 1;
+                    if (isNaN(dateB.getTime())) return -1;
+                    return dateB - dateA;
+                } catch {
+                    return 0;
+                }
+            });
+    }, [documents]);
+
+    const normalizedSearchTerm = useMemo(
+        () => normalizeTurkishForSearch(deferredSearchTerm.trim()),
+        [deferredSearchTerm]
+    );
+
+    const filteredDocuments = useMemo(() => {
+        let docs = preparedDocuments;
+
+        if (activeTab !== 'Tümü') {
+            const validTypes = DOCUMENT_TYPE_MAPPING[activeTab] || [activeTab];
+            docs = docs.filter(doc => validTypes.includes(doc.document_type));
+        }
+
+        if (selectedDepartmentId && DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab)) {
+            docs = docs.filter(doc => doc.department_id === selectedDepartmentId);
+        }
+
+        if (normalizedSearchTerm) {
+            docs = docs.filter(doc => doc.searchIndex.includes(normalizedSearchTerm));
+        }
+
+        return docs;
+    }, [preparedDocuments, activeTab, normalizedSearchTerm, selectedDepartmentId]);
+
+    const downloadPdf = async (revision, docTitle, documentType, originalFileName) => {
+        let filePath = revision?.attachments?.[0]?.path;
+        if (!filePath) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
+            return;
+        }
+        
+        // Path'i normalize et (eski formatı yeni klasör yapısına uyarla)
+        filePath = normalizeDocumentPath(filePath, documentType);
+        const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
+        if (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Dosya indirilemedi: ${error.message}` });
+            return;
+        }
+
+        let downloadName = docTitle;
+        if (originalFileName) {
+            const extension = originalFileName.split('.').pop();
+            if (!downloadName.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
+                downloadName = `${downloadName}.${extension}`;
+            }
+        } else {
+            downloadName = downloadName + '.pdf'; // Default to pdf if no original filename available
+        }
+
+        const blob = new Blob([data]);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = downloadName || originalFileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    };
+
+    const deleteDocument = async (doc) => {
+        if (doc.current_revision_id) {
+            const { data: revision } = await supabase.from('document_revisions').select('attachments').eq('id', doc.current_revision_id).single();
+            if (revision?.attachments?.[0]?.path) {
+                await supabase.storage.from(BUCKET_NAME).remove([revision.attachments[0].path]);
+            }
+        }
+        const { error: dbError } = await supabase.from('documents').delete().eq('id', doc.id);
+        if (dbError) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Veritabanından doküman kaydı silinemedi.' });
+        } else {
+            toast({ title: 'Başarılı', description: 'Doküman başarıyla silindi.' });
+            refreshData();
+        }
+    };
+
+    const handleOpenUploadModal = (doc = null, revisionMode = false) => {
+        setEditingDocument(doc);
+        setIsRevisionMode(revisionMode);
+        setUploadModalOpen(true);
+    };
+
+    const handleReviseDocument = async (doc) => {
+        try {
+            // Revizyon modunda modal'ı aç (revizyon numarası modal içinde async olarak hesaplanacak)
+            handleOpenUploadModal(doc, true);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Revizyon başlatılamadı: ${error.message}` });
+        }
+    };
+
+    const handleViewPdf = async (revision, title, documentType) => {
+        let filePath = revision?.attachments?.[0]?.path;
+        if (!filePath) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya yolu bulunamadı.' });
+            return;
+        }
+
+        // Path'i normalize et (eski formatı yeni klasör yapısına uyarla)
+        filePath = normalizeDocumentPath(filePath, documentType);
+
+        try {
+            // Download file as blob
+            const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: `PDF görüntülenemedi: ${error.message}` });
+                return;
+            }
+
+            // Create blob URL for viewing in modal
+            const blob = new Blob([data], { type: 'application/pdf' });
+            const blobUrl = window.URL.createObjectURL(blob);
+
+            // Open PDF in modal
+            setPdfViewerState({ isOpen: true, url: blobUrl, title });
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'PDF açılırken bir hata oluştu.' });
+            console.error('PDF view error:', err);
+        }
+    };
+
+    const currentCategory = DOCUMENT_CATEGORIES.find(c => c.value === activeTab);
+    const showCertExpiryColumn = CERTIFICATE_CATEGORY_TABS.has(activeTab);
+    const documentTableColSpan =
+        7
+        + (activeTab === 'Personel Sertifikaları' ? 1 : 0)
+        + (DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) ? 1 : 0)
+        + (showCertExpiryColumn ? 1 : 0);
+
+    // Tab değiştiğinde birim filtresini sıfırla
+    useEffect(() => {
+        setSelectedDepartmentId('');
+    }, [activeTab]);
+
+    return (
+        <div className="space-y-6">
+            <UploadDocumentModal
+                isOpen={isUploadModalOpen}
+                setIsOpen={setUploadModalOpen}
+                refreshDocuments={refreshData}
+                categories={DOCUMENT_CATEGORIES.map(c => c.value)}
+                personnelList={personnel}
+                existingDocument={editingDocument}
+                preselectedCategory={activeTab}
+                isRevisionMode={isRevisionMode}
+            />
+            <PdfViewerModal
+                isOpen={pdfViewerState.isOpen}
+                setIsOpen={(isOpen) => setPdfViewerState(s => ({ ...s, isOpen }))}
+                pdfUrl={pdfViewerState.url}
+                title={pdfViewerState.title}
+            />
+            <DocumentDetailModal
+                isOpen={isDetailModalOpen}
+                setIsOpen={setIsDetailModalOpen}
+                document={selectedDocument}
+            />
+            <FolderDownloadModal
+                isOpen={isFolderDownloadModalOpen}
+                setIsOpen={setIsFolderDownloadModalOpen}
+                documents={preparedDocuments}
+                categories={DOCUMENT_CATEGORIES.map(c => c.value)}
+                unitCostSettings={unitCostSettings || []}
+            />
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <p className="text-muted-foreground">Şirket içi kalite dokümanlarınızı tek bir yerden yönetin.</p>
+                </div>
+            </div>
+
+            <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <Label htmlFor="category-select" className="text-base font-semibold whitespace-nowrap">Kategori:</Label>
+                        <Select value={activeTab} onValueChange={setActiveTab}>
+                            <SelectTrigger id="category-select" className="w-full sm:w-[300px]">
+                                <SelectValue placeholder="Kategori seçin..." />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[400px]">
+                                {DOCUMENT_CATEGORIES.map(({ value, label, icon: Icon }) => (
+                                    <SelectItem key={value} value={value}>
+                                        <div className="flex items-center gap-2">
+                                            <Icon className="w-4 h-4" />
+                                            <span>{label}</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {preparedDocuments.length > 0 && (
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsFolderDownloadModalOpen(true)}
+                                className="flex items-center gap-2"
+                                type="button"
+                            >
+                                <FileDown className="w-4 h-4" />
+                                Klasör İndir
+                            </Button>
+                        )}
+                        {filteredDocuments.length > 0 && (
+                            <Button
+                                variant="outline"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const reportData = {
+                                        id: `document-list-${activeTab}-${Date.now()}`,
+                                        items: filteredDocuments.map(doc => ({
+                                            title: doc.title || '-',
+                                            document_number: doc.document_number || '-',
+                                            department_name: doc.department?.unit_name || doc.personnel?.full_name || '-',
+                                            revision_number: doc.document_revisions?.revision_number || '1',
+                                            publish_date: doc.document_revisions?.publish_date || doc.created_at,
+                                            revision_date: doc.document_revisions?.revision_date || doc.document_revisions?.created_at || doc.updated_at,
+                                            valid_until: doc.valid_until
+                                        })),
+                                        categoryName: currentCategory?.label || activeTab
+                                    };
+                                    openPrintableReport(reportData, 'document_list', true);
+                                }}
+                                className="flex items-center gap-2"
+                                type="button"
+                            >
+                                <FileSpreadsheet className="w-4 h-4" />
+                                Rapor Al
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="pt-2">
+                    <div className="dashboard-widget">
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                                <div className="search-box w-full sm:max-w-sm">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                                    <input
+                                        type="text"
+                                        placeholder={activeTab === 'Tümü' ? "Başlık, doküman no, kategori, personel veya birim ara..." : "Doküman adı/no veya personel adı ara..."}
+                                        className="search-input"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                {DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) && (
+                                    <Select value={selectedDepartmentId || 'all'} onValueChange={(value) => setSelectedDepartmentId(value === 'all' ? '' : value)}>
+                                        <SelectTrigger className="w-full sm:w-[200px]">
+                                            <SelectValue placeholder="Birim seçin..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Tüm Birimler</SelectItem>
+                                            {unitCostSettings && unitCostSettings.map((dept) => (
+                                                <SelectItem key={dept.id} value={dept.id}>
+                                                    {dept.unit_name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            </div>
+                            <Button onClick={() => handleOpenUploadModal()} className="w-full sm:w-auto">
+                                <Plus className="w-4 h-4 mr-2" /> {currentCategory?.addText || 'Yeni Doküman Ekle'}
+                            </Button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Doküman Adı / Numarası</th>
+                                        {activeTab === 'Personel Sertifikaları' && <th>Personel</th>}
+                                        {DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) && <th>Birim</th>}
+                                        <th>Doküman Tipi</th>
+                                        <th>Versiyon</th>
+                                        <th>Yayın Tarihi</th>
+                                        <th>Revizyon Tarihi</th>
+                                        {showCertExpiryColumn && <th>Bitiş tarihi</th>}
+                                        <th>Geçerlilik Durumu</th>
+                                        <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {loading ? (
+                                        <tr><td colSpan={documentTableColSpan} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                    ) : filteredDocuments.length === 0 ? (
+                                        <tr><td colSpan={documentTableColSpan} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
+                                    ) : (
+                                        filteredDocuments.map((doc) => {
+                                            // filteredDocuments içinde zaten revision tek bir obje olarak set edilmiş
+                                            const revision = doc.document_revisions;
+                                            const fileName = revision?.attachments?.[0]?.name;
+                                            const hasFile = !!revision?.attachments?.[0]?.path;
+
+                                            return (
+                                                <tr key={doc.id}>
+                                                    <td
+                                                        className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+                                                        onClick={() => {
+                                                            setSelectedDocument(doc);
+                                                            setIsDetailModalOpen(true);
+                                                        }}
+                                                    >
+                                                        <div>{doc.title}</div>
+                                                        <div className="text-xs text-muted-foreground">{doc.document_number}</div>
+                                                    </td>
+                                                    {activeTab === 'Personel Sertifikaları' && <td>{doc.personnel?.full_name || doc.owner?.full_name || 'N/A'}</td>}
+                                                    {DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) && (
+                                                        <td className="text-muted-foreground">{doc.department?.unit_name || doc.personnel?.full_name || '-'}</td>
+                                                    )}
+                                                    <td className="text-muted-foreground">
+                                                        <Badge variant="outline">{doc.document_type || '-'}</Badge>
+                                                    </td>
+                                                    <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
+                                                    <td className="text-muted-foreground">
+                                                        {revision?.publish_date ? (() => {
+                                                            try {
+                                                                const date = new Date(revision.publish_date);
+                                                                return isNaN(date.getTime()) ? '-' : format(date, 'dd.MM.yyyy', { locale: tr });
+                                                            } catch {
+                                                                return '-';
+                                                            }
+                                                        })() : '-'}
+                                                    </td>
+                                                    <td className="text-muted-foreground">
+                                                        {revision?.revision_date ? (() => {
+                                                            try {
+                                                                const date = new Date(revision.revision_date);
+                                                                return isNaN(date.getTime()) ? '-' : format(date, 'dd.MM.yyyy', { locale: tr });
+                                                            } catch {
+                                                                return '-';
+                                                            }
+                                                        })() : '-'}
+                                                    </td>
+                                                    {showCertExpiryColumn && (
+                                                        <td className="text-muted-foreground whitespace-nowrap">
+                                                            {doc.valid_until
+                                                                ? (() => {
+                                                                    try {
+                                                                        const d = new Date(doc.valid_until);
+                                                                        return isNaN(d.getTime()) ? '-' : format(d, 'dd.MM.yyyy', { locale: tr });
+                                                                    } catch {
+                                                                        return '-';
+                                                                    }
+                                                                })()
+                                                                : 'Süresiz'}
+                                                        </td>
+                                                    )}
+                                                    <td><ValidityStatus validUntil={doc.valid_until} /></td>
+                                                    <td className="flex items-center gap-2 flex-wrap">
+                                                        <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, doc.title, doc.document_type, fileName)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => handleReviseDocument(doc)}><RefreshCw className="w-4 h-4 mr-1" /> Revize Et</Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleOpenUploadModal(doc)}><Edit className="w-4 h-4" /></Button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive-foreground hover:bg-destructive"><Trash2 className="w-4 h-4" /></Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        Bu dokümanı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => deleteDocument(doc)}>Sil</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default DocumentModule;

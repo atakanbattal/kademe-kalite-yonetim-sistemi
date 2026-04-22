@@ -1,0 +1,7 @@
+# Apache / bazı Hostinger kurulumları: index.html önbelleğe alınmasın (SPA chunk uyumsuzluğunu önler)
+<IfModule mod_headers.c>
+  <Files "index.html">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+  </Files>
+</IfModule>

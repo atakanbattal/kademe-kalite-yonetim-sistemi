@@ -1,0 +1,114 @@
+WITH pl(sicil, ad_soyad, departman, birim, yaka_unvan, sirket_unvan) AS (
+  VALUES
+    ('A058593', 'SİNAN FINDIK', 'YURT DIŞI SATIŞ MÜDÜRLÜĞÜ', 'YURT DIŞI SATIŞ', 'BEYAZ', 'YURT DIŞI SATIŞ MÜDÜRÜ'),
+    ('A058691', 'HÜSEYİN ARSLANALP', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A058901', 'AHMET KÜÇÜK', 'SATINALMA MÜDÜRLÜĞÜ', 'SATINALMA', 'BEYAZ', 'SATINALMA UZMANI'),
+    ('A058961', 'MUSTAFA İNCİ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A038604', 'MENDUH BÜTÜN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A059417', 'MEHMET ANADAL', 'İNSAN KAYNAKLARI MÜDÜRLÜĞÜ', 'İNSAN KAYNAKLARI', 'BEYAZ', 'İNSAN KAYNAKLARI UZMANI'),
+    ('A045436', 'HÜDAVERDİ ALKAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'BOYAHANE', 'MAVİ', 'BOYA OPERATÖRÜ'),
+    ('A059745', 'MEHMET OĞUZ', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A059783', 'MURAT KURT', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A059919', 'YAKUP BARDAKÇIOĞLU', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'MAVİ', 'SATIŞ SONRASI HİZMETLER GÖREVLİSİ'),
+    ('A059924', 'AHMET SEVİM', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A001075', 'UYSAL YILMAZ', 'SATINALMA MÜDÜRLÜĞÜ', 'SATINALMA', 'BEYAZ', 'SATINALMA MÜDÜRÜ'),
+    ('A060225', 'ABDİL UYAR', 'İDARİ İŞLER MÜDÜRLÜĞÜ', 'İDARİ İŞLER', 'MAVİ', 'BAKIM PERSONELİ'),
+    ('A050636', 'HÜSEYİN TEKE', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A060232', 'MEHMET KARADAYI', 'DEPO ŞEFLİĞİ', 'DEPO', 'MAVİ', 'DEPO GÖREVLİSİ'),
+    ('A060596', 'BERAD ÖZDEMİR', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'BEYAZ', 'SATIŞ SONRASI HİZMETLER MÜHENDİSİ'),
+    ('A060682', 'MEHMET ARİF ATAOĞLU', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A060724', 'SERKAN TETİK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A060732', 'DURMUŞ ALİ YILDIZ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A060782', 'MUSTAFA ŞARK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A060861', 'MUSTAFA GÜRPINAR', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A060864', 'ŞÜKRÜ YAVUZ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A060875', 'YUSUF AKYÜZ', 'İDARİ İŞLER MÜDÜRLÜĞÜ', 'İDARİ İŞLER', 'MAVİ', 'MEYDANCI'),
+    ('A060959', 'FATİH YILDIZ', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A060949', 'MURAT ADAM', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE KONTROL', 'MAVİ', 'ÜST YAPI KALİTE KONTROL GÖREVLİSİ'),
+    ('A061015', 'İBRAHİM TURAN TEMİZ', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'BEYAZ', 'SATINALMA UZMANI'),
+    ('A061063', 'BURAK CÖBEK', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A061140', 'ONUR TURUŞ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A061290', 'SAFA BAĞCI', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE KONTROL', 'MAVİ', 'ÜST YAPI KALİTE KONTROL GÖREVLİSİ'),
+    ('A061336', 'ARİF ÇALIKUŞU', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'MAVİ', 'MONTAJ FORMENİ'),
+    ('A061362', 'ADEM TAŞOLUK', 'İDARİ İŞLER MÜDÜRLÜĞÜ', 'İDARİ İŞLER', 'MAVİ', 'MEYDANCI'),
+    ('A061367', 'RAMAZAN KARADAŞ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A062061', 'VEYSEL DAMGACI', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A062141', 'ARDA TUNA', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A062295', 'AHMET BOZTÜRK', 'İDARİ İŞLER MÜDÜRLÜĞÜ', 'İDARİ İŞLER', 'MAVİ', 'MEYDANCI'),
+    ('A062345', 'ÜMİT KAHVECİ', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'MAVİ', 'KAYNAK FORMENİ'),
+    ('A062440', 'RIDVAN ÇELİK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ÜST YAPI', 'BEYAZ', 'HOMOLOGASYON MÜHENDİSİ'),
+    ('A062470', 'HALİL ÖZCAN', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A031989', 'FUAT KONUK', 'ÜRETİM MÜDÜRLÜĞÜ (KABİN HATTI)', 'KABİN HATTI', 'BEYAZ', 'ÜR-GE ŞEFİ'),
+    ('A062552', 'RUMİ UYSAL', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A060284', 'MUSTAFA SUNAR', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A048838', 'ORHAN ALBAYRAK', 'MALİ İŞLER', 'MALİ İŞLER', 'BEYAZ', 'MALİ İŞLER UZMANI'),
+    ('A067449', 'ATAKAN BATTAL', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE KONTROL', 'BEYAZ', 'KALİTE KONTROL VE KALİTE GÜVENCE MÜDÜR YARDIMCISI'),
+    ('A067467', 'GÜRHAN İŞLEYİCİ', 'İNSAN KAYNAKLARI MÜDÜRLÜĞÜ', 'İNSAN KAYNAKLARI', 'BEYAZ', 'İSG UZMANI'),
+    ('A067486', 'EMRE DENİZ', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A067980', 'BÜLENT ASLAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ÜST YAPI', 'BEYAZ', 'YALIN ÜRETİM ŞEFİ'),
+    ('A067983', 'EROL MEHMET OKUMUŞ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'LAZER KESİM OPERATÖRÜ'),
+    ('A067982', 'RAMAZAN ERSÖZ', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A068446', 'SANAN AZIMOV', 'YURT DIŞI SATIŞ MÜDÜRLÜĞÜ', 'YURT DIŞI SATIŞ', 'BEYAZ', 'YURT DIŞI SATIŞ BÖLGE UZMANI'),
+    ('A068859', 'UĞUR UYAR', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'MAVİ', 'ELEKTRİK OPERATÖRÜ'),
+    ('A068928', 'ŞENEL KUYUCUOĞLU', 'İDARİ İŞLER MÜDÜRLÜĞÜ', 'İDARİ İŞLER', 'MAVİ', 'ŞOFÖR'),
+    ('A068949', 'AHMET KALIPÇI', 'ÜRETİM PLANLAMA MÜDÜRLÜĞÜ', 'PLANLAMA', 'BEYAZ', 'PLANLAMA MÜDÜRÜ'),
+    ('A068986', 'HAKAN KUTLUAY', 'ÜRETİM PLANLAMA MÜDÜRLÜĞÜ', 'PLANLAMA', 'BEYAZ', 'PLANLAMA MÜHENDİSİ'),
+    ('A069159', 'İSMAİL ACAR', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A036137', 'KERİM BİÇER', 'ÜRETİM PLANLAMA MÜDÜRLÜĞÜ', 'PLANLAMA', 'BEYAZ', 'PLANLAMA UZMANI'),
+    ('A069369', 'BURAK GERENKAYA', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A069408', 'HASAN YAVUZ', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE GÜVENCE', 'BEYAZ', 'KALİTE GÜVENCE UZMANI'),
+    ('A069515', 'MEHMET GÜMÜŞ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'LAZER KESİM PROGRAMCISI'),
+    ('A034132', 'ÇETİN CİHAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'BOYAHANE', 'MAVİ', 'BOYAHANE FORMENİ'),
+    ('A069825', 'METİN ÖZKAN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A069833', 'YUSUF TOK', 'İNSAN KAYNAKLARI MÜDÜRLÜĞÜ', 'İNSAN KAYNAKLARI', 'BEYAZ', 'İNSAN KAYNAKLARI ŞEFİ'),
+    ('A069884', 'AHMET AKKOÇ', 'YURT İÇİ SATIŞ MÜDÜRLÜĞÜ', 'YURT İÇİ SATIŞ', 'BEYAZ', 'YURT İÇİ SATIŞ BÖLGE MÜDÜRÜ'),
+    ('A069932', 'ZEKİ GÖKÇEKUYU', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'AR-GE MÜHENDİSİ'),
+    ('A069908', 'MEHMET DİLİM', 'İDARİ İŞLER MÜDÜRLÜĞÜ', 'İDARİ İŞLER', 'MAVİ', 'ŞOFÖR'),
+    ('A070066', 'HAKAN KOÇAK', 'DEPO ŞEFLİĞİ', 'DEPO', 'MAVİ', 'DEPO GÖREVLİSİ'),
+    ('A070096', 'ERKAN DEMİR', 'ÜRETİM PLANLAMA MÜDÜRLÜĞÜ', 'PLANLAMA', 'BEYAZ', 'PLANLAMA MÜHENDİSİ'),
+    ('A070099', 'HALİL MEŞE', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'MAVİ', 'SATIŞ SONRASI HİZMETLER GÖREVLİSİ'),
+    ('A070262', 'ALİ KORKMAZ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ÜST YAPI', 'BEYAZ', 'ÜR-GE UZMANI'),
+    ('A070421', 'MEHMET BOZKURT', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'MAVİ', 'MONTAJ OPERATÖRÜ'),
+    ('A070408', 'BARIŞ GÜMÜŞÇAP', 'İNSAN KAYNAKLARI MÜDÜRLÜĞÜ', 'İNSAN KAYNAKLARI', 'BEYAZ', 'İNSAN KAYNAKLARI MÜDÜRÜ'),
+    ('A070507', 'ALİ MÜLALİ', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'BEYAZ', 'SATIŞ SONRASI HİZMETLER MÜHENDİSİ'),
+    ('A070654', 'İBRAHİM CAN PARLAK', 'KADEME GENEL MÜDÜRLÜĞÜ', 'GENEL MÜDÜRLÜK', 'BEYAZ', 'YÖNETİCİ ASİSTANI'),
+    ('A070838', 'YAHYA ÖZTÜRK', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE KONTROL', 'MAVİ', 'ÜST YAPI KALİTE KONTROL GÖREVLİSİ'),
+    ('A032317', 'MEHMET ÖKSÜZ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ÜST YAPI', 'BEYAZ', 'ÜRETİM MÜDÜRÜ'),
+    ('A058586', 'ERDOĞAN ZENGİN', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'MONTAJHANE', 'BEYAZ', 'MONTAJ ŞEFİ'),
+    ('A070938', 'YUNUS ŞENEL', 'KALİTE MÜDÜRLÜĞÜ', 'KALİTE KONTROL', 'MAVİ', 'GİRDİ KONTROL GÖREVLİSİ'),
+    ('A071025', 'ABDULKADİR AKAR', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ELEKTRİKHANE', 'BEYAZ', 'ELEKTRİK - ELEKTRONİK MÜHENDİSİ'),
+    ('A071319', 'ÖZCAN GÜLEÇ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'ÜST YAPI', 'BEYAZ', 'FABRİKA MÜDÜRÜ'),
+    ('A071459', 'SERKAN BULMUŞ', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A071570', 'HALİL İBRAHİM TAPAN', 'KADEME GENEL MÜDÜRLÜĞÜ', 'GENEL MÜDÜRLÜK', 'BEYAZ', 'PROJE MÜHENDİSİ'),
+    ('A072620', 'MEHMET IŞIK', 'ÜRETİM MÜDÜRLÜĞÜ (ÜST YAPI)', 'KAYNAKHANE', 'MAVİ', 'KAYNAK OPERATÖRÜ'),
+    ('A072636', 'SEDAT ÇETİN', 'SATINALMA MÜDÜRLÜĞÜ', 'SATINALMA', 'BEYAZ', 'SATINALMA UZMANI'),
+    ('A072628', 'ABDERRAOUF NECER', 'YURT DIŞI SATIŞ MÜDÜRLÜĞÜ', 'YURT DIŞI SATIŞ', 'BEYAZ', 'YURT DIŞI SATIŞ BÖLGE UZMANI'),
+    ('A072669', 'BERKAY KARACA', 'SATIŞ SONRASI HİZMETLER MÜDÜRLÜĞÜ', 'SATIŞ SONRASI HİZMETLER', 'BEYAZ', 'SATIŞ SONRASI HİZMETLER MÜHENDİSİ'),
+    ('-', 'SALTIK CAN KAYNAR', 'AR-GE DİREKTÖRLÜĞÜ', 'AR-GE', 'BEYAZ', 'TEKNİK RESSAM')
+),
+norm AS (
+  SELECT
+    *,
+    lower(trim(regexp_replace(sicil, E'\\s+', '', 'g'))) AS sicil_n,
+    lower(trim(ad_soyad)) AS ad_n
+  FROM pl
+)
+UPDATE public.personnel p
+SET
+  management_department = n.departman,
+  collar_type = NULLIF(trim(n.yaka_unvan), ''),
+  job_title = CASE WHEN trim(n.sirket_unvan) <> '' THEN trim(n.sirket_unvan) ELSE p.job_title END,
+  unit_id = COALESCE(cs.id, p.unit_id),
+  department = CASE WHEN cs.id IS NOT NULL THEN cs.unit_name ELSE p.department END
+FROM norm n
+LEFT JOIN public.cost_settings cs ON lower(trim(cs.unit_name)) = lower(trim(n.birim))
+WHERE (
+    n.sicil_n <> ''
+    AND n.sicil_n <> '-'
+    AND lower(trim(regexp_replace(coalesce(p.registration_number, ''), E'\\s+', '', 'g'))) = n.sicil_n
+  )
+  OR (
+    (n.sicil_n = '' OR n.sicil_n = '-')
+    AND n.ad_n <> ''
+    AND lower(trim(p.full_name)) = n.ad_n
+  );
