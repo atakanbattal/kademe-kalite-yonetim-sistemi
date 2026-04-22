@@ -16,33 +16,32 @@ const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
         const fetchDepartments = async () => {
             const names = new Set();
 
-            const { data: costSettingsData, error: costError } = await supabase
+            // Canonical kaynak: cost_settings.unit_name — modülün "güncel birimleri"
+            const { data: costSettingsData } = await supabase
                 .from('cost_settings')
                 .select('unit_name')
                 .order('unit_name');
 
-            if (!costError && costSettingsData) {
+            if (costSettingsData) {
                 costSettingsData.forEach((d) => {
-                    if (d.unit_name && String(d.unit_name).trim()) names.add(normalizeUnitNameForSettings(String(d.unit_name).trim()));
-                });
-            }
-
-            const { data: persData, error: persError } = await supabase
-                .from('personnel')
-                .select('department, management_department');
-
-            if (!persError && persData) {
-                persData.forEach((p) => {
-                    if (p.department && String(p.department).trim()) names.add(String(p.department).trim());
-                    if (p.management_department && String(p.management_department).trim()) {
-                        names.add(normalizeUnitNameForSettings(String(p.management_department).trim()));
+                    if (d.unit_name && String(d.unit_name).trim()) {
+                        names.add(normalizeUnitNameForSettings(String(d.unit_name).trim()));
                     }
                 });
             }
 
-            if (names.size === 0 && !costError && costSettingsData?.length) {
-                costSettingsData.forEach((d) => {
-                    if (d.unit_name && String(d.unit_name).trim()) names.add(normalizeUnitNameForSettings(String(d.unit_name).trim()));
+            // Canonical ikinci kaynak: personnel.management_department (üst birim)
+            // personnel.department alt takım ismidir (ör. Kaynakhane, Abkant Pres);
+            // filtre listesinde yalnızca canonical üst birimler yer alır.
+            const { data: persData } = await supabase
+                .from('personnel')
+                .select('management_department');
+
+            if (persData) {
+                persData.forEach((p) => {
+                    if (p.management_department && String(p.management_department).trim()) {
+                        names.add(normalizeUnitNameForSettings(String(p.management_department).trim()));
+                    }
                 });
             }
 
