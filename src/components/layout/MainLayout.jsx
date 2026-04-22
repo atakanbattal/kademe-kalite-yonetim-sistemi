@@ -10,7 +10,7 @@ import { useData } from '@/contexts/DataContext';
 import { openPrintableReport as openPrintableReportUtil } from '@/lib/reportUtils';
 import { cn } from '@/lib/utils';
 import { canonicalizeDepartmentName } from '@/lib/departmentCanonicalization';
-import { buildShortGirdiKaliteNcTitle, isVerboseGirdiKaliteNcTitle } from '@/lib/df8dTextUtils';
+import { buildShortGirdiKaliteNcTitle, isVerboseGirdiKaliteNcTitle, stripRootCauseAnalysisPromptFromTitle } from '@/lib/df8dTextUtils';
 import { getAuditNavigationAction } from '@/lib/auditDeepLink';
 
 // Components (her zaman gerekli - lazy loading yok)
@@ -360,6 +360,9 @@ const MainLayout = () => {
                 partName: dbData.part_name,
                 partCode: dbData.part_code,
             });
+        }
+        if (dbData.title && typeof dbData.title === 'string') {
+            dbData.title = stripRootCauseAnalysisPromptFromTitle(dbData.title);
         }
 
         const deptCanonCtx = { unitCostSettings: unitCostSettings || [], personnel: personnel || [] };

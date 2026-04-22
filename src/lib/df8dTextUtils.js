@@ -50,16 +50,32 @@ function parseGkKBlobForDisplay(blob) {
 }
 
 /**
+ * Başlığa yapışan "3. Kök Neden Analizi 5N1k … Ne: Nerede: …" şablonunu keser.
+ * DB'de Analizi̇ gibi NFD birleşik noktalı i kullanıldığı için "Anali" sonrası her şey atılır.
+ */
+export function stripRootCauseAnalysisPromptFromTitle(title) {
+  if (title == null || typeof title !== 'string') return title;
+  let s = title;
+  s = s.replace(/\s+3\.\s*Kök\s*Neden\s*Anali[\s\S]*/i, '').trim();
+  s = s.replace(/\s+5\s*n1k\s+analiz[\s\S]*/i, '').trim();
+  return s;
+}
+
+function normalizeNcTitleForList(rawTitle, { maxLen = 160 } = {}) {
+  const shortened = stripRootCauseAnalysisPromptFromTitle(rawTitle.trim());
+  let s = stripSquareBullets(shortened.trim());
+  if (!s) return null;
+  if (s.length > maxLen) return `${s.slice(0, maxLen - 1)}…`;
+  return s;
+}
+
+/**
  * DF/8D tablo ve listelerinde gösterilecek başlık: gereksiz GKK şablonunu gizler.
  * @param {string} [emptyLabel='—'] Raporlarda '-' geçmek için kullanılabilir.
  */
 export function getNonConformityListTitle(record, emptyLabel = '—') {
   if (!record) return emptyLabel;
   const rawTitle = typeof record.title === 'string' ? record.title.trim() : '';
-
-  if (rawTitle && !isVerboseGirdiKaliteNcTitle(rawTitle)) {
-    return stripSquareBullets(rawTitle);
-  }
 
   if (rawTitle && isVerboseGirdiKaliteNcTitle(rawTitle)) {
     const fromRow = buildShortGirdiKaliteNcTitle({
@@ -77,20 +93,23 @@ export function getNonConformityListTitle(record, emptyLabel = '—') {
     if (fromParsed !== 'Girdi Kalite Uygunsuzluğu') return fromParsed;
   }
 
-  if (rawTitle) return stripSquareBullets(rawTitle);
+  if (rawTitle) {
+    const cleaned = normalizeNcTitleForList(rawTitle);
+    if (cleaned) return cleaned;
+  }
 
   const pd = record.problem_definition;
   if (typeof pd === 'string' && pd.trim() && !isVerboseGirdiKaliteNcTitle(pd)) {
-    const s = stripSquareBullets(pd.trim());
-    return s.length > 160 ? `${s.slice(0, 157)}…` : s;
+    const s = normalizeNcTitleForList(pd);
+    if (s) return s;
   }
 
   const desc = record.description;
   if (typeof desc === 'string' && desc.trim()) {
     const first = desc.split(/\n/).map((l) => l.trim()).find(Boolean) || '';
     if (first && !isVerboseGirdiKaliteNcTitle(first)) {
-      const s = stripSquareBullets(first);
-      return s.length > 160 ? `${s.slice(0, 157)}…` : s;
+      const s = normalizeNcTitleForList(first);
+      if (s) return s;
     }
   }
 
