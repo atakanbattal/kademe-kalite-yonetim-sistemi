@@ -10,6 +10,7 @@ import { useData } from '@/contexts/DataContext';
 import { openPrintableReport as openPrintableReportUtil } from '@/lib/reportUtils';
 import { cn } from '@/lib/utils';
 import { canonicalizeDepartmentName } from '@/lib/departmentCanonicalization';
+import { buildShortGirdiKaliteNcTitle, isVerboseGirdiKaliteNcTitle } from '@/lib/df8dTextUtils';
 import { getAuditNavigationAction } from '@/lib/auditDeepLink';
 
 // Components (her zaman gerekli - lazy loading yok)
@@ -352,6 +353,14 @@ const MainLayout = () => {
         }
 
         const { id, created_at, updated_at, nc_number: old_nc_number, personnel: _omitFormPersonnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, closing_date, responsible_person_details, requesting_person_details, supplier_name, ...dbData } = formData;
+
+        if (dbData.source_inspection_id && isVerboseGirdiKaliteNcTitle(dbData.title)) {
+            dbData.title = buildShortGirdiKaliteNcTitle({
+                supplierName: supplier_name,
+                partName: dbData.part_name,
+                partCode: dbData.part_code,
+            });
+        }
 
         const deptCanonCtx = { unitCostSettings: unitCostSettings || [], personnel: personnel || [] };
         if (dbData.department) dbData.department = canonicalizeDepartmentName(dbData.department, deptCanonCtx);

@@ -4,7 +4,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/comp
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckSquare, XCircle, AlertTriangle } from 'lucide-react';
 import { normalizeUnitNameForSettings } from '@/lib/utils';
-import { stripSquareBullets } from '@/lib/df8dTextUtils';
+import { getNonConformityListTitle } from '@/lib/df8dTextUtils';
 
 const ListView = ({ setView, setFilter, filter, filteredRecords, handleExport, handleRecordClick, onEdit }) => {
 
@@ -39,7 +39,7 @@ const ListView = ({ setView, setFilter, filter, filteredRecords, handleExport, h
                                     <Badge variant={record.type === '8D' ? 'default' : 'secondary'}>{record.type}</Badge>
                                 </div>
                                 <p className="text-sm text-foreground max-w-lg truncate">
-                                    {typeof record.problem_definition === 'string' ? stripSquareBullets(record.problem_definition) : record.problem_definition}
+                                    {getNonConformityListTitle(record)}
                                 </p>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                     <span>Birim: {record.department ? normalizeUnitNameForSettings(String(record.department)) : '-'}</span>

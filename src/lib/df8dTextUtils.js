@@ -8,6 +8,95 @@ export function stripSquareBullets(text) {
     .replace(/[\u25A0\u25AA\u25FE\u25AB\u2588■]/g, '');
 }
 
+/**
+ * Girdi kalite modülünden gelen otomatik açıklama metninin yanlışlıkla başlık alanına
+ * yapıştırıldığı durumlar (çok uzun, "Kayıt No:" içerir).
+ */
+export function isVerboseGirdiKaliteNcTitle(title) {
+  if (title == null || typeof title !== 'string') return false;
+  const t = title.trim();
+  if (t.length < 80) return false;
+  const collapsed = t.replace(/\u0307/g, '').toLowerCase();
+  const hasRecordNo =
+    t.includes('Kayıt No:') ||
+    t.includes('Kayit No:') ||
+    collapsed.includes('kayit no');
+  const looksGkK =
+    t.length >= 80 &&
+    collapsed.includes('girdi') &&
+    (collapsed.includes('kalite') || collapsed.includes('kontrol')) &&
+    hasRecordNo;
+  return looksGkK;
+}
+
+/** Liste / rapor için kısa GKK başlığı (tedarikçi + parça). */
+export function buildShortGirdiKaliteNcTitle({ supplierName, partName, partCode } = {}) {
+  const part = (partName && String(partName).trim()) || (partCode && String(partCode).trim()) || null;
+  const sup = supplierName && String(supplierName).trim();
+  if (sup && part) return `Girdi Kalite - ${sup} - ${part}`;
+  if (part) return `Girdi Kalite - ${part}`;
+  if (sup) return `Girdi Kalite - ${sup}`;
+  return 'Girdi Kalite Uygunsuzluğu';
+}
+
+function parseGkKBlobForDisplay(blob) {
+  if (!blob || typeof blob !== 'string') return { supplier: null, part: null };
+  const tedarikci = blob.match(/Tedarikçi:\s*([\s\S]+?)(?=\s+Parça\s+Adı:|\s+Parça\s+Kodu:|$)/i);
+  const parcaAdi = blob.match(/Parça\s+Adı:\s*([\s\S]+?)(?=\s+Parça\s+Kodu:|\s+Gelen|\s+Nihai|$)/i);
+  return {
+    supplier: tedarikci ? tedarikci[1].trim().replace(/\s+/g, ' ') : null,
+    part: parcaAdi ? parcaAdi[1].trim().replace(/\s+/g, ' ') : null,
+  };
+}
+
+/**
+ * DF/8D tablo ve listelerinde gösterilecek başlık: gereksiz GKK şablonunu gizler.
+ * @param {string} [emptyLabel='—'] Raporlarda '-' geçmek için kullanılabilir.
+ */
+export function getNonConformityListTitle(record, emptyLabel = '—') {
+  if (!record) return emptyLabel;
+  const rawTitle = typeof record.title === 'string' ? record.title.trim() : '';
+
+  if (rawTitle && !isVerboseGirdiKaliteNcTitle(rawTitle)) {
+    return stripSquareBullets(rawTitle);
+  }
+
+  if (rawTitle && isVerboseGirdiKaliteNcTitle(rawTitle)) {
+    const fromRow = buildShortGirdiKaliteNcTitle({
+      supplierName: record.supplier?.name,
+      partName: record.part_name,
+      partCode: record.part_code,
+    });
+    if (fromRow !== 'Girdi Kalite Uygunsuzluğu') return fromRow;
+    const parsed = parseGkKBlobForDisplay(rawTitle);
+    const fromParsed = buildShortGirdiKaliteNcTitle({
+      supplierName: parsed.supplier,
+      partName: parsed.part,
+      partCode: record.part_code,
+    });
+    if (fromParsed !== 'Girdi Kalite Uygunsuzluğu') return fromParsed;
+  }
+
+  if (rawTitle) return stripSquareBullets(rawTitle);
+
+  const pd = record.problem_definition;
+  if (typeof pd === 'string' && pd.trim() && !isVerboseGirdiKaliteNcTitle(pd)) {
+    const s = stripSquareBullets(pd.trim());
+    return s.length > 160 ? `${s.slice(0, 157)}…` : s;
+  }
+
+  const desc = record.description;
+  if (typeof desc === 'string' && desc.trim()) {
+    const first = desc.split(/\n/).map((l) => l.trim()).find(Boolean) || '';
+    if (first && !isVerboseGirdiKaliteNcTitle(first)) {
+      const s = stripSquareBullets(first);
+      return s.length > 160 ? `${s.slice(0, 157)}…` : s;
+    }
+  }
+
+  return emptyLabel;
+}
+
 /** Proses kontrol planı: vehicle_type virgülle ayrılmış araç modelleri */
 export function parseProcessControlVehicleTypes(value) {
   if (!value || typeof value !== 'string') return [];

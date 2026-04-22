@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { stripSquareBullets } from '@/lib/df8dTextUtils';
+import { getNonConformityListTitle } from '@/lib/df8dTextUtils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -34,9 +34,9 @@ const RecordListModal = ({ isOpen, setIsOpen, title, records, onRecordClick }) =
                                 className="p-3 rounded-md hover:bg-secondary transition-colors cursor-pointer flex justify-between items-center"
                             >
                                 <div className="flex flex-col gap-1">
-                                    <p className="font-semibold text-primary">{record.nc_number || record.mdi_no || record.title}</p>
+                                    <p className="font-semibold text-primary">{record.nc_number || record.mdi_no || getNonConformityListTitle(record)}</p>
                                     <p className="text-sm text-foreground max-w-lg truncate">
-                                        {stripSquareBullets(String(record.description || record.problem_definition || ''))}
+                                        {getNonConformityListTitle(record)}
                                     </p>
                                     <p className="text-xs text-muted-foreground">{record.department}</p>
                                 </div>

@@ -20,6 +20,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
 import { canonicalizeNonConformityOrgFields } from '@/lib/departmentCanonicalization';
+import { getNonConformityListTitle } from '@/lib/df8dTextUtils';
 
 const getDepartmentName = (department) => {
     const value = String(department || '').trim();
@@ -306,7 +307,7 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                 items: recordsToReport.map(record => ({
                     nc_number: record.nc_number || record.mdi_no || '-',
                     type: record.type || '-',
-                    title: record.title || '-',
+                    title: getNonConformityListTitle(record, '-'),
                     department: record.department || '-',
                     opening_date: formatDate(record.df_opened_at || record.opening_date || record.created_at),
                     closing_date: record.closed_at ? formatDate(record.closed_at) : '-',
@@ -435,7 +436,7 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                 overdueRecords: overdueRecords.map(record => ({
                     nc_number: record.nc_number || record.mdi_no || '-',
                     type: record.type || '-',
-                    title: record.title || '-',
+                    title: getNonConformityListTitle(record, '-'),
                     department: record.department || '-',
                     due_date: formatDate(record.due_at),
                     days_overdue: record.due_at ? differenceInDays(now, parseISO(record.due_at)) : 0,
@@ -444,7 +445,7 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                 allRecords: recordsToReport.map(record => ({
                     nc_number: record.nc_number || record.mdi_no || '-',
                     type: record.type || '-',
-                    title: record.title || '-',
+                    title: getNonConformityListTitle(record, '-'),
                     department: record.department || '-',
                     opening_date: formatDate(record.df_opened_at || record.opening_date || record.created_at),
                     closing_date: record.closed_at ? formatDate(record.closed_at) : '-',

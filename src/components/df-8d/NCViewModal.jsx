@@ -66,6 +66,7 @@ import {
   shouldRenderDf8dProblemDescriptionAsPlain,
   hasStructuredRootCauseData,
   stripDuplicateRootCauseFromProblemDescription,
+  getNonConformityListTitle,
 } from '@/lib/df8dTextUtils';
 
 // Varsayılan 8D başlıkları - Component dışında tanımlanmalı
@@ -225,7 +226,8 @@ function getHeaderTitleParts(record) {
     return { line1: '—', line2: null, isGroup: false, badge: null };
   }
 
-  const raw = stripSquareBullets((record.title || '').trim());
+  const fromList = getNonConformityListTitle(record, '');
+  const raw = (fromList && fromList.trim()) || stripSquareBullets((record.title || '').trim());
   const nc = record.nc_number || record.mdi_no || '';
 
   if (!raw) {
