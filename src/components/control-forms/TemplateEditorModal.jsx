@@ -44,6 +44,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+import { sortControlFormSections } from '@/lib/controlFormSectionSort';
+
 const DEFAULT_HEADER_FIELDS = [
     { key: 'marka', label: 'Markası' },
     { key: 'tipi', label: 'Tipi' },
@@ -122,8 +124,7 @@ const TemplateEditorModal = ({ open, setOpen, templateId, products, onSaved }) =
                         : DEFAULT_HEADER_FIELDS,
                 is_active: data.is_active,
             });
-            const secs = (data.control_form_sections || [])
-                .sort((a, b) => a.order_index - b.order_index)
+            const secs = sortControlFormSections(data.control_form_sections)
                 .map((s) => ({
                     id: s.id,
                     name: s.name,
@@ -342,9 +343,6 @@ const TemplateEditorModal = ({ open, setOpen, templateId, products, onSaved }) =
             if (!s.name?.trim()) return 'Tüm bölümlerin adı olmalıdır.';
             for (const i of s.items) {
                 if (!i.text?.trim()) return `"${s.name}" bölümünde boş madde var.`;
-                if (i.item_type === 'measurement' && !i.reference_value?.trim() && !i.measurement_equipment_id) {
-                    return `"${i.text}" ölçüm maddesi için en az bir referans değer veya ölçüm cihazı belirtilmelidir.`;
-                }
             }
         }
         return null;
@@ -510,7 +508,7 @@ const TemplateEditorModal = ({ open, setOpen, templateId, products, onSaved }) =
 
                                 <div>
                                     <Label>Form Adı (*)</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         value={template.name}
                                         onChange={(e) => setTemplate((t) => ({ ...t, name: e.target.value }))}
                                         placeholder="Ör: HSÇK Son Kontrol Formu"
@@ -539,7 +537,7 @@ const TemplateEditorModal = ({ open, setOpen, templateId, products, onSaved }) =
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <Label>Yayın Tarihi</Label>
-                                        <Input
+                                        <Input autoFormat={false}
                                             type="date"
                                             value={template.publish_date || ''}
                                             onChange={(e) =>
@@ -622,7 +620,7 @@ const TemplateEditorModal = ({ open, setOpen, templateId, products, onSaved }) =
                                 <div className="space-y-2">
                                     {(template.header_fields || []).map((f, idx) => (
                                         <div key={idx} className="flex gap-2 items-center">
-                                            <Input
+                                            <Input autoFormat={false}
                                                 className="flex-1"
                                                 placeholder="Etiket (ör: Şase No)"
                                                 value={f.label || ''}
@@ -630,7 +628,7 @@ const TemplateEditorModal = ({ open, setOpen, templateId, products, onSaved }) =
                                                     updateHeaderField(idx, { label: e.target.value })
                                                 }
                                             />
-                                            <Input
+                                            <Input autoFormat={false}
                                                 className="flex-1 font-mono text-xs"
                                                 placeholder="anahtar (ör: sase_no)"
                                                 value={f.key || ''}
@@ -729,11 +727,15 @@ const SectionCard = ({
                     {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </Button>
                 <span className="text-xs font-semibold text-muted-foreground w-6">#{index + 1}</span>
-                <Input
+                <Input autoFormat={false}
                     className="flex-1 font-semibold"
                     placeholder="Bölüm adı (örn: HSÇK Mekanik Çalışma Kontrolleri)"
                     value={section.name}
                     onChange={(e) => updateSection(section.id, { name: e.target.value })}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                 />
                 <div className="flex items-center gap-1">
                     <Button
@@ -801,11 +803,15 @@ const ItemRow = ({ item, index, total, updateItem, deleteItem, moveItem, equipme
                 <span className="text-xs font-semibold text-muted-foreground pt-2 w-6 text-center">{index + 1}</span>
                 <div className="flex-1 space-y-2">
                     <div className="flex gap-2">
-                        <Input
+                        <Input autoFormat={false}
                             className="flex-1"
                             placeholder="Kontrol maddesi metni..."
                             value={item.text}
                             onChange={(e) => updateItem({ text: e.target.value })}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
                         />
                         <Select
                             value={item.item_type}
@@ -865,15 +871,19 @@ const ItemRow = ({ item, index, total, updateItem, deleteItem, moveItem, equipme
                             </div>
                             <div className="md:col-span-4">
                                 <Label className="text-[11px]">Referans Değer</Label>
-                                <Input
+                                <Input autoFormat={false}
                                     placeholder="Ör: 6 mm, Max 25 sn, 180 bar"
                                     value={item.reference_value || ''}
                                     onChange={(e) => updateItem({ reference_value: e.target.value })}
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="off"
+                                    spellCheck={false}
                                 />
                             </div>
                             <div className="md:col-span-3">
                                 <Label className="text-[11px]">Birim (ops.)</Label>
-                                <Input
+                                <Input autoFormat={false}
                                     placeholder="mm / bar / sn"
                                     value={item.unit || ''}
                                     onChange={(e) => updateItem({ unit: e.target.value })}
@@ -938,7 +948,7 @@ const EquipmentPicker = ({ equipmentId, equipmentName, equipments, onSelect, onC
                 </PopoverTrigger>
                 <PopoverContent className="w-96 p-0">
                     <div className="p-2 border-b">
-                        <Input
+                        <Input autoFormat={false}
                             placeholder="Cihaz ara..."
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
@@ -972,7 +982,7 @@ const EquipmentPicker = ({ equipmentId, equipmentName, equipments, onSelect, onC
                             <p className="text-xs text-muted-foreground mb-1">
                                 Listeden değilse serbest metin girebilirsiniz:
                             </p>
-                            <Input
+                            <Input autoFormat={false}
                                 placeholder="Manuel cihaz adı"
                                 value={equipmentId ? '' : equipmentName || ''}
                                 onChange={(e) => {

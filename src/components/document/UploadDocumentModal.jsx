@@ -462,7 +462,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                         <div className="md:col-span-2">
                             <Label htmlFor="title">Doküman Adı <span className="text-red-500">*</span></Label>
-                            <Input id="title" value={formData.title || ''} onChange={handleInputChange} required />
+                            <Input id="title" autoFormat={false} value={formData.title || ''} onChange={handleInputChange} required />
                         </div>
 
                         <div>

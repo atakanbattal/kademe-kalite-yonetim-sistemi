@@ -181,7 +181,7 @@ const BulkAddItemModal = ({ open, setOpen, selectedTemplates, onDone }) => {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[520px] p-0" align="start">
                                     <div className="p-2 border-b">
-                                        <Input
+                                        <Input autoFormat={false}
                                             placeholder="Bölüm ara veya yeni bölüm adı yaz..."
                                             value={sectionQuery}
                                             onChange={(e) => setSectionQuery(e.target.value)}
@@ -253,10 +253,14 @@ const BulkAddItemModal = ({ open, setOpen, selectedTemplates, onDone }) => {
 
                     <div>
                         <Label>Madde Metni (*)</Label>
-                        <Input
+                        <Input autoFormat={false}
                             placeholder="Ör: Arka kapak emniyet dayaması montaj kontrolü"
                             value={form.item_text}
                             onChange={(e) => setForm({ ...form, item_text: e.target.value })}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
                         />
                     </div>
 
@@ -291,20 +295,28 @@ const BulkAddItemModal = ({ open, setOpen, selectedTemplates, onDone }) => {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <Label>Referans Değer</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         placeholder="Ör: 6 mm, Max 25 sn"
                                         value={form.reference_value}
                                         onChange={(e) =>
                                             setForm({ ...form, reference_value: e.target.value })
                                         }
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="off"
+                                        spellCheck={false}
                                     />
                                 </div>
                                 <div>
                                     <Label>Birim</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         placeholder="mm / bar / sn"
                                         value={form.unit}
                                         onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="off"
+                                        spellCheck={false}
                                     />
                                 </div>
                             </div>
@@ -326,7 +338,7 @@ const BulkAddItemModal = ({ open, setOpen, selectedTemplates, onDone }) => {
                                         </PopoverTrigger>
                                         <PopoverContent className="w-96 p-0">
                                             <div className="p-2 border-b">
-                                                <Input
+                                                <Input autoFormat={false}
                                                     placeholder="Cihaz ara..."
                                                     value={eqQuery}
                                                     onChange={(e) => setEqQuery(e.target.value)}
@@ -366,7 +378,7 @@ const BulkAddItemModal = ({ open, setOpen, selectedTemplates, onDone }) => {
                                                     <p className="text-xs text-muted-foreground mb-1">
                                                         Manuel cihaz adı:
                                                     </p>
-                                                    <Input
+                                                    <Input autoFormat={false}
                                                         placeholder="Ör: Ultrasonik kalınlık ölçer"
                                                         value={
                                                             form.measurement_equipment_id

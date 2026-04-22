@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { generateControlFormPdf } from '@/lib/controlFormPdfGenerator';
+import { sortControlFormSections } from '@/lib/controlFormSectionSort';
 
 const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
     const { toast } = useToast();
@@ -98,8 +99,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
             .eq('id', templateId)
             .single();
         if (error) throw error;
-        const sections = (data.control_form_sections || [])
-            .sort((a, b) => a.order_index - b.order_index)
+        const sections = sortControlFormSections(data.control_form_sections)
             .map((s) => ({
                 ...s,
                 items: (s.control_form_items || []).sort((a, b) => a.order_index - b.order_index),
@@ -411,7 +411,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div>
                                     <Label>Seri Numarası</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         value={execution.serial_number || ''}
                                         onChange={(e) =>
                                             setExecution((x) => ({ ...x, serial_number: e.target.value }))
@@ -420,7 +420,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                                 </div>
                                 <div>
                                     <Label>Şase No</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         value={execution.chassis_no || ''}
                                         onChange={(e) =>
                                             setExecution((x) => ({ ...x, chassis_no: e.target.value }))
@@ -429,7 +429,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                                 </div>
                                 <div>
                                     <Label>Müşteri / Kurum</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         value={execution.customer || ''}
                                         onChange={(e) =>
                                             setExecution((x) => ({ ...x, customer: e.target.value }))
@@ -441,7 +441,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
                                     <Label>Kontrol Tarihi</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         type="date"
                                         value={execution.inspection_date || ''}
                                         onChange={(e) =>
@@ -451,7 +451,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                                 </div>
                                 <div>
                                     <Label>Sevk Tarihi</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         type="date"
                                         value={execution.shipment_date || ''}
                                         onChange={(e) =>
@@ -468,7 +468,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                                         {template.header_fields.map((f) => (
                                             <div key={f.key}>
                                                 <Label>{f.label}</Label>
-                                                <Input
+                                                <Input autoFormat={false}
                                                     value={execution.header_data?.[f.key] || ''}
                                                     onChange={(e) =>
                                                         setExecution((x) => ({
@@ -490,7 +490,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                                 <p className="text-sm font-semibold">Kontrol Eden & Notlar</p>
                                 <div>
                                     <Label>Kontrol Eden</Label>
-                                    <Input
+                                    <Input autoFormat={false}
                                         value={execution.inspector_name || ''}
                                         onChange={(e) =>
                                             setExecution((x) => ({ ...x, inspector_name: e.target.value }))
@@ -582,7 +582,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                                                                 )}
                                                                 <div className="flex gap-2 mt-2 flex-wrap items-center">
                                                                     {isMeas && (
-                                                                        <Input
+                                                                        <Input autoFormat={false}
                                                                             className="w-36 h-8 text-xs"
                                                                             placeholder="Ölçülen"
                                                                             value={r.measured_value || ''}
@@ -593,7 +593,7 @@ const ExecutionFormModal = ({ open, setOpen, executionId, onSaved }) => {
                                                                             }
                                                                         />
                                                                     )}
-                                                                    <Input
+                                                                    <Input autoFormat={false}
                                                                         className="flex-1 min-w-[120px] h-8 text-xs"
                                                                         placeholder="Açıklama (ops.)"
                                                                         value={r.notes || ''}

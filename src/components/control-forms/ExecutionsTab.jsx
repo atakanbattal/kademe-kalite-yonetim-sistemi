@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, Printer, Download, FileText } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { sortControlFormSections } from '@/lib/controlFormSectionSort';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,8 +122,7 @@ const ExecutionsTab = () => {
             .eq('execution_id', execId);
         if (rErr) throw rErr;
 
-        const sections = (template.control_form_sections || [])
-            .sort((a, b) => a.order_index - b.order_index)
+        const sections = sortControlFormSections(template.control_form_sections)
             .map((s) => ({
                 ...s,
                 items: (s.control_form_items || []).sort((a, b) => a.order_index - b.order_index),
@@ -166,7 +166,7 @@ const ExecutionsTab = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex-1 max-w-md relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none z-10" />
-                    <Input
+                    <Input autoFormat={false}
                         placeholder="Kayıt no, seri no, şase no, ürün..."
                         style={{ paddingLeft: '2.5rem' }}
                         value={searchTerm}

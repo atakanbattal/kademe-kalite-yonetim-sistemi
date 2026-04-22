@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Edit, Trash2, Search, FileText, Printer, Copy, History, Layers, Eye, Download, CheckSquare } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { sortControlFormSections } from '@/lib/controlFormSectionSort';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -133,7 +134,7 @@ const TemplatesTab = () => {
                 .single();
             if (insErr) throw insErr;
 
-            const sections = (origT.control_form_sections || []).sort((a, b) => a.order_index - b.order_index);
+            const sections = sortControlFormSections(origT.control_form_sections);
             for (const s of sections) {
                 const { data: newS, error: sErr } = await supabase
                     .from('control_form_sections')
@@ -191,8 +192,7 @@ const TemplatesTab = () => {
             .eq('id', templateId)
             .single();
         if (error) throw error;
-        const sections = (data.control_form_sections || [])
-            .sort((a, b) => a.order_index - b.order_index)
+        const sections = sortControlFormSections(data.control_form_sections)
             .map((s) => ({
                 ...s,
                 items: (s.control_form_items || []).sort((a, b) => a.order_index - b.order_index),
@@ -247,7 +247,7 @@ const TemplatesTab = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex-1 max-w-md relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none z-10" />
-                    <Input
+                    <Input autoFormat={false}
                         placeholder="Form adı veya doküman no ile ara..."
                         style={{ paddingLeft: '2.5rem' }}
                         value={searchTerm}

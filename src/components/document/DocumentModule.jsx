@@ -26,6 +26,55 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+/** İNS-FR-2026-0031 gibi kodlarda yıl + sıra; FR/PR karışımında araya girme hatası olmaz. */
+function parseDocumentNumberSortKey(documentNumber) {
+    if (documentNumber == null || documentNumber === '') {
+        return { year: 0, seq: 0, hasMatch: false, raw: '' };
+    }
+    const t = String(documentNumber).trim();
+    const m = t.match(/(\d{4})-(\d+)/g);
+    if (m && m.length) {
+        const last = m[m.length - 1].split('-');
+        return {
+            year: parseInt(last[0], 10) || 0,
+            seq: parseInt(last[1], 10) || 0,
+            hasMatch: true,
+            raw: t,
+        };
+    }
+    return { year: 0, seq: 0, hasMatch: false, raw: t };
+}
+
+/** Yüksek numara / yeni yıl üstte (tüm sekmeler + Tümü için tutarlı). */
+function compareDocumentsByNumberDesc(a, b) {
+    const ka = parseDocumentNumberSortKey(a.document_number);
+    const kb = parseDocumentNumberSortKey(b.document_number);
+    if (ka.hasMatch && kb.hasMatch) {
+        if (ka.year !== kb.year) return kb.year - ka.year;
+        if (ka.seq !== kb.seq) return kb.seq - ka.seq;
+    }
+    if (ka.hasMatch !== kb.hasMatch) {
+        return ka.hasMatch ? -1 : 1;
+    }
+    if (ka.raw && kb.raw) {
+        const c = kb.raw.localeCompare(ka.raw, 'tr', { numeric: true, sensitivity: 'base' });
+        if (c !== 0) return c;
+    } else if (!ka.raw && !kb.raw) {
+        // both empty
+    } else {
+        return ka.raw ? -1 : 1;
+    }
+    try {
+        const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+        const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
+        return dateB - dateA;
+    } catch {
+        return 0;
+    }
+}
+
 const DOCUMENT_CATEGORIES = [
     { value: 'Tümü', label: 'Tümü', icon: FileText, addText: 'Yeni Doküman Ekle' },
     { value: 'Kalite Sertifikaları', label: 'Kalite Sertifikaları', icon: Certificate, addText: 'Yeni Kalite Sertifikası Ekle' },
@@ -229,17 +278,7 @@ const DocumentModule = () => {
                     document_revisions: currentRevision
                 };
             })
-            .sort((a, b) => {
-                try {
-                    const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
-                    const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
-                    if (isNaN(dateA.getTime())) return 1;
-                    if (isNaN(dateB.getTime())) return -1;
-                    return dateB - dateA;
-                } catch {
-                    return 0;
-                }
-            });
+            .sort(compareDocumentsByNumberDesc);
     }, [documents]);
 
     const normalizedSearchTerm = useMemo(

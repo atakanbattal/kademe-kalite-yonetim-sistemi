@@ -3,7 +3,7 @@
  */
 export function normalizeIncomingPartCode(code) {
   if (code == null || code === '') return '';
-  return String(code).trim().toLowerCase().replace(/\s+/g, ' ');
+  return String(code).trim().toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ');
 }
 
 /** PostgREST in / not.in listesi için metin tırnaklama (tire, özel karakter güvenli). */
