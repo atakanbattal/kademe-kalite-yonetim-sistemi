@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS public._sql_apply_chunks (batch text, seq int, chunk text);

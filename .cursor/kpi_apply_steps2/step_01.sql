@@ -1,0 +1,1 @@
+DELETE FROM public._sql_apply_chunks WHERE batch = 'kpi_monthly_20260414';
