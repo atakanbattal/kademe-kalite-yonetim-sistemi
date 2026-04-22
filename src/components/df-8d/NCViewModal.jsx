@@ -288,26 +288,46 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   const [isPrinting, setIsPrinting] = useState(false);
   const [supplierName, setSupplierName] = useState(null);
 
-  // Tedarikçi adını fetch et
+  const recordId = record?.id || null;
+  const recordSupplierId = record?.supplier_id || null;
+
+  // Kayıt değiştiği anda önceki kayda ait tedarikçi adını SENKRON olarak temizle.
+  // Aksi halde yeni modal, eski kaydın supplierName'ini "İlgili Birim" alanında gösterebiliyor.
+  React.useLayoutEffect(() => {
+    setSupplierName(null);
+  }, [recordId]);
+
+  // Tedarikçi adını fetch et — kayıt değişince yeniden çek
   useEffect(() => {
-    const fetchSupplierName = async () => {
-      if (record?.supplier_id) {
-        const { data, error } = await supabase
-          .from('suppliers')
-          .select('name')
-          .eq('id', record.supplier_id)
-          .single();
-
-        if (!error && data) {
-          setSupplierName(data.name);
-        }
-      } else {
-        setSupplierName(null);
+    if (!isOpen || !recordId) return;
+    if (!recordSupplierId) {
+      setSupplierName(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('name')
+        .eq('id', recordSupplierId)
+        .single();
+      if (!cancelled && !error && data) {
+        setSupplierName(data.name);
       }
-    };
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, recordId, recordSupplierId]);
 
+  useEffect(() => {
     if (isOpen && record) {
-      fetchSupplierName();
+      // Teşhis: hangi kaydın modala aktarıldığını doğrulamak için.
+      console.debug('[NCViewModal] render', {
+        id: record.id,
+        nc_number: record.nc_number || record.mdi_no,
+        title: record.title,
+        attachments: Array.isArray(record.attachments) ? record.attachments.length : 0,
+        closing_attachments: Array.isArray(record.closing_attachments) ? record.closing_attachments.length : 0,
+      });
     }
   }, [isOpen, record]);
 
@@ -686,7 +706,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                           {allAttachments.map((path, index) => (
-                            <AttachmentItem key={index} path={path} onPreview={setLightboxUrl} />
+                            <AttachmentItem key={`${recordId || 'nc'}::${path || index}`} path={path} onPreview={setLightboxUrl} />
                           ))}
                         </div>
                       </div>

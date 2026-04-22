@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
@@ -191,21 +191,46 @@ const MainLayout = () => {
     }, [toast]);
 
     const handleOpenNCForm = useCallback((record, onSaveSuccessCallback) => setNcFormState({ isOpen: true, record, onSaveSuccess: onSaveSuccessCallback }), []);
+
+    // Çok hızlı ardışık tıklamalarda Supabase cevaplarının sırasız dönmesi hâlinde
+    // eski isteklerin yeni tıklamanın state'ini ezmesini engelliyoruz.
+    const ncViewRequestIdRef = useRef(0);
+
     const handleOpenNCView = useCallback(async (record) => {
+        if (!record?.id) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk kaydı için geçerli bir ID bulunamadı.' });
+            return;
+        }
+        const requestedId = record.id;
+        const myRequestId = ++ncViewRequestIdRef.current;
+        // Önceki modal'da kalmış kaydın içeriğinin sızmasını önlemek için state'i hemen temizle.
+        setNcViewState({ isOpen: false, record: null });
+        console.debug('[handleOpenNCView] requested', { requestedId, nc_number: record.nc_number || record.mdi_no });
+
         try {
-            // Fetch full record with all data
             const { data: fullRecord, error: fetchError } = await supabase
                 .from('non_conformities')
                 .select('*')
-                .eq('id', record.id)
+                .eq('id', requestedId)
                 .single();
 
             if (fetchError) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk detayları alınamadı.' });
+                if (ncViewRequestIdRef.current === myRequestId) {
+                    setNcViewState({ isOpen: false, record: null });
+                    toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk detayları alınamadı.' });
+                }
                 return;
             }
 
-            // Fetch related audit info if exists
+            if (fullRecord?.id !== requestedId) {
+                console.error('[handleOpenNCView] ID mismatch', { requestedId, returnedId: fullRecord?.id });
+                if (ncViewRequestIdRef.current === myRequestId) {
+                    setNcViewState({ isOpen: false, record: null });
+                    toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk kaydı eşleşmedi. Sayfayı yenileyip tekrar deneyin.' });
+                }
+                return;
+            }
+
             let auditData = null;
             if (fullRecord?.source_audit_id) {
                 const { data: audit, error: auditError } = await supabase
@@ -218,18 +243,32 @@ const MainLayout = () => {
                 }
             }
 
-            // Enrich record with audit title
             const enrichedRecord = {
                 ...fullRecord,
                 audit_title: auditData?.title || fullRecord.audit_title || null
             };
 
+            if (ncViewRequestIdRef.current !== myRequestId) {
+                console.debug('[handleOpenNCView] stale response ignored', { requestedId, current: ncViewRequestIdRef.current, mine: myRequestId });
+                return;
+            }
+            console.debug('[handleOpenNCView] applying', { id: enrichedRecord.id, nc_number: enrichedRecord.nc_number || enrichedRecord.mdi_no });
             setNcViewState({ isOpen: true, record: enrichedRecord });
         } catch (err) {
             console.error('Error opening NC view:', err);
-            toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk açılırken hata oluştu.' });
+            if (ncViewRequestIdRef.current === myRequestId) {
+                setNcViewState({ isOpen: false, record: null });
+                toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk açılırken hata oluştu.' });
+            }
         }
     }, [toast]);
+
+    const handleCloseNCView = useCallback(() => {
+        // Modal kapatılırken request counter'ı ilerlet: bu sayede yarıda kalmış fetch'ler
+        // kapalı bir modal'ı tekrar açamaz.
+        ncViewRequestIdRef.current += 1;
+        setNcViewState({ isOpen: false, record: null });
+    }, []);
 
     const handleAuditDeepLink = useCallback(
         async (log) => {
@@ -582,7 +621,7 @@ const MainLayout = () => {
     return (
         <>
             <NCFormModal isOpen={ncFormState.isOpen} setIsOpen={(open) => setNcFormState(s => ({ ...s, isOpen: open }))} record={ncFormState.record} onSave={handleSaveNC} onSaveSuccess={onGlobalSaveSuccess} />
-            <NCViewModal isOpen={ncViewState.isOpen} setIsOpen={(open) => setNcViewState(s => ({ ...s, isOpen: open }))} record={ncViewState.record} onEdit={handleOpenNCForm} onDownloadPDF={handleDownloadPDF} />
+            <NCViewModal isOpen={ncViewState.isOpen} setIsOpen={(open) => { if (!open) handleCloseNCView(); else setNcViewState(s => ({ ...s, isOpen: true })); }} record={ncViewState.record} onEdit={handleOpenNCForm} onDownloadPDF={handleDownloadPDF} />
             <PdfViewerModal isOpen={pdfViewerState.isOpen} setIsOpen={(open) => setPdfViewerState(s => ({ ...s, isOpen: open }))} pdfUrl={pdfViewerState.url} title={pdfViewerState.title} />
 
             <div className="min-h-screen bg-secondary overflow-x-hidden">
