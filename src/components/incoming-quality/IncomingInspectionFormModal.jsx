@@ -76,13 +76,26 @@ import RiskyStockAlert from './RiskyStockAlert';
         const handleActualValueChange = (value) => {
             let result = null;
             const normalizedValue = String(value).replace(',', '.');
+            const measuredStr = String(value).trim().toUpperCase();
 
-            if (hasTolerance) {
+            // Toleranslı satırlarda da OK/RET vb. açık kelimeleri önce yorumla (min/max olsa bile)
+            const isExplicitFail = ['RET', 'UYGUNSUZ', 'NOK', 'NG', 'HATALI', 'RED'].some(
+                (failText) => measuredStr === failText || measuredStr.startsWith(`${failText} `)
+            );
+            const isExplicitPass = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GEÇER', 'GECER', 'VAR', 'EVET'].some(
+                (okText) => measuredStr === okText || measuredStr.startsWith(`${okText} `)
+            );
+
+            if (isExplicitFail) {
+                result = false;
+            } else if (isExplicitPass) {
+                result = true;
+            } else if (hasTolerance) {
                 const actual = parseFloat(normalizedValue);
                 if (!isNaN(actual)) {
                     const min = parseFloat(String(item.min_value).replace(',', '.'));
                     const max = parseFloat(String(item.max_value).replace(',', '.'));
-                     if (!isNaN(min) && !isNaN(max)) {
+                    if (!isNaN(min) && !isNaN(max)) {
                         result = actual >= min && actual <= max;
                     }
                 }
@@ -109,7 +122,7 @@ import RiskyStockAlert from './RiskyStockAlert';
                     <Input
                         type="text"
                         inputMode={hasTolerance ? "decimal" : "text"}
-                        placeholder={hasTolerance ? "Değer girin" : "OK/NOK"}
+                        placeholder={hasTolerance ? "Değer veya OK/RET" : "OK/NOK/RET"}
                         value={item.measured_value || ''}
                         onChange={(e) => handleActualValueChange(e.target.value)}
                         disabled={isViewMode}
