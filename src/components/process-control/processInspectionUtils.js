@@ -7,7 +7,7 @@ const findOptionLabel = (options = [], value) => {
     return match?.label || match?.name || null;
 };
 
-const calculateMeasurementCount = (characteristicType, quantity) => {
+export const calculateMeasurementCount = (characteristicType, quantity) => {
     const qty = Number(quantity) || 0;
     if (qty <= 0) return 0;
 
@@ -210,4 +210,130 @@ export const buildMeasurementBundle = ({
     }
 
     return { summary, results };
+};
+
+export const getInspectionResultMeasured = (row) =>
+    row?.measured_value ?? row?.measurement_value ?? row?.actual_value ?? '';
+
+/**
+ * UUID id, created_at aynı batch'te: form / bundle sırası ile çoğu zaman uyuşmaz.
+ * Öncelik: line_sequence (kayıtta verilir) > kalem+ölçüm no > en son created_at
+ */
+export const sortProcessInspectionResultsForBundleOrder = (inspectionResults, controlPlan) => {
+    const rows = [...(inspectionResults || [])];
+    if (rows.length === 0) return rows;
+
+    const allHaveLineSeq = rows.every((r) => r.line_sequence != null && r.line_sequence !== undefined);
+    if (allHaveLineSeq) {
+        return rows.sort((a, b) => Number(a.line_sequence) - Number(b.line_sequence));
+    }
+
+    const idToLineIdx = new Map();
+    (controlPlan?.items || []).forEach((it, idx) => {
+        if (it?.id != null && it.id !== '') {
+            idToLineIdx.set(String(it.id), idx);
+        }
+    });
+
+    const canSortByPlan = rows.every(
+        (r) => r?.control_plan_item_id != null && r.measurement_number != null && r.measurement_number !== ''
+    );
+    if (canSortByPlan) {
+        return rows.sort((a, b) => {
+            const la = idToLineIdx.get(String(a.control_plan_item_id)) ?? 9999;
+            const lb = idToLineIdx.get(String(b.control_plan_item_id)) ?? 9999;
+            if (la !== lb) return la - lb;
+            return Number(a.measurement_number) - Number(b.measurement_number);
+        });
+    }
+
+    return rows.sort((a, b) => {
+        const ta = a?.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b?.created_at ? new Date(b.created_at).getTime() : 0;
+        if (ta !== tb) return ta - tb;
+        return 0;
+    });
+};
+
+/**
+ * INKR ön doldurma: önce (kalem_id+ölçüm no) slot anahtarı, sonra bire bir satır, son kova.
+ */
+export const buildInkrPrefillBundle = ({
+    controlPlan,
+    quantityProduced,
+    characteristics = [],
+    equipment = [],
+    inspectionResults = [],
+}) => {
+    const qty = Number(quantityProduced) > 0 ? Number(quantityProduced) : 1;
+    const { results: templateSlots } = buildMeasurementBundle({
+        controlPlan,
+        quantityProduced: qty,
+        characteristics,
+        equipment,
+        existingRows: [],
+    });
+
+    const rows = sortProcessInspectionResultsForBundleOrder(inspectionResults, controlPlan);
+
+    const byKey = new Map();
+    rows.forEach((r) => {
+        if (r?.control_plan_item_id == null) return;
+        if (r?.measurement_number == null || r?.measurement_number === '') return;
+        byKey.set(`${r.control_plan_item_id}:${Number(r.measurement_number)}`, getInspectionResultMeasured(r));
+    });
+
+    if (byKey.size > 0) {
+        const filled = templateSlots.map((slot) => {
+            if (slot?.control_plan_item_id == null) {
+                return { ...slot, measured_value: '' };
+            }
+            const k = `${slot.control_plan_item_id}:${Number(slot.measurement_number)}`;
+            return { ...slot, measured_value: byKey.get(k) ?? '' };
+        });
+        const keyPathOk =
+            templateSlots.length > 0 &&
+            templateSlots.every((slot) => {
+                if (slot?.control_plan_item_id == null) return false;
+                const k = `${slot.control_plan_item_id}:${Number(slot.measurement_number)}`;
+                return byKey.has(k);
+            });
+        if (keyPathOk) {
+            return filled;
+        }
+    }
+
+    if (templateSlots.length > 0 && templateSlots.length === rows.length) {
+        return templateSlots.map((slot, i) => ({
+            ...slot,
+            measured_value: getInspectionResultMeasured(rows[i]),
+        }));
+    }
+
+    return buildMeasurementBundle({
+        controlPlan,
+        quantityProduced: qty,
+        characteristics,
+        equipment,
+        existingRows: rows,
+    }).results;
+};
+
+/**
+ * Düz bundle çıktısında, her kontrol planı satırının ilk ölçümü (INKR tek hücresi).
+ */
+export const getFirstMeasurementValuePerPlanLine = ({ controlPlan, quantityProduced, flatBundleResults = [] }) => {
+    const q = Number(quantityProduced) > 0 ? Number(quantityProduced) : 1;
+    const byIndex = new Map();
+    let offset = 0;
+    (controlPlan?.items || []).forEach((item, lineIdx) => {
+        const c = calculateMeasurementCount(item.characteristic_type || 'Genel', q);
+        if (c <= 0) {
+            byIndex.set(lineIdx, '');
+            return;
+        }
+        byIndex.set(lineIdx, flatBundleResults[offset]?.measured_value ?? '');
+        offset += c;
+    });
+    return byIndex;
 };

@@ -30,7 +30,7 @@ import {
     insertProcessInkrAttachment,
     normalizeProcessPartCode,
 } from './processInkrUtils';
-import { buildMeasurementBundle } from './processInspectionUtils';
+import { buildInkrPrefillBundle, getFirstMeasurementValuePerPlanLine } from './processInspectionUtils';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
@@ -597,43 +597,37 @@ const ProcessInkrFormModal = ({
                                 derivedPartName = firstInspection.part_name.trim();
                             }
 
-                            // İlk testin sonuçlarını getir (sıra, dağıtım mantığı ile uyumlu olsun)
+                            // Sıra: line_sequence (form ile bire bir); yoksa API sırası (UUID id'ye ASLA göreme)
                             const { data: inspectionResults } = await supabase
                                 .from('process_inspection_results')
                                 .select('*')
-                                .eq('inspection_id', firstInspection.id)
-                                .order('id', { ascending: true });
+                                .eq('inspection_id', firstInspection.id);
 
-                            // Proses muayene formu ile aynı buildMeasurementBundle matrisi: plan satırı + ölçüm no.
-                            // Eski yalnızca characteristic_id + shift() yaklaşımı, aynı karakteristikli birden
-                            // fazla kalem veya kalem başına çoklu ölçümde kaydırır; nominal-ölçü çifti kayar.
                             const quantityProduced = Number(firstInspection.quantity_produced) || 0;
                             const effectiveQty = quantityProduced > 0 ? quantityProduced : 1;
                             if (controlPlan && controlPlan.items?.length) {
-                                const { results: bundleResults } = buildMeasurementBundle({
+                                // bire bir: şablon slotu[i].ölçü = sorted(muayene)[i] — kovaya tekrar sokma
+                                const flatBundle = buildInkrPrefillBundle({
                                     controlPlan,
                                     quantityProduced: effectiveQty,
                                     characteristics: characteristics || [],
                                     equipment: equipment || [],
-                                    existingRows: inspectionResults || [],
+                                    inspectionResults: inspectionResults || [],
                                 });
-                                initialItems = controlPlan.items.map((planItem) => {
-                                    const matchForLine = (bundleResults || []).find(
-                                        (r) =>
-                                            r.control_plan_item_id === planItem.id && Number(r.measurement_number) === 1
-                                    );
-                                    const nextMeasuredValue =
-                                        matchForLine?.measured_value != null && matchForLine.measured_value !== ''
-                                            ? matchForLine.measured_value
-                                            : '';
-                                    return hydrateInkrItem(
+                                const byLine = getFirstMeasurementValuePerPlanLine({
+                                    controlPlan,
+                                    quantityProduced: effectiveQty,
+                                    flatBundleResults: flatBundle,
+                                });
+                                initialItems = controlPlan.items.map((planItem, lineIdx) =>
+                                    hydrateInkrItem(
                                         {
                                             ...planItem,
-                                            measured_value: nextMeasuredValue,
+                                            measured_value: byLine.get(lineIdx) ?? '',
                                         },
                                         { characteristics, equipment, standards }
-                                    );
-                                });
+                                    )
+                                );
                             }
                         } else if (controlPlan && controlPlan.items?.length) {
                             // Sadece kontrol planı varsa

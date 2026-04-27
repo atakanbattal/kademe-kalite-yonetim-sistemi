@@ -828,9 +828,15 @@ const ProcessInspectionFormModal = ({
 
             await supabase.from('process_inspection_results').delete().eq('inspection_id', inspectionId);
 
-            const resultsToInsert = results.map((row) => ({
+            const resultsToInsert = results.map((row, lineSequence) => ({
                 inspection_id: inspectionId,
                 characteristic_id: row.characteristic_id,
+                control_plan_item_id: row.control_plan_item_id || null,
+                measurement_number:
+                    row.measurement_number != null && row.measurement_number !== ''
+                        ? Number(row.measurement_number)
+                        : null,
+                line_sequence: lineSequence,
                 measurement_value: String(row.measured_value ?? ''),
                 is_ok: row.result,
                 notes: '',
