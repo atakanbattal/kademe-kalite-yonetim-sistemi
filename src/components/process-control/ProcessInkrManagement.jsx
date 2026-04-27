@@ -30,6 +30,7 @@ import {
     insertProcessInkrAttachment,
     normalizeProcessPartCode,
 } from './processInkrUtils';
+import { buildMeasurementBundle } from './processInspectionUtils';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
@@ -581,7 +582,7 @@ const ProcessInkrFormModal = ({
                         // 2. İlk üretim denemesi/muayenesi kaydını getir
                         const { data: firstInspection, error: inspectionError } = await supabase
                             .from('process_inspections')
-                            .select('id, inspection_date, part_name')
+                            .select('id, inspection_date, part_name, quantity_produced')
                             .eq('part_code', existingReport.part_code)
                             .order('inspection_date', { ascending: true })
                             .order('created_at', { ascending: true })
@@ -596,29 +597,35 @@ const ProcessInkrFormModal = ({
                                 derivedPartName = firstInspection.part_name.trim();
                             }
 
-                            // İlk testin sonuçlarını getir
+                            // İlk testin sonuçlarını getir (sıra, dağıtım mantığı ile uyumlu olsun)
                             const { data: inspectionResults } = await supabase
                                 .from('process_inspection_results')
                                 .select('*')
-                                .eq('inspection_id', firstInspection.id);
+                                .eq('inspection_id', firstInspection.id)
+                                .order('id', { ascending: true });
 
-                            const resultsMap = new Map();
-                            if (inspectionResults?.length) {
-                                inspectionResults.forEach(res => {
-                                    if (res.characteristic_id) {
-                                        if (!resultsMap.has(res.characteristic_id)) {
-                                            resultsMap.set(res.characteristic_id, []);
-                                        }
-                                        resultsMap.get(res.characteristic_id).push(res.measured_value ?? res.measurement_value ?? res.actual_value ?? '');
-                                    }
-                                });
-                            }
-
-                            // 3. Kontrol planı öğelerini baz alıp, ölçülen değerleri eşleştir
+                            // Proses muayene formu ile aynı buildMeasurementBundle matrisi: plan satırı + ölçüm no.
+                            // Eski yalnızca characteristic_id + shift() yaklaşımı, aynı karakteristikli birden
+                            // fazla kalem veya kalem başına çoklu ölçümde kaydırır; nominal-ölçü çifti kayar.
+                            const quantityProduced = Number(firstInspection.quantity_produced) || 0;
+                            const effectiveQty = quantityProduced > 0 ? quantityProduced : 1;
                             if (controlPlan && controlPlan.items?.length) {
+                                const { results: bundleResults } = buildMeasurementBundle({
+                                    controlPlan,
+                                    quantityProduced: effectiveQty,
+                                    characteristics: characteristics || [],
+                                    equipment: equipment || [],
+                                    existingRows: inspectionResults || [],
+                                });
                                 initialItems = controlPlan.items.map((planItem) => {
-                                    const characteristicVals = resultsMap.get(planItem.characteristic_id);
-                                    const nextMeasuredValue = characteristicVals && characteristicVals.length > 0 ? characteristicVals.shift() : '';
+                                    const matchForLine = (bundleResults || []).find(
+                                        (r) =>
+                                            r.control_plan_item_id === planItem.id && Number(r.measurement_number) === 1
+                                    );
+                                    const nextMeasuredValue =
+                                        matchForLine?.measured_value != null && matchForLine.measured_value !== ''
+                                            ? matchForLine.measured_value
+                                            : '';
                                     return hydrateInkrItem(
                                         {
                                             ...planItem,
