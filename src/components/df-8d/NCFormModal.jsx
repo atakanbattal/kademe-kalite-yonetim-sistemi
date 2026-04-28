@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EightDStepsEnhanced from '@/components/df-8d/EightDStepsEnhanced';
 import { useNCForm } from '@/hooks/useNCForm';
 import NCFormGeneral from '@/components/df-8d/NCFormGeneral';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import FiveN1KTemplate from '@/components/df-8d/analysis-templates/FiveN1KTemplate';
 import IshikawaTemplate from '@/components/df-8d/analysis-templates/IshikawaTemplate';
 import FiveWhyTemplate from '@/components/df-8d/analysis-templates/FiveWhyTemplate';
@@ -34,10 +33,11 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
         )
     );
 
-    useEffect(() => {
-        if (isOpen) {
-            initializeForm(initialRecord);
-        }
+    // Çift tıklamada / liste yenilenmesinde bileşenler eski kayıt içeriğiyle mount olmadan önce formu yükle (şablon bileşenleri useState ile eski kalırdı).
+    useLayoutEffect(() => {
+        if (!isOpen) return;
+        // Kayıt nesnesi yokken (Yeni uygunsuzluk) taslağı yükleme — form anında dolu görünmesin
+        initializeForm(initialRecord ?? null, { skipDraft: !initialRecord });
     }, [isOpen, initialRecord, initializeForm]);
 
     const isEditMode = !!(formData && formData.id && !isSourceTemplate);
@@ -270,9 +270,13 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
             footerDate={formData?.opening_date}
             rightPanel={rightPanel}
         >
-                <form id="nc-form" onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
-                    <ScrollArea className="flex-grow pr-6">
-                        <Tabs defaultValue="general" className="w-full py-4">
+                <form id="nc-form" onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden min-h-0">
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-4 -mr-1 max-h-[calc(95vh-220px)]">
+                        <Tabs
+                            key={initialRecord?.id ? String(initialRecord.id) : 'new-nc'}
+                            defaultValue="general"
+                            className="w-full py-4"
+                        >
                             <TabsList>
                                 <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
                                 {formData.type === '8D' && <TabsTrigger value="8d_steps">8D Adımları</TabsTrigger>}
@@ -342,7 +346,7 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                                 </Tabs>
                             </TabsContent>
                         </Tabs>
-                    </ScrollArea>
+                    </div>
                 </form>
         </ModernModalLayout>
     );

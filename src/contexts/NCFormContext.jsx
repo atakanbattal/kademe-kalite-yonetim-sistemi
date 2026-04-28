@@ -97,8 +97,9 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
             localStorage.removeItem(DRAFT_KEY);
         }, [DRAFT_KEY]);
 
-        const initializeForm = useCallback((initialRecord) => {
-            const draft = localStorage.getItem(DRAFT_KEY);
+        const initializeForm = useCallback((initialRecord, options = {}) => {
+            const { skipDraft = false } = options;
+            const draft = skipDraft ? null : localStorage.getItem(DRAFT_KEY);
             if (!initialRecord && draft) {
                 try {
                     setFormData(JSON.parse(draft));

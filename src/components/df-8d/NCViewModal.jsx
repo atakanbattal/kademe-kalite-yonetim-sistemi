@@ -47,7 +47,7 @@ import {
   Layers,
   CircleDot,
 } from 'lucide-react';
-import { Lightbox } from 'react-modal-image';
+import Df8dImageLightbox from '@/components/df-8d/Df8dImageLightbox';
 import { RejectModal } from '@/components/df-8d/modals/ActionModals';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -457,14 +457,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
 
   return (
     <>
-      {lightboxUrl && (
-        <Lightbox
-          large={lightboxUrl}
-          onClose={() => setLightboxUrl(null)}
-          hideDownload={true}
-          hideZoom={true}
-        />
-      )}
+      <Df8dImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
       <RejectModal
         isOpen={isRejectModalOpen}
         setIsOpen={setRejectModalOpen}

@@ -1,29 +1,21 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, X } from 'lucide-react';
+import { CheckCircle, X } from 'lucide-react';
 
 /**
  * Modern modal layout - CostFormModal ile uyumlu profesyonel tasarım.
  * @param {Object} props
  * @param {boolean} props.open
  * @param {function} props.onOpenChange
- * @param {string} props.title - Ana başlık
- * @param {string} props.subtitle - Alt başlık (örn: "Kalite Yönetim Sistemi")
- * @param {React.ReactNode} props.icon - Lucide ikonu (örn: <DollarSign />)
- * @param {string} props.badge - "Yeni" veya "Düzenleme" gibi badge metni
- * @param {React.ReactNode} props.children - Ana içerik
- * @param {React.ReactNode} props.footerLeft - Footer sol taraf (varsayılan: tarih)
- * @param {React.ReactNode} props.footerExtra - Footer'a eklenecek ekstra butonlar (örn: PDF İndir)
- * @param {string} props.footerDate - Footer'da gösterilecek tarih
- * @param {function} props.onCancel
- * @param {function} props.onSubmit
- * @param {boolean} props.isSubmitting
- * @param {string} props.submitLabel - "Kaydı Tamamla" veya "Kaydet" vb.
- * @param {string} props.cancelLabel - "İptal Et" vb.
- * @param {string} props.maxWidth - sm:max-w-2xl, sm:max-w-4xl vb.
- * @param {string} props.formId - Form id (submit butonu bu formu tetikler)
- * @param {React.ReactNode} props.rightPanel - Sağ özet paneli (CostFormModal gibi iki sütunlu yapı)
+ * @param {string} props.title
+ * @param {string} props.subtitle
+ * @param {React.ReactNode} props.icon
+ * @param {string} props.badge
+ * @param {React.ReactNode} props.children
+ * @param {React.ReactNode} props.rightPanel
+ * @param {string} props.maxWidth - sm:max-w-2xl vb.
+ * @param {string} props.formId
  */
 export const ModernModalLayout = ({
     open,
@@ -49,7 +41,14 @@ export const ModernModalLayout = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`${maxWidth} w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0`} hideCloseButton>
+            {/*
+              Varsayılan top:50%+translate -50%; büyük modalları aşağı itiyor ve transform alt öğeleri etkileyebilir.
+              Üstten sabit konum ile hizalı, dikey göbek yok (translate-y-0).
+            */}
+            <DialogContent
+                className={`${maxWidth} w-[98vw] sm:w-[95vw] max-h-[min(92vh,100dvh-1rem)] overflow-hidden flex flex-col p-0 !left-[50%] !top-[max(1rem,env(safe-area-inset-top,1rem))] !translate-x-[-50%] !translate-y-0`}
+                hideCloseButton
+            >
                 <DialogHeader className="sr-only"><DialogTitle>{title}</DialogTitle></DialogHeader>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-8 py-6 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
@@ -96,9 +95,6 @@ export const ModernModalLayout = ({
     );
 };
 
-/**
- * Section header - uppercase label + divider line
- */
 export const ModalSectionHeader = ({ children }) => (
     <div className="flex items-center gap-3 mb-4">
         <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">{children}</h2>
@@ -106,9 +102,6 @@ export const ModalSectionHeader = ({ children }) => (
     </div>
 );
 
-/**
- * Form field wrapper with consistent label styling
- */
 export const ModalField = ({ label, required, children }) => (
     <div className="space-y-1.5">
         <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">

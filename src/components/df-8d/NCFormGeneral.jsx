@@ -7,23 +7,13 @@ import { Button } from '@/components/ui/button';
 import { UploadCloud, File as FileIcon, X as XIcon, AlertCircle, Briefcase, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Badge } from '@/components/ui/badge';
 import { useNCForm, ncOrganizationalUnitFromPersonnel } from '@/hooks/useNCForm';
 import { useData } from '@/contexts/DataContext';
-import { Lightbox } from 'react-modal-image';
+import Df8dImageLightbox from '@/components/df-8d/Df8dImageLightbox';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import { Loader2 } from 'lucide-react';
-
-const getStatusBadgeVariant = (status) => {
-    switch (status) {
-        case 'Onaylı': return 'success';
-        case 'Askıya Alınmış': return 'warning';
-        case 'Red': return 'destructive';
-        default: return 'secondary';
-    }
-};
+import { Combobox } from '@/components/ui/combobox';
 
 const AttachmentItem = ({ path, onRemove, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
@@ -275,16 +265,6 @@ const NCFormGeneral = ({
         });
     };
 
-    const supplierOptions = suppliers.map(s => ({
-        ...s,
-        label: (
-            <div className="flex items-center justify-between w-full">
-                <span>{s.label}</span>
-                <Badge variant={getStatusBadgeVariant(s.status)}>{s.status}</Badge>
-            </div>
-        )
-    }));
-
     const personnelOptions = (personnel || []).length > 0 
         ? personnel.map(p => ({ value: p.full_name, label: p.full_name }))
         : [];
@@ -298,14 +278,7 @@ const NCFormGeneral = ({
 
     return (
         <>
-        {lightboxUrl && (
-            <Lightbox
-              large={lightboxUrl}
-              onClose={() => setLightboxUrl(null)}
-              hideDownload={true}
-              hideZoom={true}
-            />
-        )}
+        <Df8dImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 p-1">
             <div className="md:col-span-2 flex items-center space-x-2 bg-muted/50 p-3 rounded-lg">
                 <Switch id="is_supplier_nc" checked={isSupplierNC} onCheckedChange={handleSupplierToggle} />
@@ -335,14 +308,16 @@ const NCFormGeneral = ({
                     )}
 
                     <Label htmlFor="supplier_id">Tedarikçi <span className="text-red-500">*</span></Label>
-                    <SearchableSelectDialog
-                        options={supplierOptions}
-                        value={formData.supplier_id}
-                        onChange={(value) => handleSelectChange('supplier_id', value)}
-                        triggerPlaceholder="Tedarikçi seçin..."
-                        dialogTitle="Tedarikçi Seç"
+                    <Combobox
+                        id="supplier_id"
+                        options={suppliers.map((s) => ({ value: s.value, label: s.label }))}
+                        value={formData.supplier_id ?? ''}
+                        onChange={(v) => handleSelectChange('supplier_id', v)}
+                        placeholder="Tedarikçi seçin..."
                         searchPlaceholder="Tedarikçi ara..."
                         notFoundText="Tedarikçi bulunamadı."
+                        allowClear={false}
+                        modal={false}
                     />
                 </div>
             )}
@@ -387,14 +362,16 @@ const NCFormGeneral = ({
             <div>
                 <Label htmlFor="requesting_person">Talep Eden Kişi <span className="text-red-500">*</span></Label>
                 {personnelOptions.length > 0 ? (
-                    <SearchableSelectDialog
-                        options={personnelOptions}
-                        value={formData.requesting_person}
-                        onChange={(value) => handlePersonnelChange('requesting_person', value)}
-                        triggerPlaceholder="Talep eden kişiyi seçin..."
-                        dialogTitle="Talep Eden Seç"
+                    <Combobox
+                        id="requesting_person"
+                        options={personnel.map((p) => ({ value: p.full_name, label: p.full_name }))}
+                        value={formData.requesting_person || ''}
+                        onChange={(v) => handlePersonnelChange('requesting_person', v)}
+                        placeholder="Talep eden kişiyi seçin..."
                         searchPlaceholder="Personel ara..."
                         notFoundText="Personel bulunamadı."
+                        allowClear={false}
+                        modal={false}
                     />
                 ) : (
                     <div className="flex items-center gap-2 p-2 border border-destructive/50 rounded-md bg-destructive/10">
@@ -406,14 +383,16 @@ const NCFormGeneral = ({
             <div>
                 <Label htmlFor="requesting_unit">Talep Eden Birim</Label>
                 {organizationUnitOptions.length > 0 ? (
-                    <SearchableSelectDialog
+                    <Combobox
+                        id="requesting_unit"
                         options={organizationUnitOptions}
                         value={formData.requesting_unit || ''}
-                        onChange={(value) => setFormData((prev) => ({ ...prev, requesting_unit: value }))}
-                        triggerPlaceholder="Birim seçin..."
-                        dialogTitle="Talep Eden Birim"
+                        onChange={(v) => setFormData((prev) => ({ ...prev, requesting_unit: v ?? '' }))}
+                        placeholder="Birim seçin..."
                         searchPlaceholder="Birim ara..."
                         notFoundText="Birim bulunamadı. Ayarlardan birim ekleyin."
+                        allowClear
+                        modal={false}
                     />
                 ) : (
                     <Input id="requesting_unit" value={formData.requesting_unit || ''} onChange={handleInputChange} />
@@ -425,14 +404,16 @@ const NCFormGeneral = ({
                     <div>
                         <Label htmlFor="responsible_person">Sorumlu Kişi <span className="text-red-500">*</span></Label>
                         {personnelOptions.length > 0 ? (
-                            <SearchableSelectDialog
-                                options={personnelOptions}
-                                value={formData.responsible_person}
-                                onChange={(value) => handlePersonnelChange('responsible_person', value)}
-                                triggerPlaceholder="Sorumlu kişiyi seçin..."
-                                dialogTitle="Sorumlu Seç"
+                            <Combobox
+                                id="responsible_person"
+                                options={personnel.map((p) => ({ value: p.full_name, label: p.full_name }))}
+                                value={formData.responsible_person || ''}
+                                onChange={(v) => handlePersonnelChange('responsible_person', v)}
+                                placeholder="Sorumlu kişiyi seçin..."
                                 searchPlaceholder="Personel ara..."
                                 notFoundText="Personel bulunamadı."
+                                allowClear={false}
+                                modal={false}
                             />
                         ) : (
                             <div className="flex items-center gap-2 p-2 border border-destructive/50 rounded-md bg-destructive/10">
@@ -444,14 +425,16 @@ const NCFormGeneral = ({
                      <div>
                         <Label htmlFor="department">İlgili Birim <span className="text-red-500">*</span></Label>
                         {organizationUnitOptions.length > 0 ? (
-                            <SearchableSelectDialog
+                            <Combobox
+                                id="department"
                                 options={organizationUnitOptions}
                                 value={formData.department || ''}
-                                onChange={(value) => setFormData((prev) => ({ ...prev, department: value }))}
-                                triggerPlaceholder="İlgili birimi seçin..."
-                                dialogTitle="İlgili Birim"
+                                onChange={(v) => setFormData((prev) => ({ ...prev, department: v ?? '' }))}
+                                placeholder="İlgili birimi seçin..."
                                 searchPlaceholder="Birim ara..."
                                 notFoundText="Birim bulunamadı. Ayarlardan birim ekleyin."
+                                allowClear={false}
+                                modal={false}
                             />
                         ) : (
                             <Input id="department" value={formData.department || ''} onChange={handleInputChange} required />

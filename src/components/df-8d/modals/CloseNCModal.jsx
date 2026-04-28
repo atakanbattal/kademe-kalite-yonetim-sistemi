@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { v4 as uuidv4 } from 'uuid';
@@ -174,15 +174,21 @@ const CloseNCModal = ({ isOpen, setIsOpen, record, onSave }) => {
         setIsSubmitting(false);
     };
 
-    useEffect(() => {
-        if (isOpen) {
-            setNotes(record?.closing_notes || '');
-        } else {
+    useLayoutEffect(() => {
+        if (!isOpen) {
             setNotes('');
             setFiles([]);
+            return;
         }
-        return () => files.forEach(file => URL.revokeObjectURL(file.preview));
-    }, [isOpen, record, files]);
+        setNotes(record?.closing_notes ?? '');
+        setFiles([]);
+    }, [isOpen, record?.id, record?.closing_notes]);
+
+    useEffect(() => () => {
+        files.forEach((file) => {
+            if (file?.preview) URL.revokeObjectURL(file.preview);
+        });
+    }, [files]);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => {

@@ -6,6 +6,9 @@ import { useContext, useEffect, useCallback } from 'react';
     import { NCFormContext } from '@/contexts/NCFormContext';
     import { SLA_DURATIONS } from '@/lib/constants';
     import { format, parse, isValid, addMonths } from 'date-fns';
+    import { defaultEightDSteps, ncOrganizationalUnitFromPersonnel } from '@/lib/ncFormDefaults';
+
+    export { defaultEightDSteps, ncOrganizationalUnitFromPersonnel };
 
     const toInputDateString = (date) => {
         if (!date) return '';
@@ -56,8 +59,6 @@ import { useContext, useEffect, useCallback } from 'react';
         }
     };
 
-    export { defaultEightDSteps, ncOrganizationalUnitFromPersonnel } from '@/lib/ncFormDefaults';
-
     export const useNCForm = () => {
         const { toast } = useToast();
         const { user } = useAuth();
@@ -72,9 +73,7 @@ import { useContext, useEffect, useCallback } from 'react';
 
         // DataContext'ten verileri NCFormContext'e aktar
         useEffect(() => {
-            // Global personnel verisini kullan (is_active filtresi DataContext'te yapılıyor)
-            if (globalPersonnel && globalPersonnel.length > 0 && personnel.length === 0) {
-                // Sadece is_active olanları filtrele ve gerekli alanları al
+            if (globalPersonnel && globalPersonnel.length > 0) {
                 const activePersonnel = globalPersonnel
                     .filter(p => p.is_active !== false)
                     .map(p => ({
@@ -86,11 +85,9 @@ import { useContext, useEffect, useCallback } from 'react';
                         management_department: p.management_department,
                     }));
                 setPersonnel(activePersonnel);
-                console.log('✅ Personnel loaded from DataContext:', activePersonnel.length, 'personnel');
             }
 
-            // Global departments verisini kullan
-            if (globalDepartments && globalDepartments.length > 0 && departments.length === 0) {
+            if (globalDepartments && globalDepartments.length > 0) {
                 const uniqueDepartments = [
                     ...new Set(
                         globalDepartments
@@ -99,9 +96,8 @@ import { useContext, useEffect, useCallback } from 'react';
                     ),
                 ].sort();
                 setDepartments(uniqueDepartments);
-                console.log('✅ Departments loaded from DataContext:', uniqueDepartments.length, 'departments');
             }
-        }, [globalPersonnel, globalDepartments, personnel.length, departments.length, setPersonnel, setDepartments]);
+        }, [globalPersonnel, globalDepartments, setPersonnel, setDepartments]);
 
         const onDrop = useCallback(acceptedFiles => {
             setFiles(prev => [...prev, ...acceptedFiles]);
