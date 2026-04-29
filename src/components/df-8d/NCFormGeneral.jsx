@@ -37,7 +37,8 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
         }
     }, [path]);
 
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(path);
+    const isNonRenderableImage = /\.(heic|heif|tiff|tif|raw|cr2|nef|arw|dng)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
 
@@ -85,7 +86,13 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
     return (
         <>
             <div className="relative group w-24 h-24">
-                {isImage ? (
+                {isNonRenderableImage ? (
+                    <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all hover:bg-secondary transition-colors">
+                        <FileIcon className="w-6 h-6 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+                        <span className="text-xs text-blue-500">İndir</span>
+                    </a>
+                ) : isImage ? (
                     <img
                         src={signedUrl}
                         alt="Ek"

@@ -45,7 +45,7 @@ const CloseNCModal = ({ isOpen, setIsOpen, record, refreshData }) => {
                 const sanitizedFileName = sanitizeFileName(file.name);
                 const filePath = `closing_attachments/${record.id}/${uuidv4()}-${sanitizedFileName}`;
                 const { data, error } = await supabase.storage
-                    .from('documents')
+                    .from('df_attachments')
                     .upload(filePath, file, {
                         cacheControl: '3600',
                         upsert: false,
