@@ -68,6 +68,7 @@ import {
   stripDuplicateRootCauseFromProblemDescription,
   getNonConformityListTitle,
 } from '@/lib/df8dTextUtils';
+import { normalizeNcAttachmentPathsList } from '@/lib/df8dAttachmentUtils';
 
 // Varsayılan 8D başlıkları - Component dışında tanımlanmalı
 const getDefault8DTitle = (stepKey) => {
@@ -318,6 +319,10 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
     return () => { cancelled = true; };
   }, [isOpen, recordId, recordSupplierId]);
 
+  React.useLayoutEffect(() => {
+    setLightboxUrl(null);
+  }, [recordId]);
+
   useEffect(() => {
     if (isOpen && record) {
       // Teşhis: hangi kaydın modala aktarıldığını doğrulamak için.
@@ -333,6 +338,17 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
 
   const headerParts = useMemo(() => getHeaderTitleParts(record), [record]);
 
+  const openingAttachmentPaths = useMemo(
+    () => normalizeNcAttachmentPathsList(record?.attachments),
+    [record?.attachments]
+  );
+  const closingAttachmentPaths = useMemo(
+    () => normalizeNcAttachmentPathsList(record?.closing_attachments),
+    [record?.closing_attachments]
+  );
+  const hasAnyAttachmentGallery =
+    openingAttachmentPaths.length > 0 || closingAttachmentPaths.length > 0;
+
   /** Kök neden analizleri ayrı alanlardaysa açıklamadaki mükerrer blokları gösterme */
   const problemDescriptionForView = useMemo(() => {
     if (!record) return '';
@@ -341,6 +357,15 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
     if (!hasStructuredRootCauseData(record)) return raw;
     return stripDuplicateRootCauseFromProblemDescription(raw);
   }, [record]);
+
+  /** «Kapatma / ilerleme» alanı problem tanımıyla birebir aynıysa ayrı kart gereksiz/tekrarlı */
+  const showClosingNotesCard = useMemo(() => {
+    const cn = record?.closing_notes?.trim();
+    if (!cn) return false;
+    const pd = problemDescriptionForView?.trim();
+    if (pd && cn === pd) return false;
+    return true;
+  }, [record?.closing_notes, problemDescriptionForView]);
 
   if (!record) return null;
 
@@ -372,10 +397,10 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
     setRejectModalOpen(false);
   }
 
-  const allAttachments = [
-    ...(record.attachments || []),
-    ...(record.closing_attachments || [])
-  ].filter(Boolean);
+  const closingNotesViewTitle =
+    record.status === 'Kapatıldı'
+      ? 'Kapatma notları'
+      : 'İlerleme notları / yapılan çalışmalar';
 
   // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
   const getDisplayEightDSteps = () => {
@@ -466,7 +491,11 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col gap-0 p-0 rounded-xl border-0 shadow-2xl" hideCloseButton>
+        <DialogContent
+          key={recordId || 'nc-view'}
+          className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col gap-0 p-0 rounded-xl border-0 shadow-2xl"
+          hideCloseButton
+        >
           <DialogHeader className="sr-only">
             <DialogTitle>
               Uygunsuzluk detayı {record.nc_number || record.mdi_no || ''}
@@ -667,13 +696,13 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                     </Card>
                   </div>
 
-                  {record.closing_notes && (
+                  {showClosingNotesCard && (
                     <>
                       <Separator />
                       <div>
                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                           <FileText className="h-5 w-5 text-primary" />
-                          İlerleme Notları / Yapılan Çalışmalar
+                          {closingNotesViewTitle}
                         </h3>
                         <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
                           <CardContent className="p-6">
@@ -690,18 +719,48 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                   )}
 
 
-                  {allAttachments && allAttachments.length > 0 && (
+                  {hasAnyAttachmentGallery && (
                     <>
                       <Separator />
-                      <div>
-                        <h3 className="text-lg font-semibold text-foreground mb-3">
-                          Kanıt Dokümanları
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                          {allAttachments.map((path, index) => (
-                            <AttachmentItem key={`${recordId || 'nc'}::${path || index}`} path={path} onPreview={setLightboxUrl} />
-                          ))}
-                        </div>
+                      <div className="space-y-8">
+                        {openingAttachmentPaths.length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground mb-3">
+                              Kanıt dokümanları (kayıt / açılış)
+                            </h3>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              DF/8D formunda &quot;Kanıt Dokümanı&quot; ile eklenen dosyalar.
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                              {openingAttachmentPaths.map((path, index) => (
+                                <AttachmentItem
+                                  key={`${recordId || 'nc'}::open::${path || index}`}
+                                  path={path}
+                                  onPreview={setLightboxUrl}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {closingAttachmentPaths.length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground mb-3">
+                              Kanıt dokümanları (işlem / kapanış)
+                            </h3>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              İşlemde veya kayıt kapatılırken yüklenen dosyalar; açılış kanıtlarından ayrı tutulur.
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                              {closingAttachmentPaths.map((path, index) => (
+                                <AttachmentItem
+                                  key={`${recordId || 'nc'}::close::${path || index}`}
+                                  path={path}
+                                  onPreview={setLightboxUrl}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

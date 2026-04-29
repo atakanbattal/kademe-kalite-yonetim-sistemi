@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Building2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Badge } from '@/components/ui/badge';
+import { formatOrgUnitForAggregate } from '@/lib/qualityCostUnitGroups';
 
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
@@ -12,9 +13,11 @@ const formatCurrency = (value) => {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C'];
 
-const UnitCostDistribution = ({ costs }) => {
+const UnitCostDistribution = ({ costs, canonicalUnitCtx = {} }) => {
     const distributionData = useMemo(() => {
         if (!costs || costs.length === 0) return { unitData: [], totalCost: 0 };
+
+        const orgKey = (raw) => formatOrgUnitForAggregate(raw, canonicalUnitCtx);
 
         const unitMap = {};
         let totalCost = 0;
@@ -51,7 +54,7 @@ const UnitCostDistribution = ({ costs }) => {
                     totalCost += itemAmount;
                     const unitKey = li.responsible_type === 'supplier'
                         ? `Tedarikçi: ${li.responsible_supplier_name || cost.supplier?.name || 'Bilinmeyen'}`
-                        : (li.responsible_unit || 'Belirtilmemiş');
+                        : orgKey(li.responsible_unit);
                     addToUnit(unitKey, itemAmount, costType, li.responsible_type === 'supplier');
                 });
             } else {
@@ -60,10 +63,10 @@ const UnitCostDistribution = ({ costs }) => {
                 if (allocs && Array.isArray(allocs) && allocs.length > 0) {
                     allocs.forEach(alloc => {
                         const allocAmount = alloc.amount ?? (amount * (alloc.percentage || 0) / 100);
-                        addToUnit(alloc.unit, allocAmount, costType, isSupplierCost);
+                        addToUnit(orgKey(alloc.unit), allocAmount, costType, isSupplierCost);
                     });
                 } else {
-                    addToUnit(cost.unit, amount, costType, isSupplierCost);
+                    addToUnit(orgKey(cost.unit), amount, costType, isSupplierCost);
                 }
             }
         });
@@ -77,7 +80,7 @@ const UnitCostDistribution = ({ costs }) => {
             }));
 
         return { unitData, totalCost };
-    }, [costs]);
+    }, [costs, canonicalUnitCtx]);
 
     // Küçük dilimleri (< %3) "Diğer" kategorisine topla
     const pieData = useMemo(() => {

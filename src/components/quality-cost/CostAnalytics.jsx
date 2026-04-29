@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { createCanonicalUnitCaches } from '@/lib/qualityCostUnitGroups';
+import { getDefectContributionsFromCost } from '@/lib/qualityCostDefectAggregation';
 
 const formatCurrency = (value) => {
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
@@ -89,13 +91,23 @@ const renderTop5Chart = (title, data, onBarClick) => (
     </Card>
 );
 
-const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyInsight, onYearCOPQClick }) => {
+const bumpAgg = (acc, key, cost, amountNum) => {
+    if (key == null || key === '') return;
+    if (!acc[key]) acc[key] = { value: 0, count: 0, allCosts: [] };
+    acc[key].value += amountNum;
+    acc[key].count += (cost.quantity || 1);
+    acc[key].allCosts.push(cost);
+};
+
+const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyInsight, onYearCOPQClick, canonicalUnitCtx = {} }) => {
     const [trendChartType, setTrendChartType] = useState('area'); // area, line, bar
+
+    const canonCaches = useMemo(() => createCanonicalUnitCaches(canonicalUnitCtx), [canonicalUnitCtx]);
 
     const analyticsData = useMemo(() => {
         if (!costs || costs.length === 0) {
             return {
-                parts: [], units: [], costTypes: [], vehicleTypes: [],
+                parts: [], units: [], costTypes: [], vehicleTypes: [], defectGroups: [], defectTypes: [],
                 totalCost: 0, internalCost: 0, externalCost: 0,
                 internalCosts: [], externalCosts: [],
                 monthlyTrend: []
@@ -118,21 +130,28 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
         const internalCosts = [];
         const externalCosts = [];
 
-        // Aylık Trend Hesabı
         const monthlyGroups = {};
+        /** @type {Record<string, { value: number, count: number, allCosts: unknown[] }>} */
+        const partsAgg = {};
+        const unitsAgg = {};
+        const costTypesAgg = {};
+        const vehicleTypesAgg = {};
+        const defectGroupAgg = {};
+        const defectTypeAgg = {};
 
-        costs.forEach(cost => {
-            totalCost += cost.amount;
+        for (const cost of costs) {
+            const amountNum = parseFloat(cost.amount);
+            const amt = Number.isFinite(amountNum) ? amountNum : 0;
+            totalCost += amt;
 
             if (externalCostTypes.includes(cost.cost_type)) {
-                externalCost += cost.amount;
+                externalCost += amt;
                 externalCosts.push(cost);
             } else if (internalCostTypes.includes(cost.cost_type) || (cost.is_supplier_nc && cost.supplier_id)) {
-                internalCost += cost.amount;
+                internalCost += amt;
                 internalCosts.push(cost);
             }
 
-            // Aylık gruplama
             const date = new Date(cost.cost_date);
             const monthKey = format(date, 'yyyy-MM');
             const monthLabel = format(date, 'MMM yyyy', { locale: tr });
@@ -140,54 +159,59 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
             if (!monthlyGroups[monthKey]) {
                 monthlyGroups[monthKey] = {
                     name: monthLabel,
-                    date: monthKey, // sıralama için
+                    date: monthKey,
                     total: 0,
                     internal: 0,
                     external: 0
                 };
             }
-            monthlyGroups[monthKey].total += cost.amount;
+            monthlyGroups[monthKey].total += amt;
             if (externalCostTypes.includes(cost.cost_type)) {
-                monthlyGroups[monthKey].external += cost.amount;
+                monthlyGroups[monthKey].external += amt;
             } else {
-                monthlyGroups[monthKey].internal += cost.amount;
+                monthlyGroups[monthKey].internal += amt;
             }
-        });
 
-        // Aylık veriyi diziye çevir ve sırala
+            const pc = cost.part_code;
+            if (pc) bumpAgg(partsAgg, pc, cost, amt);
+
+            let unitKey;
+            if (cost.is_supplier_nc && cost.supplier?.name) {
+                unitKey = cost.supplier.name;
+            } else {
+                const u = cost.unit?.trim?.() ? cost.unit.trim() : cost.unit;
+                unitKey = u ? canonCaches.getLabel(u) : null;
+            }
+            if (unitKey) bumpAgg(unitsAgg, unitKey, cost, amt);
+
+            const ct = cost.cost_type;
+            if (ct) bumpAgg(costTypesAgg, ct, cost, amt);
+
+            const vt = cost.vehicle_type;
+            if (vt) bumpAgg(vehicleTypesAgg, vt, cost, amt);
+
+            const defectRows = getDefectContributionsFromCost(cost, canonicalUnitCtx);
+            for (const row of defectRows) {
+                const gLabel = row.group_label || 'Diğer / Eşlenmemiş';
+                bumpAgg(defectGroupAgg, gLabel, cost, row.amount);
+                bumpAgg(defectTypeAgg, row.defect_type, cost, row.amount);
+            }
+        }
+
         const monthlyTrend = Object.values(monthlyGroups).sort((a, b) => a.date.localeCompare(b.date));
 
-        const aggregate = (key, filterFn = () => true) => {
-            const aggregatedData = costs.filter(filterFn).reduce((acc, cost) => {
-                let itemKey;
-                if (key === 'unit' && cost.is_supplier_nc && cost.supplier?.name) {
-                    itemKey = cost.supplier.name;
-                } else {
-                    itemKey = cost[key];
-                }
-
-                if (!itemKey) return acc;
-
-                if (!acc[itemKey]) {
-                    acc[itemKey] = { value: 0, count: 0, allCosts: [] };
-                }
-                acc[itemKey].value += cost.amount;
-                acc[itemKey].count += (cost.quantity || 1);
-                acc[itemKey].allCosts.push(cost);
-                return acc;
-            }, {});
-
-            return Object.entries(aggregatedData)
-                .map(([name, data]) => ({ name, value: data.value, count: data.count, costs: data.allCosts }))
-                .sort((a, b) => b.value - a.value)
-                .slice(0, 5);
-        };
+        const top5 = (agg) => Object.entries(agg)
+            .map(([name, data]) => ({ name, value: data.value, count: data.count, costs: data.allCosts }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 5);
 
         return {
-            parts: aggregate('part_code'),
-            units: aggregate('unit'),
-            costTypes: aggregate('cost_type'),
-            vehicleTypes: aggregate('vehicle_type'),
+            parts: top5(partsAgg),
+            units: top5(unitsAgg),
+            costTypes: top5(costTypesAgg),
+            vehicleTypes: top5(vehicleTypesAgg),
+            defectGroups: top5(defectGroupAgg),
+            defectTypes: top5(defectTypeAgg),
             totalCost,
             internalCost,
             externalCost,
@@ -195,18 +219,28 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
             externalCosts,
             monthlyTrend
         };
-    }, [costs]);
+    }, [costs, canonCaches, canonicalUnitCtx]);
 
     const handleBarClick = (dataKey, data) => {
         if (data && data.name) {
             let relatedCosts;
             if (dataKey === 'unit') {
-                relatedCosts = costs.filter(c => {
+                relatedCosts = costs.filter((c) => {
                     if (c.is_supplier_nc && c.supplier?.name) {
                         return c.supplier.name === data.name;
                     }
-                    return c.unit === data.name;
+                    const u = c.unit?.trim?.() ? c.unit.trim() : c.unit;
+                    const label = u ? canonCaches.getLabel(u) : null;
+                    return label === data.name;
                 });
+            } else if (dataKey === 'defect_group') {
+                relatedCosts = costs.filter((c) =>
+                    getDefectContributionsFromCost(c, canonicalUnitCtx).some((r) => (r.group_label || 'Diğer / Eşlenmemiş') === data.name)
+                );
+            } else if (dataKey === 'defect_type') {
+                relatedCosts = costs.filter((c) =>
+                    getDefectContributionsFromCost(c, canonicalUnitCtx).some((r) => r.defect_type === data.name)
+                );
             } else {
                 relatedCosts = costs.filter(c => c[dataKey] === data.name || (c.part_code === data.name && dataKey === 'part_code'));
             }
@@ -439,6 +473,8 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
                 {renderTop5Chart("En Maliyetli 5 Kaynak (Birim/Tedarikçi)", analyticsData.units, (data) => handleBarClick('unit', data))}
                 {renderTop5Chart("En Maliyetli 5 Tür", analyticsData.costTypes, (data) => handleBarClick('cost_type', data))}
                 {renderTop5Chart("En Maliyetli 5 Araç Türü", analyticsData.vehicleTypes, (data) => handleBarClick('vehicle_type', data))}
+                {renderTop5Chart("Hurda / Yeniden — Hata grubu (birim)", analyticsData.defectGroups, (data) => handleBarClick('defect_group', data))}
+                {renderTop5Chart("Hurda / Yeniden — Hata tipi", analyticsData.defectTypes, (data) => handleBarClick('defect_type', data))}
             </motion.div>
         </div>
     );

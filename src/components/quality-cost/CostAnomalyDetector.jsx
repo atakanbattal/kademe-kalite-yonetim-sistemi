@@ -8,13 +8,14 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { getCanonicalUnitLabel } from '@/lib/qualityCostUnitGroups';
 
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 };
 
-const CostAnomalyDetector = ({ costs, onAnomalyClick }) => {
+const CostAnomalyDetector = ({ costs, onAnomalyClick, canonicalUnitCtx = {} }) => {
     const { toast } = useToast();
     const [dismissedAnomalies, setDismissedAnomalies] = useState([]);
 
@@ -95,7 +96,8 @@ const CostAnomalyDetector = ({ costs, onAnomalyClick }) => {
         // Birim bazında anomali tespiti
         const unitCosts = {};
         costs.forEach(cost => {
-            const unit = cost.unit || 'Bilinmeyen';
+            const raw = (cost.unit || '').trim();
+            const unit = raw ? getCanonicalUnitLabel(raw, canonicalUnitCtx) : 'Bilinmeyen';
             const costDate = new Date(cost.cost_date);
             const monthKey = `${costDate.getFullYear()}-${costDate.getMonth()}`;
             
@@ -138,7 +140,7 @@ const CostAnomalyDetector = ({ costs, onAnomalyClick }) => {
         });
 
         return anomaliesList.filter(a => !dismissedAnomalies.includes(a.id));
-    }, [costs, dismissedAnomalies]);
+    }, [costs, dismissedAnomalies, canonicalUnitCtx]);
 
     const handleDismiss = (anomalyId) => {
         setDismissedAnomalies(prev => [...prev, anomalyId]);

@@ -25,6 +25,142 @@ function uniqueNonEmpty(strings) {
 }
 
 /**
+ * Personel tablosundan (department rk → çoğunluk management_department) tek geçişte harita.
+ * Kalite maliyeti birim filtresinde canonicalize binlerce kez çağrıldığı için O(P) tarama tekrarlanmamalı.
+ */
+function buildPersonnelDepartmentToMdMap(personnel) {
+    if (!personnel?.length) return new Map();
+    /** @type {Map<string, Map<string, number>>} */
+    const tallyByDeptNk = new Map();
+    for (const p of personnel) {
+        const d = typeof p?.department === 'string' ? p.department.trim() : '';
+        const md = typeof p?.management_department === 'string' ? p.management_department.trim() : '';
+        if (!d || !md) continue;
+        const drk = departmentMatchKey(d);
+        const mrk = departmentMatchKey(md);
+        if (!drk || mrk === drk) continue;
+        if (!tallyByDeptNk.has(drk)) tallyByDeptNk.set(drk, new Map());
+        const inner = tallyByDeptNk.get(drk);
+        inner.set(md, (inner.get(md) ?? 0) + 1);
+    }
+    /** @type {Map<string, string>} */
+    const winner = new Map();
+    for (const [deptNk, mdCounts] of tallyByDeptNk) {
+        const ranked = [...mdCounts.entries()].sort((a, b) => {
+            if (b[1] !== a[1]) return b[1] - a[1];
+            const ld = departmentMatchKey(b[0]).length - departmentMatchKey(a[0]).length;
+            if (ld !== 0) return ld;
+            return a[0].localeCompare(b[0], 'tr');
+        });
+        winner.set(deptNk, ranked[0][0]);
+    }
+    return winner;
+}
+
+/**
+ * cost_settings + personel birim havuzu (canonicalize gövdesi için); dizi referansı değişmediyse önbelleklenir.
+ */
+function buildOrganizationPool(unitCostSettings, personnel) {
+    const fromUnits = uniqueNonEmpty((unitCostSettings || []).map((u) => u?.unit_name));
+    const fromPersonnelRaw = [];
+    for (const p of personnel || []) {
+        if (p?.department) fromPersonnelRaw.push(p.department);
+        if (p?.management_department) fromPersonnelRaw.push(p.management_department);
+    }
+    const fromPersonnelU = uniqueNonEmpty(fromPersonnelRaw);
+    const unitSet = new Set(fromUnits);
+    const personnelSet = new Set(fromPersonnelU);
+    const uniqueCandidates = uniqueNonEmpty([...fromUnits, ...fromPersonnelU]);
+    const personnelDeptToMd = buildPersonnelDepartmentToMdMap(personnel);
+    return {
+        fromUnits,
+        fromPersonnelU,
+        uniqueCandidates,
+        unitSet,
+        personnelSet,
+        personnelDeptToMd,
+    };
+}
+
+let _poolUnitsRef = null;
+let _poolPersonnelRef = null;
+/** @type {ReturnType<typeof buildOrganizationPool> | null} */
+let _organizationPoolCache = null;
+
+function getOrganizationPool(unitCostSettings, personnel) {
+    if (
+        _organizationPoolCache &&
+        unitCostSettings === _poolUnitsRef &&
+        personnel === _poolPersonnelRef
+    ) {
+        return _organizationPoolCache;
+    }
+    _poolUnitsRef = unitCostSettings;
+    _poolPersonnelRef = personnel;
+    _organizationPoolCache = buildOrganizationPool(unitCostSettings, personnel);
+    return _organizationPoolCache;
+}
+
+/**
+ * Personelde aynı alt birim yazımına (department) düşen çoğunluk üst departman.
+ * Supabase dept_roll_subunit_to_management ile aynı öncelik.
+ */
+function resolveDepartmentToManagementViaPersonnel(trimmedDept, personnelDeptToMd) {
+    if (!trimmedDept || !personnelDeptToMd?.size) return null;
+    const rk = departmentMatchKey(trimmedDept);
+    return personnelDeptToMd.get(rk) ?? null;
+}
+
+/**
+ * Personelde aktif atanmı kalmayan eski kayıtlar: PL alt birim → üst yapı müdürlüğü yazımı
+ * (migration 20260415180000 / dept_roll_subunit_to_management ile tutarlı hedef metinleri).
+ */
+const LEGACY_SUBUNIT_PARENT_ROWS = [
+    ['Ar-Ge', 'Ar-Ge Direktörlüğü'],
+    ['Boyahane', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Depo', 'Depo Şefliği'],
+    ['Elektrikhane', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Genel Müdürlük', 'Kademe Genel Müdürlüğü'],
+    ['Kabin Hattı', 'Üretim Müdürlüğü (Kabin Hattı)'],
+    ['Kalite Güvence', 'Kalite Müdürlüğü'],
+    ['Kalite Kontrol', 'Kalite Müdürlüğü'],
+    ['Kaynakhane', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Kurumsal İletişim', 'Kurumsal İletişim ve Dijital Pazarlama'],
+    ['Lojistik', 'Lojistik Yöneticiliği'],
+    ['Mali İşler', 'Mali İşler'],
+    ['Montajhane', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Planlama', 'Üretim Planlama Müdürlüğü'],
+    ['Satınalma', 'Satınalma Müdürlüğü'],
+    ['Satış Sonrası Hizmetler', 'Satış Sonrası Hizmetler Müdürlüğü'],
+    ['Yurt Dışı Satış', 'Yurt Dışı Satış Müdürlüğü'],
+    ['Yurt İçi Satış', 'Yurt İçi Satış Müdürlüğü'],
+    ['Üst Yapı', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['İdari İşler', 'İdari İşler Müdürlüğü'],
+    ['İnsan Kaynakları', 'İnsan Kaynakları Müdürlüğü'],
+    ['Mekanik Montaj', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Lazer Kesim', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Abkant Pres', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Bilgi İşlem', 'İdari İşler Müdürlüğü'],
+    ['Mühendislik', 'Ar-Ge Direktörlüğü'],
+    ['Üretim', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['İsg', 'İdari İşler Müdürlüğü'],
+    ['Elektrik Montaj', 'Üretim Müdürlüğü (Üst Yapı)'],
+    ['Planma', 'Üretim Planlama Müdürlüğü'],
+];
+
+let legacyParentByMatchKey = null;
+function lookupLegacySubunitParent(rk) {
+    if (!rk) return null;
+    if (!legacyParentByMatchKey) {
+        legacyParentByMatchKey = new Map();
+        for (const [sub, parent] of LEGACY_SUBUNIT_PARENT_ROWS) {
+            legacyParentByMatchKey.set(departmentMatchKey(sub), parent);
+        }
+    }
+    return legacyParentByMatchKey.get(rk) ?? null;
+}
+
+/**
  * cost_settings.unit_name + personnel.department + personnel.management_department
  * havuzundan tek tip departman adı üretir (mükerrer Ar-Ge / Ar-Ge Direktörlüğü vb.).
  */
@@ -54,23 +190,42 @@ function collectFamilyCandidates(rk, uniqueCandidates) {
  * olduğunda, tam anahtar eşleşmesinde kısa ada dönülmesin diye önce "aile" (exact + prefix/suffix)
  * adayları toplanır; personelde geçen ve en uzun normalleştirilmiş anahtar tercih edilir.
  */
-export function canonicalizeDepartmentName(raw, { unitCostSettings = [], personnel = [] } = {}) {
+export function canonicalizeDepartmentName(raw, ctx = {}) {
+    const unitCostSettings = ctx.unitCostSettings ?? [];
+    const personnel = ctx.personnel ?? [];
+    const skipDeptRollup = ctx.skipDeptRollup === true;
+
     if (raw == null) return '';
     const t = String(raw).trim();
     if (!t) return '';
     if (SPECIAL_ORG_NAMES.has(t)) return t;
 
-    const fromUnits = uniqueNonEmpty((unitCostSettings || []).map((u) => u?.unit_name));
-    const fromPersonnel = [];
-    for (const p of personnel || []) {
-        if (p?.department) fromPersonnel.push(p.department);
-        if (p?.management_department) fromPersonnel.push(p.management_department);
-    }
-    const fromPersonnelU = uniqueNonEmpty(fromPersonnel);
+    const pool = getOrganizationPool(unitCostSettings, personnel);
 
-    const unitSet = new Set(fromUnits);
-    const personnelSet = new Set(fromPersonnelU);
-    const uniqueCandidates = uniqueNonEmpty([...fromUnits, ...fromPersonnelU]);
+    if (!skipDeptRollup) {
+        const viaPe = resolveDepartmentToManagementViaPersonnel(t, pool.personnelDeptToMd);
+        if (viaPe) {
+            return canonicalizeDepartmentName(viaPe, {
+                unitCostSettings,
+                personnel,
+                skipDeptRollup: true,
+            });
+        }
+        const leg = lookupLegacySubunitParent(departmentMatchKey(t));
+        if (leg) {
+            return canonicalizeDepartmentName(leg, {
+                unitCostSettings,
+                personnel,
+                skipDeptRollup: true,
+            });
+        }
+    }
+
+    const fromUnits = pool.fromUnits;
+    const fromPersonnelU = pool.fromPersonnelU;
+    const uniqueCandidates = pool.uniqueCandidates;
+    const unitSet = pool.unitSet;
+    const personnelSet = pool.personnelSet;
 
     const rk = departmentMatchKey(t);
 

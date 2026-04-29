@@ -19,6 +19,7 @@
     "db:migrate": "node scripts/migrate-from-supabase.js",
     "db:fix": "node scripts/run-supabase-sql.js scripts/fix-account-management.sql",
     "db:fix-rpc": "node scripts/run-fix-account-management.js",
+    "backfill:quality-defects": "node scripts/backfill-quality-cost-defects.mjs",
     "deploy:netlify": "netlify deploy --prod",
     "deploy:build": "npm run build && npm run preview"
   },

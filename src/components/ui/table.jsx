@@ -2,14 +2,26 @@ import React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Table = React.forwardRef(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-x-auto -webkit-overflow-scrolling-touch">
+/** noScroll: sayfa genişliğinde kırılma isteniyorsa; varsayılan yatay kaydırmayı kapatır */
+const Table = React.forwardRef(({ className, noScroll, ...props }, ref) => {
+  const table = (
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-xs sm:text-sm min-w-[600px]", className)}
-      {...props} />
-  </div>
-))
+      className={cn(
+        "w-full caption-bottom text-xs sm:text-sm",
+        !noScroll && "min-w-[600px]",
+        className,
+      )}
+      {...props}
+    />
+  )
+  if (noScroll) return table
+  return (
+    <div className="relative w-full overflow-x-auto -webkit-overflow-scrolling-touch">
+      {table}
+    </div>
+  )
+})
 Table.displayName = "Table"
 
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => (

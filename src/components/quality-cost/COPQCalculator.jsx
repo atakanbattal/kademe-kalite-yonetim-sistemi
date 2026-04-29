@@ -1,8 +1,11 @@
 import React, { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Building2, User, Truck, Package } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Building2, User, Truck, Package, Layers, ChevronDown, Factory } from 'lucide-react';
+import { formatOrgUnitForAggregate } from '@/lib/qualityCostUnitGroups';
+import { computeHurdaReworkDefectAnalysis } from '@/lib/qualityCostDefectAggregation';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
@@ -23,7 +26,7 @@ const getCategory = (costType, isSupplierCost) => {
     return 'internalFailure';
 };
 
-const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
+const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonicalUnitCtx = {} }) => {
     const copqData = useMemo(() => {
         if (!costs || costs.length === 0) {
             return {
@@ -39,7 +42,8 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                 byUnitAndSupplier: [],
                 byCustomer: [],
                 bySupplier: [],
-                topLineItems: []
+                topLineItems: [],
+                hrUnitsPivot: [],
             };
         }
 
@@ -87,6 +91,8 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             else unitMap[unitKey].prevention += amount;
         };
 
+        const orgKey = (raw) => formatOrgUnitForAggregate(raw, canonicalUnitCtx);
+
         costs.forEach(cost => {
             const costType = cost.cost_type || '';
             const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
@@ -102,7 +108,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
 
                     const unitKey = li.responsible_type === 'supplier'
                         ? `Tedarikçi: ${li.responsible_supplier_name || cost.supplier?.name || 'Bilinmeyen'}`
-                        : (li.responsible_unit || 'Belirtilmemiş');
+                        : orgKey(li.responsible_unit);
                     addToUnit(unitKey, itemAmount, cat, cost);
 
                     if (li.responsible_type === 'supplier') {
@@ -132,10 +138,10 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                 if (allocs && allocs.length > 0) {
                     allocs.forEach(a => {
                         const allocAmt = a.amount ?? (amount * (parseFloat(a.percentage) || 0) / 100);
-                        addToUnit(a.unit || 'Belirtilmemiş', allocAmt, cat, cost);
+                        addToUnit(orgKey(a.unit), allocAmt, cat, cost);
                     });
                 } else {
-                    const unitKey = cost.unit || 'Belirtilmemiş';
+                    const unitKey = orgKey(cost.unit);
                     addToUnit(unitKey, amount, cat, cost);
                 }
 
@@ -144,7 +150,8 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                     if (!customerMap[cust]) customerMap[cust] = { name: cust, total: 0, count: 0, units: {} };
                     customerMap[cust].total += amount;
                     customerMap[cust].count += 1;
-                    customerMap[cust].units[cost.unit || 'Belirtilmemiş'] = (customerMap[cust].units[cost.unit || 'Belirtilmemiş'] || 0) + amount;
+                    const uk = orgKey(cost.unit);
+                    customerMap[cust].units[uk] = (customerMap[cust].units[uk] || 0) + amount;
                 }
             }
 
@@ -152,14 +159,14 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             if (costType === 'Final Hataları Maliyeti' && !hasLineItems) {
                 const amount = cost.amount || 0;
                 finalFaultsBreakdown.totalFaults += (cost.quantity || 1);
-                const unit = cost.unit || 'Bilinmeyen';
-                if (!finalFaultsBreakdown.byUnit[unit]) {
-                    finalFaultsBreakdown.byUnit[unit] = { count: 0, amount: 0, qualityControlDuration: 0, reworkDuration: 0 };
+                const unitForFinal = cost.unit ? orgKey(cost.unit) : 'Bilinmeyen';
+                if (!finalFaultsBreakdown.byUnit[unitForFinal]) {
+                    finalFaultsBreakdown.byUnit[unitForFinal] = { count: 0, amount: 0, qualityControlDuration: 0, reworkDuration: 0 };
                 }
-                finalFaultsBreakdown.byUnit[unit].count += (cost.quantity || 1);
-                finalFaultsBreakdown.byUnit[unit].amount += amount;
-                finalFaultsBreakdown.byUnit[unit].qualityControlDuration += (cost.quality_control_duration || 0);
-                finalFaultsBreakdown.byUnit[unit].reworkDuration += (cost.rework_duration || 0);
+                finalFaultsBreakdown.byUnit[unitForFinal].count += (cost.quantity || 1);
+                finalFaultsBreakdown.byUnit[unitForFinal].amount += amount;
+                finalFaultsBreakdown.byUnit[unitForFinal].qualityControlDuration += (cost.quality_control_duration || 0);
+                finalFaultsBreakdown.byUnit[unitForFinal].reworkDuration += (cost.rework_duration || 0);
                 const vehicleType = cost.vehicle_type || 'Bilinmeyen';
                 if (!finalFaultsBreakdown.byVehicleType[vehicleType]) {
                     finalFaultsBreakdown.byVehicleType[vehicleType] = { count: 0, amount: 0 };
@@ -172,6 +179,10 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
         });
 
         const totalCOPQ = internalFailure + externalFailure + appraisal + prevention;
+        const hurdaReworkDefectAnalysis = computeHurdaReworkDefectAnalysis(costs, {
+            totalCopq: totalCOPQ,
+            canonicalUnitCtx,
+        });
 
         const byUnitAndSupplier = Object.values(unitMap)
             .sort((a, b) => b.total - a.total)
@@ -218,9 +229,10 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             byUnitAndSupplier,
             byCustomer,
             bySupplier,
-            topLineItems
+            topLineItems,
+            hurdaReworkDefectAnalysis,
         };
-    }, [costs, producedVehicles, dateRange]);
+    }, [costs, producedVehicles, dateRange, canonicalUnitCtx]);
 
     if (loading) {
         return (
@@ -393,6 +405,192 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                         <p className="font-semibold mb-1">COPQ Formülü (IATF 16949):</p>
                         <p>COPQ = İç Hata Maliyeti + Dış Hata Maliyeti + Değerlendirme Maliyeti + Önleme Maliyeti</p>
                     </div>
+
+                    {/* Hurda / Yeniden: birim aksiyon analizi */}
+                    {copqData.hurdaReworkDefectAnalysis && copqData.hurdaReworkDefectAnalysis.totalHr > 0 && (
+                        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                            <div className="flex flex-wrap items-center gap-4 justify-between border-b border-border bg-muted/30 px-4 py-4">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <Factory className="h-5 w-5 shrink-0 text-primary" />
+                                    <CardTitle className="text-base font-semibold tracking-tight">
+                                        Hurda / Yeniden — birim aksiyon kırılımı
+                                    </CardTitle>
+                                </div>
+                                <div className="flex flex-wrap justify-end gap-2 text-[11px]">
+                                    <Badge variant="secondary" className="font-normal tabular-nums">
+                                        H+R toplam: {formatCurrency(copqData.hurdaReworkDefectAnalysis.totalHr)}
+                                    </Badge>
+                                    <Badge variant="outline" className="font-normal tabular-nums">
+                                        Kalem analizi: {formatCurrency(copqData.hurdaReworkDefectAnalysis.parsedAmt)}
+                                    </Badge>
+                                    <Badge variant="outline" className="font-normal tabular-nums">
+                                        Hata bağlı (listeli):{' '}
+                                        {formatCurrency(copqData.hurdaReworkDefectAnalysis.classifiedAmt)}
+                                    </Badge>
+                                    <Badge variant="outline" className="font-normal tabular-nums border-amber-500/40 text-amber-950 dark:text-amber-200">
+                                        Sınıflanamayan:{' '}
+                                        {formatCurrency(copqData.hurdaReworkDefectAnalysis.unclassifiedAmt)}
+                                    </Badge>
+                                    {copqData.hurdaReworkDefectAnalysis.reconciliationGap > 1 && (
+                                        <Badge variant="outline" className="font-normal tabular-nums border-destructive/40" title="COPQ satır toplamı ile kalem çıktısı farkı (sıfır tutar kalemleri vb.)">
+                                            Kalan fark (izleme):{' '}
+                                            {formatCurrency(copqData.hurdaReworkDefectAnalysis.reconciliationGap)}
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Genel öz — disiplin + tip (dikey tam genişlik) */}
+                            <div className="flex flex-col border-b border-border bg-muted/10">
+                                <div className="w-full border-b border-border p-4 md:p-5">
+                                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Tüm süreç — disiplin (global)
+                                    </p>
+                                    <Table noScroll>
+                                        <TableHeader>
+                                            <TableRow className="hover:bg-transparent">
+                                                <TableHead className="h-9 text-xs font-semibold">Disiplin / grup</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tutar</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">% Hurda+R</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {copqData.hurdaReworkDefectAnalysis.defectGroupsSorted.map((row) => (
+                                                <TableRow key={row.name} className="text-sm">
+                                                    <TableCell className="font-medium align-middle">{row.name}</TableCell>
+                                                    <TableCell className="text-right tabular-nums font-semibold text-primary align-middle">
+                                                        {formatCurrency(row.amount)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground tabular-nums align-middle">
+                                                        %{row.pctOfHr.toFixed(1)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                <div className="w-full p-4 md:p-5">
+                                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Tüm süreç — hata kodu detayı (global)
+                                    </p>
+                                    <Table noScroll>
+                                        <TableHeader>
+                                            <TableRow className="hover:bg-transparent">
+                                                <TableHead className="h-9 text-xs font-semibold">Hata kökü</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tutar</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">% Hurda+R</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {copqData.hurdaReworkDefectAnalysis.defectTypesSorted.map((row) => (
+                                                <TableRow key={row.name} className="text-sm">
+                                                    <TableCell className="align-middle">{row.name}</TableCell>
+                                                    <TableCell className="text-right tabular-nums font-semibold align-middle">
+                                                        {formatCurrency(row.amount)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground tabular-nums align-middle">
+                                                        %{row.pctOfHr.toFixed(1)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+
+                            {/* Birim bazlı detay (aksiyon) */}
+                            <div className="p-4 pt-5 space-y-3 bg-background">
+                                <div className="flex items-center gap-2">
+                                    <Building2 className="h-4 w-4 text-primary" />
+                                    <p className="text-sm font-semibold tracking-tight">Sorumlu birimler</p>
+                                </div>
+                                <div className="divide-y divide-border rounded-lg border border-border">
+                                    {copqData.hurdaReworkDefectAnalysis.hrUnitsPivot.map((u, idx) => (
+                                        <details key={u.unitLabel} className="group" {...(idx === 0 ? { open: true } : {})}>
+                                            <summary className="flex cursor-pointer select-none flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-3 hover:bg-muted/40 list-none [&::-webkit-details-marker]:hidden">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                                                    <span className="font-semibold text-sm truncate" title={u.unitLabel}>{u.unitLabel}</span>
+                                                </div>
+                                                <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 text-xs tabular-nums">
+                                                    <span className="text-primary font-semibold">{formatCurrency(u.total)}</span>
+                                                    <span className="text-muted-foreground">% H+R {u.pctOfHrTotal.toFixed(1)}%</span>
+                                                    <span className="text-muted-foreground">· % COPQ {copqData.totalCOPQ > 0 ? u.pctOfCopq.toFixed(1) : '0'}%</span>
+                                                    <Badge variant={u.unclassified > 1 ? 'destructive' : 'outline'} className="font-normal text-[10px]">
+                                                        sınıfsız{' '}{formatCurrency(u.unclassified)}
+                                                    </Badge>
+                                                </div>
+                                            </summary>
+                                            <div className="border-t border-border bg-muted/10 px-3 pb-4 pt-3 space-y-4">
+                                                <div className="flex flex-col gap-4">
+                                                    <div className="w-full min-w-0">
+                                                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                                                            Kaynak için disiplin
+                                                        </p>
+                                                        <Table noScroll>
+                                                            <TableHeader>
+                                                                <TableRow className="hover:bg-transparent h-8">
+                                                                    <TableHead className="h-8 text-[11px]">Grup</TableHead>
+                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">Tutar</TableHead>
+                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">
+                                                                        % birim içi
+                                                                    </TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {(u.groupsSorted || []).slice(0, 12).map((g) => (
+                                                                    <TableRow key={g.key} className="text-xs">
+                                                                        <TableCell className="py-2 font-medium">{g.key}</TableCell>
+                                                                        <TableCell className="py-2 text-right tabular-nums">
+                                                                            {formatCurrency(g.amount)}
+                                                                        </TableCell>
+                                                                        <TableCell className="py-2 text-right text-muted-foreground tabular-nums">
+                                                                            %{g.pctWithinUnit.toFixed(1)}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                    <div className="w-full min-w-0">
+                                                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                                                            Hata tipi (aynı kaynak için)
+                                                        </p>
+                                                        <Table noScroll>
+                                                            <TableHeader>
+                                                                <TableRow className="hover:bg-transparent h-8">
+                                                                    <TableHead className="h-8 text-[11px]">Kök neden görünümü</TableHead>
+                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">
+                                                                        Tutar
+                                                                    </TableHead>
+                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">
+                                                                        % birim içi
+                                                                    </TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {(u.typesSorted || []).slice(0, 12).map((t) => (
+                                                                    <TableRow key={t.key} className="text-xs">
+                                                                        <TableCell className="py-2">{t.key}</TableCell>
+                                                                        <TableCell className="py-2 text-right tabular-nums">
+                                                                            {formatCurrency(t.amount)}
+                                                                        </TableCell>
+                                                                        <TableCell className="py-2 text-right text-muted-foreground tabular-nums">
+                                                                            %{t.pctWithinUnit.toFixed(1)}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </details>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

@@ -57,6 +57,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { cn } from '@/lib/utils';
 import VehiclePerformancePanel from '@/components/quality-cost/VehiclePerformancePanel';
 
+import { getCanonicalUnitLabel } from '@/lib/qualityCostUnitGroups';
+
 const formatCurrency = (value) =>
     (typeof value === 'number' ? value : 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 
@@ -168,7 +170,11 @@ const CostDrillDownModal = ({
     const vehicleContext = data?.vehicleContext;
     const dateRange = data?.dateRange;
 
-    const { producedVehicles } = useData();
+    const { producedVehicles, unitCostSettings, personnel } = useData();
+    const canonicalUnitCtx = useMemo(
+        () => ({ unitCostSettings: unitCostSettings || [], personnel: personnel || [] }),
+        [unitCostSettings, personnel]
+    );
     const { toast } = useToast();
     const [resolvedTargets, setResolvedTargets] = useState({});
     const [applyingTargets, setApplyingTargets] = useState(false);
@@ -909,7 +915,13 @@ const CostDrillDownModal = ({
                                                         {c.cost_date ? format(new Date(c.cost_date), 'dd.MM.yyyy', { locale: tr }) : '—'}
                                                     </TableCell>
                                                     <TableCell className="text-xs max-w-[160px] truncate">{c.cost_type || '—'}</TableCell>
-                                                    <TableCell className="text-xs">{c.unit || '—'}</TableCell>
+                                                    <TableCell className="text-xs">
+                                                        {c.unit
+                                                            ? getCanonicalUnitLabel(c.unit, canonicalUnitCtx)
+                                                            : c.is_supplier_nc && c.supplier?.name
+                                                                ? c.supplier.name
+                                                                : '—'}
+                                                    </TableCell>
                                                     <TableCell className="text-xs max-w-[180px] truncate">{c.part_code || c.part_name || '—'}</TableCell>
                                                     {vehicleContext && (
                                                         <>

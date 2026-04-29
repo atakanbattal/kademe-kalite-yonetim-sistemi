@@ -359,8 +359,14 @@ const MainLayout = () => {
         );
         const isEditMode = !!formData.id && !isSourceTemplate;
         let uploadedFilePaths = formData.attachments || [];
+        /** İlk kayıtta dosya yolu `formData.id klasörü/...`; insert satırı aynı id ile yapılmalı (aksi halde klasör ile row.id kayar). */
+        let uploadFolderId = formData.id ?? null;
+
         if (files && files.length > 0) {
-            const recordId = formData.id || uuidv4();
+            if (!uploadFolderId) {
+                uploadFolderId = uuidv4();
+            }
+            const recordId = uploadFolderId;
             const uploadPromises = files.map(async (file) => {
                 const originalFileName = file.name || 'unnamed-file';
                 const filePath = createSafeFilePath(originalFileName, recordId);
@@ -410,6 +416,9 @@ const MainLayout = () => {
         if (dbData.forwarded_unit) dbData.forwarded_unit = canonicalizeDepartmentName(dbData.forwarded_unit, deptCanonCtx);
 
         dbData.attachments = uploadedFilePaths;
+        if (!isEditMode && uploadFolderId && !id && files && files.length > 0) {
+            dbData.id = uploadFolderId;
+        }
         const fieldsToNullify = ['cost_date', 'measurement_unit', 'part_location', 'quantity', 'scrap_weight', 'rework_duration', 'quality_control_duration'];
         fieldsToNullify.forEach(field => {
             if (dbData[field] === '' || dbData[field] === undefined) dbData[field] = null;
@@ -442,6 +451,7 @@ const MainLayout = () => {
 
         // Geçerli non_conformities tablosu kolonlarını tanımla
         const validColumns = new Set([
+            'id',
             'nc_number', 'audit_title', 'title', 'description', 'category', 'department',
             'requesting_person', 'requesting_unit', 'responsible_person', 'status', 'type',
             'opening_date', 'due_date', 'closed_at', 'rejected_at', 'rejection_reason',

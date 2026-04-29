@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
-import { useData } from '@/contexts/DataContext';
+import { getCanonicalUnitLabel } from '@/lib/qualityCostUnitGroups';
 import { cn } from '@/lib/utils';
 import {
     AlertTriangle,
@@ -376,7 +376,11 @@ const VehiclePerformancePanel = ({
     const [suggestionSettings, setSuggestionSettings] = useState(() => normalizeQualityCostSuggestionSettings(null));
     const [suggestionSettingsOpen, setSuggestionSettingsOpen] = useState(false);
     const [savingSuggestionSettings, setSavingSuggestionSettings] = useState(false);
-    const { nonConformities } = useData();
+    const { nonConformities, unitCostSettings, personnel } = useData();
+    const canonicalUnitCtx = useMemo(
+        () => ({ unitCostSettings: unitCostSettings || [], personnel: personnel || [] }),
+        [unitCostSettings, personnel]
+    );
 
     const fetchSuggestionSettings = useCallback(async () => {
         try {
@@ -875,7 +879,13 @@ const VehiclePerformancePanel = ({
                                                                 : '-'}
                                                         </td>
                                                         <td className="px-2 py-2 max-w-[120px] truncate">{record.cost_type || '-'}</td>
-                                                        <td className="px-2 py-2">{record.unit || record.supplier?.name || '-'}</td>
+                                                        <td className="px-2 py-2">
+                                                            {record.supplier?.name && record.is_supplier_nc
+                                                                ? record.supplier.name
+                                                                : record.unit
+                                                                    ? getCanonicalUnitLabel(record.unit, canonicalUnitCtx)
+                                                                    : '-'}
+                                                        </td>
                                                         <td className="px-2 py-2 max-w-[200px]">
                                                             <span className="font-medium">{record.part_code || record.part_name || '-'}</span>
                                                         </td>

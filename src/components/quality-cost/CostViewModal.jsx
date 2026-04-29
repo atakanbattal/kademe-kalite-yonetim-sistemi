@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +10,8 @@ import { DollarSign, Calendar, Building2, Car, Package, User, AlertTriangle, Clo
 import { InfoCard } from '@/components/ui/InfoCard';
 import { openPrintableReport } from '@/lib/reportUtils';
 import QualityCostDocumentsTab from '@/components/quality-cost/QualityCostDocumentsTab';
+import { useData } from '@/contexts/DataContext';
+import { getCanonicalUnitLabel } from '@/lib/qualityCostUnitGroups';
 import { supabase } from '@/lib/customSupabaseClient';
 
 const formatCurrency = (value) => {
@@ -53,7 +55,15 @@ const allocatedSharedForLineItem = (lineItem, lineItems, sharedList) => {
 export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefresh }) => {
     const [documents, setDocuments] = useState([]);
     const [showFullView, setShowFullView] = useState(false);
-
+    const { unitCostSettings, personnel } = useData();
+    const canonicalUnitCtx = useMemo(
+        () => ({ unitCostSettings: unitCostSettings || [], personnel: personnel || [] }),
+        [unitCostSettings, personnel]
+    );
+    const ul = useCallback((raw) => {
+        if (raw == null || String(raw).trim() === '') return '';
+        return getCanonicalUnitLabel(String(raw).trim(), canonicalUnitCtx);
+    }, [canonicalUnitCtx]);
     // Modal/cost değiştiğinde toggle'ı sıfırla
     useEffect(() => {
         if (!isOpen) setShowFullView(false);
@@ -107,7 +117,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
 
     // Ana süre: rework_duration ve unit alanlarından oluşuyor
     const mainReworkCost = cost.rework_duration && cost.unit 
-        ? `${cost.unit}: ${cost.rework_duration} dk` 
+        ? `${ul(cost.unit)}: ${cost.rework_duration} dk` 
         : cost.rework_duration 
             ? `(Ana: ${cost.rework_duration} dk)` 
             : '';
@@ -115,8 +125,8 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
     // Etkilenen birimler: Ana birim dışındaki diğer birimler (örneğin Kalite Kontrol)
     const affectedUnitsCosts = cost.affected_units && Array.isArray(cost.affected_units) && cost.affected_units.length > 0
         ? cost.affected_units
-            .filter(au => au.unit !== cost.unit) // Ana birimi filtrele (zaten mainReworkCost'te gösteriliyor)
-            .map(au => `${au.unit}: ${au.duration} dk`)
+            .filter(au => au.unit && ul(au.unit) !== ul(cost.unit))
+            .map(au => `${ul(au.unit)}: ${au.duration} dk`)
             .join(', ')
         : '';
     
@@ -140,7 +150,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                             <span className="ml-2 px-3 py-1 bg-amber-500/80 text-white text-[10px] font-bold rounded-full">
                                 {selectedLineItem.responsible_type === 'supplier'
                                     ? (selectedLineItem.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi')
-                                    : (selectedLineItem.responsible_unit || 'Birim')}
+                                    : (ul(selectedLineItem.responsible_unit) || 'Birim')}
                             </span>
                         )}
                     </div>
@@ -214,6 +224,17 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                                 value={cost.cost_type} 
                                 variant="warning"
                             />
+                            {['Hurda Maliyeti', 'Yeniden İşlem Maliyeti'].includes(cost.cost_type) &&
+                                !hasLineItems &&
+                                cost.primary_defect_type &&
+                                (
+                                    <InfoCard
+                                        icon={AlertTriangle}
+                                        label="Ana hata tipi"
+                                        value={cost.primary_defect_type}
+                                        variant="default"
+                                    />
+                                )}
                         </div>
 
                         {/* Birim Dağılımı Özeti - toplu görünümde ve kalem varsa */}
@@ -227,7 +248,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                                             const pct = ((amt / totalAmount) * 100).toFixed(1);
                                             const unitLabel = li.responsible_type === 'supplier'
                                                 ? (li.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi')
-                                                : (li.responsible_unit || '-');
+                                                : (ul(li.responsible_unit) || '-');
                                             return (
                                                 <Badge key={idx} variant="secondary" className="py-2 px-3 text-sm">
                                                     {unitLabel}: {formatCurrency(amt)} (%{pct})
@@ -267,8 +288,8 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {isUnitView ? (
                                     <>
-                                        <InfoCard icon={Building2} label="Birim (Kaynak)" value={selectedLineItem.responsible_type === 'supplier' ? (selectedLineItem.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi') : (selectedLineItem.responsible_unit || '-')} />
-                                        {cost.reporting_unit && <InfoCard icon={Building2} label="Raporlayan Birim" value={cost.reporting_unit} />}
+                                        <InfoCard icon={Building2} label="Birim (Kaynak)" value={selectedLineItem.responsible_type === 'supplier' ? (selectedLineItem.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi') : (ul(selectedLineItem.responsible_unit) || '-')} />
+                                        {cost.reporting_unit && <InfoCard icon={Building2} label="Raporlayan Birim" value={ul(cost.reporting_unit) || cost.reporting_unit} />}
                                         {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
                                         {(selectedLineItem.part_code || selectedLineItem.part_name) && (
                                             <InfoCard icon={Package} label="Parça" value={[selectedLineItem.part_code, selectedLineItem.part_name].filter(Boolean).join(' - ')} />
@@ -286,15 +307,15 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                                                 <div className="flex flex-wrap gap-2">
                                                     {cost.cost_allocations.map((a, i) => (
                                                         <Badge key={i} variant="secondary" className="py-2 px-3 text-sm">
-                                                            {a.unit}: %{parseFloat(a.percentage).toFixed(1)} = {formatCurrency(a.amount)}
+                                                            {ul(a.unit) || a.unit}: %{parseFloat(a.percentage).toFixed(1)} = {formatCurrency(a.amount)}
                                                         </Badge>
                                                     ))}
                                                 </div>
                                             </div>
                                         ) : !hasLineItems && cost.unit ? (
-                                            <InfoCard icon={Building2} label="Birim (Kaynak)" value={cost.unit} />
+                                            <InfoCard icon={Building2} label="Birim (Kaynak)" value={ul(cost.unit) || cost.unit} />
                                         ) : null}
-                                        {cost.reporting_unit && <InfoCard icon={Building2} label="Raporlayan Birim" value={cost.reporting_unit} />}
+                                        {cost.reporting_unit && <InfoCard icon={Building2} label="Raporlayan Birim" value={ul(cost.reporting_unit) || cost.reporting_unit} />}
                                         {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
                                         {!hasLineItems && cost.part_code && <InfoCard icon={Package} label="Parça Kodu" value={cost.part_code} />}
                                         {!hasLineItems && cost.part_name && <InfoCard icon={Package} label="Parça Adı" value={cost.part_name} />}
@@ -365,15 +386,15 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                                                 <div className="flex flex-wrap gap-2">
                                                     {/* Ana birim zaten yukarıda gösteriliyor, burada sadece diğer birimleri göster */}
                                                     {cost.affected_units
-                                                        .filter(au => au.unit !== cost.unit) // Ana birimi filtrele
+                                                        .filter(au => au.unit && ul(au.unit) !== ul(cost.unit))
                                                         .map((au, idx) => (
                                                         <Badge key={idx} variant="outline" className="text-sm py-2 px-3">
                                                             <Building2 className="h-3 w-3 mr-1" />
-                                                            {au.unit}: {au.duration} dk
+                                                            {ul(au.unit)}: {au.duration} dk
                                                         </Badge>
                                                     ))}
                                                     {/* Eğer tüm birimler ana birimse, hiçbir şey gösterme */}
-                                                    {cost.affected_units.every(au => au.unit === cost.unit) && (
+                                                    {cost.affected_units.every(au => au.unit && ul(au.unit) === ul(cost.unit)) && (
                                                         <p className="text-sm text-muted-foreground">Ana birim yukarıda gösteriliyor.</p>
                                                     )}
                                                 </div>
@@ -413,10 +434,15 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                                                     </div>
                                                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                                         {li.cost_subtype && <Badge variant="outline">{li.cost_subtype}</Badge>}
+                                                        {['Hurda Maliyeti', 'Yeniden İşlem Maliyeti'].includes(cost.cost_type) && li.defect_type && (
+                                                            <Badge variant="destructive" className="font-normal">
+                                                                Hata tipi: {li.defect_type}
+                                                            </Badge>
+                                                        )}
                                                         {li.responsible_type === 'supplier' ? (
                                                             <Badge variant="default" className="bg-amber-500">{li.responsible_supplier_name || li.responsible_unit || cost.supplier?.name || '-'}</Badge>
                                                         ) : (
-                                                            li.responsible_unit && <Badge variant="secondary">{li.responsible_unit}</Badge>
+                                                            li.responsible_unit && <Badge variant="secondary">{ul(li.responsible_unit)}</Badge>
                                                         )}
                                                         {li.quantity && <span>Miktar: {li.quantity} {li.measurement_unit || ''}</span>}
                                                     </div>

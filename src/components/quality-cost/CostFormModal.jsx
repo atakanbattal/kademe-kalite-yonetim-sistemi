@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -17,6 +17,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { sanitizeFileName } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    buildCategoryOptions,
+    getGroupMetaForCategory,
+    getMatchedCategoryGroups,
+} from '@/lib/defectCategories';
 
 const DOCUMENT_TYPES = ['Fatura', 'Teklif', 'Rapor', 'Fotoğraf', 'Test Sonucu', 'Garanti Belgesi', '8D Raporu', 'Diğer'];
 const BUCKET_NAME = 'quality_costs';
@@ -262,6 +267,8 @@ const BUCKET_NAME = 'quality_costs';
             invoice_number: '',
             customer_name: '',
             reporting_unit: '',
+            primary_defect_type: '',
+            primary_defect_group_key: '',
         }), []);
 
         // Müşteri listesi
@@ -361,7 +368,12 @@ const BUCKET_NAME = 'quality_costs';
             
             if (Array.isArray(existingLineItems) && existingLineItems.length > 0) {
                 // Mevcut kalemler varsa onları yükle
-                setLineItems(existingLineItems.map(li => ({ ...li, id: li.id || uuidv4() })));
+                setLineItems(existingLineItems.map((li) => ({
+                    ...li,
+                    id: li.id || uuidv4(),
+                    defect_type: li.defect_type ?? '',
+                    defect_group_key: li.defect_group_key ?? '',
+                })));
             } else if (isEditMode && !isCalcType) {
                 // Eski tip kalem tabanlı kayıt - ana alanlardan bir kalem oluştur
                 setLineItems([{
@@ -376,7 +388,9 @@ const BUCKET_NAME = 'quality_costs';
                     quantity: costData.quantity || '',
                     unit_cost: costData.unit_cost || '',
                     measurement_unit: costData.measurement_unit || 'Adet',
-                    description: ''
+                    description: '',
+                    defect_type: '',
+                    defect_group_key: '',
                 }]);
             } else if (!isCalcType) {
                 // Yeni kalem tabanlı kayıt - bir boş kalem ile başla
@@ -384,7 +398,8 @@ const BUCKET_NAME = 'quality_costs';
                     id: uuidv4(),
                     part_code: '', part_name: '', responsible_type: 'unit', responsible_unit: '',
                     responsible_supplier_id: null, cost_subtype: '', amount: '',
-                    quantity: '', unit_cost: '', measurement_unit: 'Adet', description: ''
+                    quantity: '', unit_cost: '', measurement_unit: 'Adet', description: '',
+                    defect_type: '', defect_group_key: '',
                 }]);
             } else {
                 // Hesaplayıcı türler - kalem boş başla
@@ -422,7 +437,8 @@ const BUCKET_NAME = 'quality_costs';
                         id: uuidv4(),
                         part_code: '', part_name: '', responsible_type: 'unit', responsible_unit: '',
                         responsible_supplier_id: null, cost_subtype: '', amount: '',
-                        quantity: '', unit_cost: '', measurement_unit: 'Adet', description: ''
+                        quantity: '', unit_cost: '', measurement_unit: 'Adet', description: '',
+                        defect_type: '', defect_group_key: '',
                     }]);
                 } else if (isNewCalcType && !wasCalcType) {
                     // Kalem tabanlı türden hesaplayıcıya geçiş - kalemleri boşalt (sadece boşlarsa)
@@ -481,7 +497,9 @@ const BUCKET_NAME = 'quality_costs';
                 quantity: '',
                 unit_cost: '',
                 measurement_unit: 'Adet',
-                description: ''
+                description: '',
+                defect_type: '',
+                defect_group_key: '',
             }]);
         };
 
@@ -507,6 +525,15 @@ const BUCKET_NAME = 'quality_costs';
                         updated.responsible_supplier_id = null;
                     } else {
                         updated.responsible_unit = '';
+                    }
+                }
+                if (field === 'defect_type') {
+                    const trimmed = typeof value === 'string' ? value.trim() : '';
+                    updated.defect_type = trimmed;
+                    if (trimmed) {
+                        updated.defect_group_key = getGroupMetaForCategory(trimmed).key || '';
+                    } else {
+                        updated.defect_group_key = '';
                     }
                 }
                 return updated;
@@ -776,6 +803,37 @@ const BUCKET_NAME = 'quality_costs';
                 }
             }
 
+            if (isScrap || isRework) {
+                const substantiveLine = (li) =>
+                    (parseFloat(li.amount) || 0) > 0 ||
+                    String(li.part_code || '').trim() !== '' ||
+                    String(li.part_name || '').trim() !== '' ||
+                    String(li.description || '').trim() !== '';
+                const subs = lineItems.filter(substantiveLine);
+                if (subs.length > 0) {
+                    const missing = subs.filter((li) => !(li.defect_type && String(li.defect_type).trim()));
+                    if (missing.length > 0) {
+                        toast({
+                            variant: 'destructive',
+                            title: 'Hata tipi zorunlu',
+                            description:
+                                'Doldurulmuş her maliyet kalemi için "Hata Tipi" seçin (proses muayene listesi ile aynı).',
+                        });
+                        setActiveTab('details');
+                        return;
+                    }
+                } else if (!String(formData.primary_defect_type || '').trim()) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Hata tipi zorunlu',
+                        description:
+                            'İsterseniz "Maliyet Kalemleri" sekmesinden kalem ekleyip kalem bazlı hata tipi seçin; yoksa hesaplama bölümündeki "Ana Hata Tipi" alanını doldurun.',
+                    });
+                    setActiveTab('details');
+                    return;
+                }
+            }
+
             // Kalem tabanlı türler için kalem doğrulama
             if (!isCalcType) {
                 if (lineItems.length === 0) {
@@ -852,6 +910,15 @@ const BUCKET_NAME = 'quality_costs';
                         return base;
                     })
                     : null;
+                const hasSubs = submissionData.cost_line_items && submissionData.cost_line_items.length > 0;
+                if ((isScrap || isRework) && hasSubs) {
+                    submissionData.primary_defect_type = null;
+                    submissionData.primary_defect_group_key = null;
+                } else if ((isScrap || isRework) && submissionData.cost_line_items === null && formData.primary_defect_type) {
+                    submissionData.primary_defect_type = String(formData.primary_defect_type).trim();
+                    submissionData.primary_defect_group_key =
+                        formData.primary_defect_group_key || getGroupMetaForCategory(submissionData.primary_defect_type).key || '';
+                }
                 // amount zaten formData'dan geliyor (auto-calc)
             } else {
                 // Kalem tabanlı türler: kalemlerden toplam hesapla
@@ -1050,6 +1117,55 @@ const BUCKET_NAME = 'quality_costs';
             )
         }));
 
+        const defectCategoryOptionsForForm = useMemo(() => {
+            const matched = getMatchedCategoryGroups(
+                formData.unit || '',
+                [formData.reporting_unit, formData.part_name, formData.vehicle_type].filter(Boolean).join(' ')
+            );
+            const existing =
+                formData.primary_defect_type ||
+                lineItems.map((li) => li.defect_type).find((t) => t && String(t).trim()) ||
+                '';
+            return buildCategoryOptions({ matchedGroups: matched, existingValue: existing }).map((o) => ({
+                ...o,
+                searchText: `${o.value} `,
+            }));
+        }, [
+            formData.unit,
+            formData.reporting_unit,
+            formData.part_name,
+            formData.vehicle_type,
+            formData.primary_defect_type,
+            lineItems,
+        ]);
+
+        const setPrimaryDefect = useCallback((value) => {
+            const trimmed = typeof value === 'string' ? value.trim() : '';
+            const meta = getGroupMetaForCategory(trimmed);
+            setFormData((prev) => ({
+                ...prev,
+                primary_defect_type: trimmed,
+                primary_defect_group_key: trimmed ? meta.key || '' : '',
+            }));
+        }, []);
+
+        const getLineDefectOptions = useCallback(
+            (item) => {
+                const matched = getMatchedCategoryGroups(
+                    item.responsible_unit || formData.unit || '',
+                    [formData.part_name, item.part_name, item.description].filter(Boolean).join(' ')
+                );
+                return buildCategoryOptions({
+                    matchedGroups: matched,
+                    existingValue: item.defect_type || '',
+                }).map((o) => ({
+                    ...o,
+                    searchText: `${o.value} `,
+                }));
+            },
+            [formData.unit, formData.part_name]
+        );
+
         const [activeTab, setActiveTab] = React.useState('details');
 
         // Summary helpers
@@ -1212,6 +1328,27 @@ const BUCKET_NAME = 'quality_costs';
                                                 <Textarea id="description" value={formData.description || ''} onChange={handleInputChange} placeholder="Maliyet açıklaması..." rows={4} className="min-h-[88px] text-sm resize-y" />
                                             </div>
                                         </div>
+                                        {isScrapCost && lineItems.length === 0 && (
+                                            <div className="pt-2 border-t border-amber-200 dark:border-amber-700 space-y-1.5">
+                                                <Label className="text-[10px] font-semibold text-amber-900 dark:text-amber-200 uppercase">
+                                                    Ana hata tipi <span className="text-destructive">*</span>
+                                                </Label>
+                                                <SearchableSelectDialog
+                                                    options={defectCategoryOptionsForForm}
+                                                    value={formData.primary_defect_type || ''}
+                                                    onChange={setPrimaryDefect}
+                                                    triggerPlaceholder="Hata tipi seçin..."
+                                                    dialogTitle="Hata Tipi Seçin (birim sıralı liste)"
+                                                    searchPlaceholder="Hata ara..."
+                                                    allowClear
+                                                    notFoundText="Hata tipi bulunamadı."
+                                                    triggerClassName="min-h-10 bg-white dark:bg-background"
+                                                />
+                                                <p className="text-[10px] text-muted-foreground leading-snug">
+                                                    Ek kalemler eklendiğinde her kalem için ayrı hata tipi seçilir (muayene ile aynı liste).
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 {isReworkCost && (
@@ -1248,10 +1385,29 @@ const BUCKET_NAME = 'quality_costs';
                                                 <Textarea id="description" value={formData.description || ''} onChange={handleInputChange} placeholder="Maliyet açıklaması..." rows={4} className="min-h-[88px] text-sm resize-y" />
                                             </div>
                                         </div>
+                                        {lineItems.length === 0 && (
+                                            <div className="pt-2 border-t border-blue-200 dark:border-blue-700 space-y-1.5">
+                                                <Label className="text-[10px] font-semibold text-blue-900 dark:text-blue-200 uppercase">
+                                                    Ana hata tipi <span className="text-destructive">*</span>
+                                                </Label>
+                                                <SearchableSelectDialog
+                                                    options={defectCategoryOptionsForForm}
+                                                    value={formData.primary_defect_type || ''}
+                                                    onChange={setPrimaryDefect}
+                                                    triggerPlaceholder="Hata tipi seçin..."
+                                                    dialogTitle="Hata Tipi Seçin (birim sıralı liste)"
+                                                    searchPlaceholder="Hata ara..."
+                                                    allowClear
+                                                    notFoundText="Hata tipi bulunamadı."
+                                                    triggerClassName="min-h-10 bg-white dark:bg-background"
+                                                />
+                                                <p className="text-[10px] text-muted-foreground leading-snug">
+                                                    Ek kalemler eklendiğinde her kalem için ayrı hata tipi seçilir (muayene ile aynı liste).
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
-
-                                {/* Tabs */}
                                 <div>
                                     <div className="flex border-b border-border overflow-x-auto">
                                         {!isCalculatorType && (
@@ -1355,6 +1511,25 @@ const BUCKET_NAME = 'quality_costs';
                                                         <label className="text-[10px] font-medium text-muted-foreground uppercase">Açıklama</label>
                                                         <Input autoFormat={false} value={item.description || ''} onChange={(e) => updateLineItem(item.id, 'description', e.target.value)} placeholder="Kalem açıklaması..." className="h-8 text-sm" />
                                                     </div>
+                                                    {(isScrapCost || isReworkCost) && (
+                                                        <div className="space-y-1 pt-2 border-t border-border/70">
+                                                            <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                                                Hata tipi <span className="text-destructive">*</span>
+                                                                <span className="font-normal lowercase text-muted-foreground/90">({item.responsible_unit || formData.unit || 'birim'} için önerilenler üstte)</span>
+                                                            </Label>
+                                                            <SearchableSelectDialog
+                                                                options={getLineDefectOptions(item)}
+                                                                value={item.defect_type || ''}
+                                                                onChange={(v) => updateLineItem(item.id, 'defect_type', v)}
+                                                                triggerPlaceholder="Hata tipi seçin..."
+                                                                dialogTitle="Maliyet kalemi — hata tipi"
+                                                                searchPlaceholder="Hata ara..."
+                                                                allowClear
+                                                                notFoundText="Hata tipi bulunamadı."
+                                                                triggerClassName="min-h-9 bg-background"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
 

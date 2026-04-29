@@ -5,52 +5,42 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Building2, CheckCircle2 } from 'lucide-react';
+import { costMatchesUnitFilterKey } from '@/lib/qualityCostUnitGroups';
+
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 };
 
-const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
+const UnitReportModal = ({ isOpen, setIsOpen, unitOptions = [], costs, onGenerate, canonicalUnitCtx = {} }) => {
     const [selectedUnits, setSelectedUnits] = useState([]);
 
-    // Her birim için toplam maliyet hesapla (cost_allocations desteği ile)
     const unitStats = useMemo(() => {
         const stats = {};
-        units.forEach(unit => {
+        unitOptions.forEach(({ key }) => {
             let totalAmount = 0;
             let count = 0;
-            costs.forEach(cost => {
-                if (cost.unit === unit) {
-                    totalAmount += cost.amount || 0;
-                    count += 1;
-                } else if (cost.cost_allocations?.length) {
-                    const alloc = cost.cost_allocations.find(a => a.unit === unit);
-                    if (alloc) {
-                        totalAmount += alloc.amount ?? (cost.amount || 0) * (parseFloat(alloc.percentage) / 100);
-                        count += 1;
-                    }
-                }
+            costs.forEach((cost) => {
+                if (!costMatchesUnitFilterKey(cost, key, canonicalUnitCtx)) return;
+                totalAmount += cost.amount || 0;
+                count += 1;
             });
-            stats[unit] = { count, totalAmount };
+            stats[key] = { count, totalAmount };
         });
         return stats;
-    }, [units, costs]);
+    }, [unitOptions, costs, canonicalUnitCtx]);
 
-    const handleToggleUnit = (unit) => {
-        setSelectedUnits(prev => {
-            if (prev.includes(unit)) {
-                return prev.filter(u => u !== unit);
-            } else {
-                return [...prev, unit];
-            }
-        });
+    const handleToggleUnit = (unitKey) => {
+        setSelectedUnits((prev) =>
+            prev.includes(unitKey) ? prev.filter((u) => u !== unitKey) : [...prev, unitKey]
+        );
     };
 
     const handleSelectAll = () => {
-        if (selectedUnits.length === units.length) {
+        if (selectedUnits.length === unitOptions.length) {
             setSelectedUnits([]);
         } else {
-            setSelectedUnits([...units]);
+            setSelectedUnits(unitOptions.map((o) => o.key));
         }
     };
 
@@ -68,12 +58,12 @@ const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
         setSelectedUnits([]);
     };
 
-    const totalSelectedAmount = selectedUnits.reduce((sum, unit) => {
-        return sum + (unitStats[unit]?.totalAmount || 0);
+    const totalSelectedAmount = selectedUnits.reduce((sum, unitKey) => {
+        return sum + (unitStats[unitKey]?.totalAmount || 0);
     }, 0);
 
-    const totalSelectedCount = selectedUnits.reduce((sum, unit) => {
-        return sum + (unitStats[unit]?.count || 0);
+    const totalSelectedCount = selectedUnits.reduce((sum, unitKey) => {
+        return sum + (unitStats[unitKey]?.count || 0);
     }, 0);
 
     return (
@@ -85,16 +75,16 @@ const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
                         Birim Seçimi - Rapor Oluşturma
                     </DialogTitle>
                     <DialogDescription>
-                        Rapor oluşturmak istediğiniz birimleri seçin. Birden fazla birim seçebilirsiniz.
+                        Aynı birim için farklı yazılmış kayıtlar (ör. AR-GE birleşik) tek satırda gösterilir.
                     </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div className="flex items-center space-x-2">
                             <Checkbox
                                 id="select-all"
-                                checked={selectedUnits.length === units.length && units.length > 0}
+                                checked={selectedUnits.length === unitOptions.length && unitOptions.length > 0}
                                 onCheckedChange={handleSelectAll}
                             />
                             <Label htmlFor="select-all" className="font-semibold cursor-pointer">
@@ -113,35 +103,35 @@ const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
                     </div>
 
                     <ScrollArea className="h-[400px] border rounded-lg p-4">
-                        {units.length === 0 ? (
+                        {unitOptions.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 Rapor oluşturulacak birim bulunamadı.
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                {units.map((unit) => {
-                                    const isSelected = selectedUnits.includes(unit);
-                                    const stats = unitStats[unit] || { count: 0, totalAmount: 0 };
-                                    
+                                {unitOptions.map(({ key, label }) => {
+                                    const isSelected = selectedUnits.includes(key);
+                                    const stats = unitStats[key] || { count: 0, totalAmount: 0 };
+
                                     return (
                                         <div
-                                            key={unit}
+                                            key={key}
                                             className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                                                isSelected 
-                                                    ? 'bg-primary/10 border-primary' 
+                                                isSelected
+                                                    ? 'bg-primary/10 border-primary'
                                                     : 'hover:bg-muted'
                                             }`}
-                                            onClick={() => handleToggleUnit(unit)}
+                                            onClick={() => handleToggleUnit(key)}
                                         >
                                             <div className="flex items-center space-x-3 flex-1">
                                                 <Checkbox
                                                     checked={isSelected}
-                                                    onCheckedChange={() => handleToggleUnit(unit)}
+                                                    onCheckedChange={() => handleToggleUnit(key)}
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
                                                 <div className="flex-1">
                                                     <Label className="font-semibold cursor-pointer text-base">
-                                                        {unit}
+                                                        {label}
                                                     </Label>
                                                     <div className="text-sm text-muted-foreground mt-1">
                                                         {stats.count} kayıt • {formatCurrency(stats.totalAmount)}
@@ -163,8 +153,8 @@ const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
                     <Button variant="outline" onClick={handleClose}>
                         İptal
                     </Button>
-                    <Button 
-                        onClick={handleGenerate} 
+                    <Button
+                        onClick={handleGenerate}
                         disabled={selectedUnits.length === 0}
                     >
                         Rapor Oluştur ({selectedUnits.length})
@@ -176,4 +166,3 @@ const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
 };
 
 export default UnitReportModal;
-

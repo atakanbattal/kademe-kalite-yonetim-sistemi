@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, Search, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -33,6 +33,27 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { filterCostsByYear, summarizeCostRows } from '@/lib/qualityCostAnalysis';
+import { computeHurdaReworkDefectAnalysis } from '@/lib/qualityCostDefectAggregation';
+import {
+    buildCostUnitFilterKeyIndex,
+    collectUnitFilterOptions,
+    costMatchesUnitUsingIndex,
+    createCanonicalUnitCaches,
+} from '@/lib/qualityCostUnitGroups';
+
+const parseLocalDayStart = (isoDate) => {
+    if (!isoDate) return null;
+    const [y, m, d] = isoDate.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+};
+
+const parseLocalDayEnd = (isoDate) => {
+    if (!isoDate) return null;
+    const [y, m, d] = isoDate.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+};
 import {
     PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY,
     readProcessInspectionFlow,
@@ -75,6 +96,35 @@ const getAllocatedSharedForLine = (cost, lineItem, lineItems) => {
     return 0;
 };
 
+/** Tabloda arama: Object.values(cost) kullanmayın — JSON/array serileştirmesi düşüşe yol açar */
+const QUALITY_COST_SEARCH_FIELDS = [
+    'cost_type', 'unit', 'description', 'part_code', 'part_name', 'vehicle_type',
+    'invoice_number', 'customer_name', 'measurement_unit', 'reporting_unit', 'material_type', 'cost_date',
+    'primary_defect_type',
+];
+
+function costMatchesSearchTerm(cost, lowercasedFilter) {
+    for (const key of QUALITY_COST_SEARCH_FIELDS) {
+        const v = cost[key];
+        if (v != null && v !== '' && String(v).toLowerCase().includes(lowercasedFilter)) return true;
+    }
+    if (cost.supplier?.name && String(cost.supplier.name).toLowerCase().includes(lowercasedFilter)) return true;
+    const items = cost.cost_line_items;
+    if (!Array.isArray(items)) return false;
+    for (const li of items) {
+        const blob = `${li.part_code || ''}${li.part_name || ''}${li.description || ''}${li.responsible_unit || ''}${li.defect_type || ''}`.toLowerCase();
+        if (blob.includes(lowercasedFilter)) return true;
+    }
+    const allocs = cost.cost_allocations;
+    if (Array.isArray(allocs)) {
+        for (const a of allocs) {
+            const u = a?.unit;
+            if (u != null && String(u).toLowerCase().includes(lowercasedFilter)) return true;
+        }
+    }
+    return false;
+}
+
 const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
     const { profile } = useAuth();
@@ -106,6 +156,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [selectedNCType, setSelectedNCType] = useState('DF');
     const [sortConfig, setSortConfig] = useState({ key: 'cost_date', direction: 'desc' });
     const [displayLimit, setDisplayLimit] = useState(100); // Tabloda gösterilecek kayıt limiti
+    /** Açık sekme — Radix tüm sekmeleri DOM'da tuttuğu için yalnızca aktif sekmede ağır hesap/child mount */
+    const [qualityCostTab, setQualityCostTab] = useState('overview');
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [vehicleTargetsRefreshKey, setVehicleTargetsRefreshKey] = useState(0);
 
@@ -128,68 +180,102 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         return profile?.role === 'admin';
     }, [profile]);
 
+    /** Ayarlardaki cost_settings.unit_name ile aynı birim yazımı için */
+    const canonicalUnitCtx = useMemo(
+        () => ({ unitCostSettings: unitCostSettings || [], personnel: personnel || [] }),
+        [unitCostSettings, personnel]
+    );
+
+    const canonCaches = useMemo(
+        () => createCanonicalUnitCaches(canonicalUnitCtx),
+        [canonicalUnitCtx]
+    );
+
+    /** Veri/canon değişince bir kez: filtre seçiminde her satırda yeniden canonicalize edilmez */
+    const costUnitFilterKeyIndex = useMemo(
+        () => buildCostUnitFilterKeyIndex(qualityCosts, canonCaches),
+        [qualityCosts, canonCaches]
+    );
+
+    /** Filtre state anında güncellenir (Select kapanır); ağır liste hesabı `useDeferredValue` ile sonra gelir → UI bloklanmaz */
+    const filterInputs = useMemo(
+        () => ({
+            dateRange,
+            unitFilter,
+            sourceFilter,
+            costCategoryFilter,
+            searchTerm,
+            sortConfig,
+        }),
+        [dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]
+    );
+    const deferredFilterInputs = useDeferredValue(filterInputs);
+    /** `filterInputs !== deferredFilterInputs` → güncellenmiş seçim yazılmış, liste/grafik hâlen eski (hesap devam ediyor) */
+    const filtersStillComputing = filterInputs !== deferredFilterInputs;
+
     const filteredCosts = useMemo(() => {
+        const dr = deferredFilterInputs.dateRange;
+        const uf = deferredFilterInputs.unitFilter;
+        const sf = deferredFilterInputs.sourceFilter;
+        const ccf = deferredFilterInputs.costCategoryFilter;
+        const st = deferredFilterInputs.searchTerm;
+        const sc = deferredFilterInputs.sortConfig;
+
         let costs = [...qualityCosts];
 
-        if (dateRange.startDate && dateRange.endDate) {
-            costs = costs.filter(cost => {
-                const costDate = new Date(cost.cost_date);
-                return costDate >= new Date(dateRange.startDate) && costDate <= new Date(dateRange.endDate);
-            });
+        if (dr.startDate && dr.endDate) {
+            const rangeStart = parseLocalDayStart(dr.startDate);
+            const rangeEnd = parseLocalDayEnd(dr.endDate);
+            if (rangeStart && rangeEnd) {
+                costs = costs.filter((cost) => {
+                    const costDate = new Date(cost.cost_date);
+                    return costDate >= rangeStart && costDate <= rangeEnd;
+                });
+            }
         }
 
-        if (unitFilter !== 'all') {
-            costs = costs.filter(cost => {
-                if (cost.unit === unitFilter) return true;
-                const allocs = cost.cost_allocations;
-                if (allocs && Array.isArray(allocs)) return allocs.some(a => a.unit === unitFilter);
-                return false;
-            });
+        if (uf !== 'all') {
+            costs = costs.filter((cost) => costMatchesUnitUsingIndex(costUnitFilterKeyIndex, cost, uf, canonCaches));
         }
 
-        if (sourceFilter !== 'all') {
-            if (sourceFilter === 'produced_vehicle') {
-                costs = costs.filter(cost =>
+        if (sf !== 'all') {
+            if (sf === 'produced_vehicle') {
+                costs = costs.filter((cost) =>
                     cost.source_type === 'produced_vehicle' ||
                     cost.source_type === 'produced_vehicle_final_faults' ||
                     cost.source_type === 'produced_vehicle_manual'
                 );
             } else {
-                costs = costs.filter(cost => cost.source_type === sourceFilter);
+                costs = costs.filter((cost) => cost.source_type === sf);
             }
         }
 
         // COQ Kategori filtresi: İç Hata, Dış Hata, Önleme, Değerlendirme
-        if (costCategoryFilter !== 'all') {
+        if (ccf !== 'all') {
             const internalTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'Final Hataları Maliyeti', 'İç Hata Maliyeti'];
             const externalTypes = ['Dış Hata Maliyeti'];
             const preventionTypes = ['Önleme Maliyeti'];
-            costs = costs.filter(cost => {
+            costs = costs.filter((cost) => {
                 const ct = cost.cost_type || '';
                 const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
-                if (costCategoryFilter === 'internal') return internalTypes.includes(ct) || isSupplierCost;
-                if (costCategoryFilter === 'external') return externalTypes.includes(ct);
-                if (costCategoryFilter === 'prevention') return preventionTypes.includes(ct);
-                if (costCategoryFilter === 'supplier') return isSupplierCost;
-                if (costCategoryFilter === 'indirect') return (cost.indirect_costs && Array.isArray(cost.indirect_costs) && cost.indirect_costs.length > 0);
-                if (costCategoryFilter === 'invoice') return (cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0);
+                if (ccf === 'internal') return internalTypes.includes(ct) || isSupplierCost;
+                if (ccf === 'external') return externalTypes.includes(ct);
+                if (ccf === 'prevention') return preventionTypes.includes(ct);
+                if (ccf === 'supplier') return isSupplierCost;
+                if (ccf === 'indirect') return (cost.indirect_costs && Array.isArray(cost.indirect_costs) && cost.indirect_costs.length > 0);
+                if (ccf === 'invoice') return (cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0);
                 return true;
             });
         }
 
-        if (searchTerm) {
-            const lowercasedFilter = searchTerm.toLowerCase();
-            costs = costs.filter(cost => {
-                return Object.values(cost).some(value =>
-                    String(value).toLowerCase().includes(lowercasedFilter)
-                );
-            });
+        if (st) {
+            const lowercasedFilter = st.toLowerCase();
+            costs = costs.filter((cost) => costMatchesSearchTerm(cost, lowercasedFilter));
         }
 
-        // Sıralama - tutarlı sıra için ikincil anahtar (created_at, id) kullan
         costs.sort((a, b) => {
             let aVal, bVal;
-            switch (sortConfig.key) {
+            switch (sc.key) {
                 case 'cost_date':
                     aVal = new Date(a.cost_date || 0).getTime();
                     bVal = new Date(b.cost_date || 0).getTime();
@@ -207,28 +293,28 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     bVal = (b.unit || '').toLowerCase();
                     break;
                 default:
-                    aVal = a[sortConfig.key];
-                    bVal = b[sortConfig.key];
+                    aVal = a[sc.key];
+                    bVal = b[sc.key];
             }
             if (aVal !== bVal) {
                 const comparison = aVal < bVal ? -1 : 1;
-                return sortConfig.direction === 'asc' ? comparison : -comparison;
+                return sc.direction === 'asc' ? comparison : -comparison;
             }
-            // Eşit değerlerde ikincil sıralama: created_at desc (yeniden eskiye)
             const aCreated = new Date(a.created_at || 0).getTime();
             const bCreated = new Date(b.created_at || 0).getTime();
             return bCreated - aCreated;
         });
 
         return costs;
-    }, [qualityCosts, dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]);
+    }, [qualityCosts, deferredFilterInputs, canonCaches, costUnitFilterKeyIndex]);
 
     const copqYearTotals = useMemo(() => {
         const cy = new Date().getFullYear();
         const py = cy - 1;
         let totalCurrent = 0;
         let totalPrevious = 0;
-        for (const c of qualityCosts || []) {
+        const list = filteredCosts || [];
+        for (const c of list) {
             if (!c?.cost_date) continue;
             const y = new Date(c.cost_date).getFullYear();
             const amt = parseFloat(c.amount) || 0;
@@ -236,13 +322,14 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             if (y === py) totalPrevious += amt;
         }
         return { currentYear: cy, previousYear: py, totalCurrent, totalPrevious };
-    }, [qualityCosts]);
+    }, [filteredCosts]);
 
     const copqYearlyInsight = useMemo(() => {
         const cy = new Date().getFullYear();
         const py = cy - 1;
-        const sCurrent = summarizeCostRows(filterCostsByYear(qualityCosts, cy));
-        const sPrevious = summarizeCostRows(filterCostsByYear(qualityCosts, py));
+        const costs = filteredCosts || [];
+        const sCurrent = summarizeCostRows(filterCostsByYear(costs, cy));
+        const sPrevious = summarizeCostRows(filterCostsByYear(costs, py));
         return {
             currentYear: cy,
             previousYear: py,
@@ -250,24 +337,40 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             previous: sPrevious,
             previousMonthlyAvg: sPrevious.total / 12,
         };
-    }, [qualityCosts]);
-
-    // Kalem bazlı genişletme; ortak maliyet tutarı kalemlere oranlanır (ayrı satır yok)
-    const expandedRows = useMemo(() => {
-        return filteredCosts.flatMap(cost => {
-            const items = cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0;
-            if (items) {
-                return cost.cost_line_items.map((li, idx) => ({ cost, lineItem: li, lineIndex: idx, rowType: 'line' }));
-            }
-            return [{ cost, lineItem: null, lineIndex: 0, rowType: 'line' }];
-        });
     }, [filteredCosts]);
 
-    const displayedCosts = useMemo(() => {
-        return expandedRows.slice(0, displayLimit);
-    }, [expandedRows, displayLimit]);
+    /** Toplam kalem satırı sayısı — yalnızca Kayıtlar sekmesi açıkken (boşta tüm listeyi taramayı atla) */
+    const expandedLineCountTotal = useMemo(() => {
+        if (qualityCostTab !== 'records') return 0;
+        let n = 0;
+        for (const cost of filteredCosts) {
+            const li = cost.cost_line_items;
+            n += Array.isArray(li) && li.length > 0 ? li.length : 1;
+        }
+        return n;
+    }, [filteredCosts, qualityCostTab]);
 
-    const hasMoreCosts = expandedRows.length > displayLimit;
+    const displayedCosts = useMemo(() => {
+        if (qualityCostTab !== 'records') return [];
+        const rows = [];
+        let remaining = displayLimit;
+        for (const cost of filteredCosts) {
+            if (remaining <= 0) break;
+            const lineItems = cost.cost_line_items;
+            if (Array.isArray(lineItems) && lineItems.length > 0) {
+                for (let idx = 0; idx < lineItems.length && remaining > 0; idx++) {
+                    rows.push({ cost, lineItem: lineItems[idx], lineIndex: idx, rowType: 'line' });
+                    remaining--;
+                }
+            } else {
+                rows.push({ cost, lineItem: null, lineIndex: 0, rowType: 'line' });
+                remaining--;
+            }
+        }
+        return rows;
+    }, [filteredCosts, displayLimit, qualityCostTab]);
+
+    const hasMoreCosts = qualityCostTab === 'records' && expandedLineCountTotal > displayLimit;
 
     const handleLoadMore = useCallback(() => {
         setDisplayLimit(prev => prev + 100);
@@ -380,9 +483,9 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     }, [costForNC, openNCFromCost]);
 
     const handleSort = (key) => {
-        setSortConfig(prev => ({
+        setSortConfig((prev) => ({
             key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
         }));
     };
 
@@ -419,7 +522,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const handleYearCOPQDrillDown = useCallback(
         (year) => {
-            const rows = filterCostsByYear(qualityCosts, year);
+            const rows = filterCostsByYear(filteredCosts, year);
             setDetailModalContent({
                 title: `${year} COPQ – yıl içi tüm kayıtlar`,
                 costs: rows,
@@ -429,7 +532,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             });
             setDetailModalOpen(true);
         },
-        [qualityCosts]
+        [filteredCosts]
     );
 
     const handleVehicleCOPQDrillDown = useCallback(
@@ -447,18 +550,10 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         [filteredCosts, dateRange]
     );
 
-    const uniqueUnits = useMemo(() => {
-        const units = new Set();
-        qualityCosts.forEach(cost => {
-            if (cost.unit) units.add(cost.unit);
-            (cost.cost_allocations || []).forEach(a => a.unit && units.add(a.unit));
-            (cost.cost_line_items || []).forEach(li => {
-                if (li.responsible_unit) units.add(li.responsible_unit);
-                if (li.responsible_type === 'supplier') units.add('Tedarikçi');
-            });
-        });
-        return [...units].sort();
-    }, [qualityCosts]);
+    const unitFilterOptions = useMemo(
+        () => collectUnitFilterOptions(qualityCosts, canonicalUnitCtx),
+        [qualityCosts, canonicalUnitCtx]
+    );
 
     const handleOpenReportModal = useCallback(() => {
         if (filteredCosts.length === 0) {
@@ -579,7 +674,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     if (itemAmt <= 0) return;
                     const unitKey = li.responsible_type === 'supplier'
                         ? `Tedarikçi: ${li.responsible_supplier_name || cost.supplier?.name || 'Belirtilmemiş'}`
-                        : (li.responsible_unit || 'Belirtilmemiş');
+                        : canonCaches.formatOrgUnitForAggregate(li.responsible_unit);
                     if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: li.responsible_type === 'supplier' };
                     costsByUnit[unitKey].count += 1;
                     costsByUnit[unitKey].totalAmount += itemAmt;
@@ -591,13 +686,13 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 costsByUnit[unitKey].totalAmount += cost.amount || 0;
             } else if (cost.cost_allocations?.length > 0) {
                 cost.cost_allocations.forEach(a => {
-                    const unitKey = a.unit || 'Belirtilmemiş';
+                    const unitKey = canonCaches.formatOrgUnitForAggregate(a.unit);
                     if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: false };
                     costsByUnit[unitKey].count += 1;
                     costsByUnit[unitKey].totalAmount += (a.amount ?? (cost.amount || 0) * (parseFloat(a.percentage) / 100)) || 0;
                 });
             } else {
-                const unitKey = cost.unit || 'Belirtilmemiş';
+                const unitKey = canonCaches.formatOrgUnitForAggregate(cost.unit);
                 if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: false };
                 costsByUnit[unitKey].count += 1;
                 costsByUnit[unitKey].totalAmount += cost.amount || 0;
@@ -696,6 +791,12 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             .sort((a, b) => b.totalAmount - a.totalAmount)
             .slice(0, 10);
 
+        const copqTotalForHurda = internalCost + externalCost + appraisalCost + preventionCost;
+        const hurdaReworkReport = computeHurdaReworkDefectAnalysis(filteredCosts, {
+            totalCopq: copqTotalForHurda,
+            canonicalUnitCtx,
+        });
+
         // Rapor verisi
         const reportData = {
             id: `quality-cost-executive-${Date.now()}`,
@@ -721,6 +822,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             monthlyData,
             reportDate: formatDate(new Date()),
             unit: unitFilter !== 'all' ? unitFilter : null,
+            hurdaReworkReport,
         };
 
         openPrintableReport(reportData, 'quality_cost_executive_summary', true);
@@ -731,7 +833,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 ? `${unitFilter} birimi için yönetici özeti raporu oluşturuldu.`
                 : 'Yönetici özeti raporu oluşturuldu.',
         });
-    }, [filteredCosts, dateRange, unitFilter, toast]);
+    }, [filteredCosts, dateRange, unitFilter, toast, canonCaches, canonicalUnitCtx]);
 
     const handleSelectReportType = useCallback((reportType) => {
         setIsReportSelectionModalOpen(false);
@@ -763,8 +865,10 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             }
         };
 
-        // Seçilen birimler için rapor oluştur (cost_allocations + cost_line_items desteği)
-        selectedUnits.forEach((unit, index) => {
+        // Seçilen birim grubu için rapor oluştur (birleştirilmiş birim anahtarı + cost_allocations / satır kalemi)
+        selectedUnits.forEach((filterKey, index) => {
+            const unitLabel =
+                unitFilterOptions.find((o) => o.key === filterKey)?.label ?? filterKey;
             const reportItems = [];
             let totalAmount = 0;
 
@@ -772,16 +876,15 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 const lineItems = cost.cost_line_items && Array.isArray(cost.cost_line_items) ? cost.cost_line_items : [];
                 const hasLineItems = lineItems.length > 0;
 
-                const costMatchesUnit = cost.unit === unit
-                    || (cost.cost_allocations?.length && cost.cost_allocations.some(a => a.unit === unit))
-                    || (hasLineItems && lineItems.some(li => li.responsible_unit === unit || (li.responsible_type === 'supplier' && unit === 'Tedarikçi')));
-                if (!costMatchesUnit) return;
+                const costFkMatchesUnit = costMatchesUnitUsingIndex(costUnitFilterKeyIndex, cost, filterKey, canonCaches);
+
+                if (!costFkMatchesUnit) return;
 
                 if (hasLineItems) {
                     // Kalem varsa: her kalemi ayrı satır (birim/tedarikçi eşleşenleri)
                     lineItems.forEach(li => {
-                        const matchesUnit = li.responsible_unit === unit || (li.responsible_type === 'supplier' && unit === 'Tedarikçi');
-                        if (!matchesUnit) return;
+                        const lineRaw = li.responsible_type === 'supplier' ? 'Tedarikçi' : (li.responsible_unit || '');
+                        if (!canonCaches.stringMatchesFilterKey(lineRaw, filterKey)) return;
                         const itemAmount = parseFloat(li.amount) || 0;
                         if (itemAmount <= 0) return;
                         totalAmount += itemAmount;
@@ -806,10 +909,12 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     });
                 } else {
                     let itemAmount = 0;
-                    if (cost.unit === unit) {
+                    if (canonCaches.stringMatchesFilterKey(cost.unit, filterKey)) {
                         itemAmount = cost.amount || 0;
                     } else if (cost.cost_allocations?.length) {
-                        const alloc = cost.cost_allocations.find(a => a.unit === unit);
+                        const alloc = cost.cost_allocations.find((a) =>
+                            canonCaches.stringMatchesFilterKey(a.unit, filterKey)
+                        );
                         if (alloc) itemAmount = alloc.amount ?? (cost.amount || 0) * (parseFloat(alloc.percentage) / 100);
                     }
                     if (itemAmount > 0) {
@@ -838,6 +943,13 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             if (reportItems.length === 0) return;
 
+            const hurdaReworkReport = computeHurdaReworkDefectAnalysis(filteredCosts, {
+                totalCopq: totalAmount,
+                canonicalUnitCtx,
+                includeMonetaryRow: (row) =>
+                    canonCaches.stringMatchesFilterKey(row.unit_label || '', filterKey),
+            });
+
             const costsByType = {};
             reportItems.forEach(item => {
                 const costType = item.cost_type || 'Belirtilmemiş';
@@ -847,8 +959,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             });
 
             const reportData = {
-                id: `quality-cost-${unit}-${Date.now()}`,
-                unit: unit,
+                id: `quality-cost-${filterKey}-${Date.now()}`,
+                unit: unitLabel,
                 period: dateRange.label || 'Tüm Zamanlar',
                 periodStart: dateRange.startDate ? formatDate(dateRange.startDate) : null,
                 periodEnd: dateRange.endDate ? formatDate(dateRange.endDate) : null,
@@ -860,7 +972,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     count: data.count,
                     totalAmount: data.totalAmount,
                     percentage: totalAmount > 0 ? (data.totalAmount / totalAmount) * 100 : 0
-                })).sort((a, b) => b.totalAmount - a.totalAmount)
+                })).sort((a, b) => b.totalAmount - a.totalAmount),
+                hurdaReworkReport,
             };
 
             // Her birim için ayrı rapor aç (500ms arayla)
@@ -873,10 +986,17 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             title: 'Başarılı',
             description: `${selectedUnits.length} birim için rapor oluşturuldu.`,
         });
-    }, [filteredCosts, dateRange, toast]);
+    }, [filteredCosts, dateRange, toast, unitFilterOptions, canonCaches, costUnitFilterKeyIndex, canonicalUnitCtx]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" aria-busy={filtersStillComputing}>
+            {filtersStillComputing && (
+                <div
+                    className="fixed top-0 left-0 right-0 z-[70] h-0.5 bg-primary animate-pulse pointer-events-none"
+                    role="progressbar"
+                    aria-label="Filtre hesaplanıyor"
+                />
+            )}
             <CostFormModal
                 open={isFormModalOpen}
                 setOpen={(open) => {
@@ -938,7 +1058,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     vehicleContext: detailModalContent.vehicleContext,
                     dateRange: detailModalContent.dateRange,
                 }}
-                allCosts={qualityCosts}
+                allCosts={filteredCosts}
                 onVehicleTargetsApplied={handleVehicleTargetsApplied}
                 onCreateNC={handleCreateNC}
                 onOpenNCView={onOpenNCView}
@@ -947,8 +1067,9 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             <UnitReportModal
                 isOpen={isReportModalOpen}
                 setIsOpen={setIsReportModalOpen}
-                units={uniqueUnits}
+                unitOptions={unitFilterOptions}
                 costs={filteredCosts}
+                canonicalUnitCtx={canonicalUnitCtx}
                 onGenerate={handleGenerateReport}
             />
 
@@ -1053,26 +1174,75 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 </DialogContent>
             </Dialog>
 
-            <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4 space-y-3">
                 <div className="min-w-0">
-                    <p className="text-xs sm:text-sm text-muted-foreground">İç/dış hata, önleme ve değerlendirme maliyetlerini analiz edin.</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                        İç/dış hata, önleme ve değerlendirme maliyetlerini analiz edin. Aşağıdaki süzgeçler tüm sekmelere uygulanır.
+                    </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col xl:flex-row xl:flex-wrap gap-2 xl:items-center">
                     <CostFilters dateRange={dateRange} setDateRange={setDateRange} />
-                    <Button onClick={handleOpenReportModal} variant="outline" size="sm" className="flex-1 sm:flex-none">
-                        <FileText className="w-4 h-4 mr-1.5 sm:mr-2" />
-                        <span className="hidden xs:inline">Rapor Al</span>
-                        <span className="xs:hidden">Rapor</span>
-                    </Button>
-                    <Button onClick={() => handleOpenFormModal()} size="sm" className="flex-1 sm:flex-none">
-                        <Plus className="w-4 h-4 mr-1.5 sm:mr-2" />
-                        <span className="hidden xs:inline">Yeni Maliyet Kaydı</span>
-                        <span className="xs:hidden">Ekle</span>
-                    </Button>
+                    <Select value={costCategoryFilter} onValueChange={setCostCategoryFilter}>
+                        <SelectTrigger className="w-full min-[400px]:w-[160px]">
+                            <SelectValue placeholder="Kategori" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tüm Kategoriler</SelectItem>
+                            <SelectItem value="internal">İç Hata</SelectItem>
+                            <SelectItem value="external">Dış Hata</SelectItem>
+                            <SelectItem value="prevention">Önleme</SelectItem>
+                            <SelectItem value="supplier">Tedarikçi Kaynaklı</SelectItem>
+                            <SelectItem value="indirect">Dolaylı Maliyetler</SelectItem>
+                            <SelectItem value="invoice">Faturalı Kayıtlar</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={unitFilter} onValueChange={setUnitFilter}>
+                        <SelectTrigger className="w-full min-[400px]:w-[170px]">
+                            <SelectValue placeholder="Birim (birleşik)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tüm Birimler</SelectItem>
+                            {unitFilterOptions.map(({ key, label }) => (
+                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                        <SelectTrigger className="w-full min-[400px]:w-[160px]">
+                            <SelectValue placeholder="Kaynak" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tüm Kaynaklar</SelectItem>
+                            <SelectItem value="manual">Manuel</SelectItem>
+                            <SelectItem value="produced_vehicle">Üretilen Araç</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <div className="search-box flex-1 min-w-[160px] max-w-xl">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Tabloda ara: tür, parça, açıklama..."
+                            className="search-input w-full text-sm h-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                        <Button onClick={handleOpenReportModal} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                            <FileText className="w-4 h-4 mr-1.5 sm:mr-2" />
+                            <span className="hidden xs:inline">Rapor Al</span>
+                            <span className="xs:hidden">Rapor</span>
+                        </Button>
+                        <Button onClick={() => handleOpenFormModal()} size="sm" className="flex-1 sm:flex-none">
+                            <Plus className="w-4 h-4 mr-1.5 sm:mr-2" />
+                            <span className="hidden xs:inline">Yeni Maliyet Kaydı</span>
+                            <span className="xs:hidden">Ekle</span>
+                        </Button>
+                    </div>
                 </div>
             </div>
 
-            <Tabs defaultValue="overview" className="w-full">
+            <Tabs value={qualityCostTab} onValueChange={setQualityCostTab} className="w-full">
                 <TabsList className="inline-flex gap-1 p-1 h-auto">
                     <TabsTrigger value="overview" className="text-xs">Genel Bakış</TabsTrigger>
                     <TabsTrigger value="records" className="text-xs">Kayıtlar</TabsTrigger>
@@ -1081,6 +1251,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     <TabsTrigger value="details" className="text-xs">Detaylı Analiz</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="mt-6">
+                    {qualityCostTab === 'overview' && (
                     <CostAnalytics
                         costs={filteredCosts}
                         loading={loading}
@@ -1088,67 +1259,25 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                         copqYearTotals={copqYearTotals}
                         copqYearlyInsight={copqYearlyInsight}
                         onYearCOPQClick={handleYearCOPQDrillDown}
+                        canonicalUnitCtx={canonicalUnitCtx}
                     />
+                    )}
                 </TabsContent>
                 <TabsContent value="records" className="mt-6">
+                    {qualityCostTab === 'records' && (
                     <div className="dashboard-widget">
                         <div className="flex flex-col gap-4 mb-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <div className="search-box flex-1 min-w-[180px] max-w-[280px]">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                                    <input
-                                        type="text"
-                                        placeholder="Tarih, tür, parça, birim ara..."
-                                        className="search-input w-full text-sm"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                                <Select value={costCategoryFilter} onValueChange={setCostCategoryFilter}>
-                                    <SelectTrigger className="w-[140px] sm:w-[160px]">
-                                        <SelectValue placeholder="Kategori" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tüm Kategoriler</SelectItem>
-                                        <SelectItem value="internal">İç Hata</SelectItem>
-                                        <SelectItem value="external">Dış Hata</SelectItem>
-                                        <SelectItem value="prevention">Önleme</SelectItem>
-                                        <SelectItem value="supplier">Tedarikçi Kaynaklı</SelectItem>
-                                        <SelectItem value="indirect">Dolaylı Maliyetler</SelectItem>
-                                        <SelectItem value="invoice">Faturalı Kayıtlar</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select value={unitFilter} onValueChange={setUnitFilter}>
-                                    <SelectTrigger className="w-[130px] sm:w-[150px]">
-                                        <SelectValue placeholder="Birim" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tüm Birimler</SelectItem>
-                                        {uniqueUnits.map(unit => (
-                                            <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                                    <SelectTrigger className="w-[130px] sm:w-[150px]">
-                                        <SelectValue placeholder="Kaynak" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tüm Kaynaklar</SelectItem>
-                                        <SelectItem value="manual">Manuel</SelectItem>
-                                        <SelectItem value="produced_vehicle">Üretilen Araç</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button onClick={() => handleOpenFormModal()} size="sm" className="shrink-0">
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Yeni Kayıt
-                                </Button>
-                            </div>
-                            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                <span>{filteredCosts.length} kayıt listeleniyor</span>
-                                {filteredCosts.length > 0 && (
-                                    <span>Toplam: {formatCurrency(filteredCosts.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0))}</span>
-                                )}
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                                <span>Listede üstteki süzgeçlere uygun kayıtlar gösterilir.</span>
+                                <span>
+                                    {filteredCosts.length} kayıt
+                                    {filteredCosts.length > 0 && (
+                                        <>
+                                            {' '}
+                                            · Toplam: {formatCurrency(filteredCosts.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0))}
+                                        </>
+                                    )}
+                                </span>
                             </div>
                         </div>
                         <div className="border rounded-lg overflow-auto max-h-[min(60vh,600px)]" style={{ minHeight: 320 }}>
@@ -1184,20 +1313,26 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                 const partDisplay = lineItem
                                                     ? (lineItem.part_code || lineItem.part_name || '-')
                                                     : (cost.part_code || cost.part_name || '-');
-                                                const lineUnitOrSupplier = lineItem?.responsible_type === 'supplier'
-                                                    ? (lineItem.responsible_supplier_name || cost.supplier?.name)
-                                                    : lineItem?.responsible_unit;
+                                                const ul = (raw) => {
+                                                    if (raw == null || String(raw).trim() === '') return null;
+                                                    return canonCaches.getLabel(String(raw).trim());
+                                                };
+                                                const allocationSummary = cost.cost_allocations?.length
+                                                    ? `Dağıtılmış (${cost.cost_allocations.map((a) => `${canonCaches.formatOrgUnitForAggregate(a.unit)} %${parseFloat(a.percentage).toFixed(0)}`).join(', ')})`
+                                                    : null;
                                                 const unitDisplay = cost.cost_type === 'Dış Hata Maliyeti' && cost.customer_name
-                                                    ? <span className="text-xs"><span className="text-blue-600 font-medium">Müşteri: {cost.customer_name}</span>{lineUnitOrSupplier && <><br /><span className="text-amber-600 font-medium">{lineUnitOrSupplier}</span></>}</span>
+                                                    ? <span className="text-xs"><span className="text-blue-600 font-medium">Müşteri: {cost.customer_name}</span>{lineItem && (lineItem.responsible_type === 'supplier'
+                                                        ? (lineItem.responsible_supplier_name || cost.supplier?.name)
+                                                        : ul(lineItem.responsible_unit)) && <><br /><span className="text-amber-600 font-medium">{lineItem.responsible_type === 'supplier'
+                                                            ? (lineItem.responsible_supplier_name || cost.supplier?.name)
+                                                            : ul(lineItem.responsible_unit)}</span></>}</span>
                                                     : lineItem?.responsible_type === 'supplier'
                                                         ? <span className="text-amber-600 font-medium" title="Tedarikçi">{(lineItem.responsible_supplier_name || cost.supplier?.name) || '-'}</span>
                                                         : lineItem?.responsible_unit
-                                                            ? lineItem.responsible_unit
+                                                            ? <span className="text-sm">{ul(lineItem.responsible_unit) || '-'}</span>
                                                             : cost.is_supplier_nc && cost.supplier?.name
                                                                 ? cost.supplier.name
-                                                                : (cost.cost_allocations?.length
-                                                                    ? `Dağıtılmış (${cost.cost_allocations.map(a => `${a.unit} %${parseFloat(a.percentage).toFixed(0)}`).join(', ')})`
-                                                                    : (cost.unit || '-'));
+                                                                : (allocationSummary || ul(cost.unit) || '-');
                                                 const baseAmount = lineItem
                                                     ? (parseFloat(lineItem.amount) || 0)
                                                     : (parseFloat(cost.amount) || 0);
@@ -1278,44 +1413,56 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                         </div>
                         {filteredCosts.length > 0 && (
                             <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm">
-                                <span className="text-muted-foreground">{displayedCosts.length} / {expandedRows.length} kayıt</span>
+                                <span className="text-muted-foreground">{displayedCosts.length} / {expandedLineCountTotal} kayıt</span>
                                 {hasMoreCosts && (
                                     <Button variant="outline" size="sm" onClick={handleLoadMore}>+100 Yükle</Button>
                                 )}
                             </div>
                         )}
                     </div>
+                    )}
                 </TabsContent>
                 <TabsContent value="forecast" className="mt-6">
+                    {qualityCostTab === 'forecast' && (
                     <CostForecaster costs={filteredCosts} copqYearTotals={copqYearTotals} />
+                    )}
                 </TabsContent>
                 <TabsContent value="copq" className="mt-6 space-y-6">
+                    {qualityCostTab === 'copq' && (
+                    <>
                     <COPQCalculator
                         costs={filteredCosts}
                         producedVehicles={producedVehicles}
                         loading={loading}
                         dateRange={dateRange}
+                        canonicalUnitCtx={canonicalUnitCtx}
                     />
                     <CostTrendAnalysis costs={filteredCosts} />
                     <PartCostLeaders
                         costs={filteredCosts}
                         onPartClick={(part) => handleOpenDrillDownModal(`Parça: ${part.partCode}`, part.costs)}
                     />
-                    <UnitCostDistribution costs={filteredCosts} />
+                    <UnitCostDistribution costs={filteredCosts} canonicalUnitCtx={canonicalUnitCtx} />
                     <CostAnomalyDetector
                         costs={filteredCosts}
+                        canonicalUnitCtx={canonicalUnitCtx}
                         onAnomalyClick={(anomaly) => {
-                            const relatedCosts = filteredCosts.filter(c => {
+                            const relatedCosts = filteredCosts.filter((c) => {
                                 if (anomaly.type === 'unit') {
-                                    return c.unit === anomaly.unit;
+                                    const raw = (c.unit || '').trim();
+                                    const label = raw ? canonCaches.getLabel(raw) : 'Bilinmeyen';
+                                    return label === anomaly.unit;
                                 }
                                 return true;
                             });
                             handleOpenDrillDownModal(anomaly.title, relatedCosts);
                         }}
                     />
+                    </>
+                    )}
                 </TabsContent>
                 <TabsContent value="details" className="mt-6">
+                    {qualityCostTab === 'details' && (
                     <VehicleCostBreakdown
                         key={vehicleTargetsRefreshKey}
                         costs={filteredCosts}
@@ -1326,6 +1473,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                         hasNCAccess={hasNCAccess}
                         onVehicleCOPQClick={handleVehicleCOPQDrillDown}
                     />
+                    )}
                 </TabsContent>
             </Tabs>
 
