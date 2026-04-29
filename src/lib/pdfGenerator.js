@@ -1062,7 +1062,7 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                                 <th style="width: 14%;">Durum</th>
                                 <th style="width: 7%; text-align: center;">DMO</th>
                                 <th style="width: 15%; text-align: center;">Hatalar</th>
-                                <th style="width: 13%; text-align: center;">Y. İşlem Süresi</th>
+                                <th style="width: 13%; text-align: center;">Yeniden işlem süresi</th>
                             </tr>
                         </thead>
                         <tbody>

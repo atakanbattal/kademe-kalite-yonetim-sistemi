@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Building2, User, Truck, Package, Layers, ChevronDown, Factory } from 'lucide-react';
 import { formatOrgUnitForAggregate } from '@/lib/qualityCostUnitGroups';
-import { computeHurdaReworkDefectAnalysis } from '@/lib/qualityCostDefectAggregation';
+import { computeHurdaReworkDefectAnalysis, filterCostsForHurdaReworkPivotDrill } from '@/lib/qualityCostDefectAggregation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
@@ -26,7 +27,16 @@ const getCategory = (costType, isSupplierCost) => {
     return 'internalFailure';
 };
 
-const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonicalUnitCtx = {} }) => {
+/** COPQ pivot satırından açılacak liste başlığı (CostDrillDownModal) */
+const buildHrPivotDrillTitle = ({ scope, unitLabel, dimension, key }) => {
+    const part = dimension === 'group' ? 'Disiplin / grup' : 'Kök neden / hata tipi';
+    if (scope === 'global') {
+        return `Hurda ve yeniden işlem kayıtları — Tüm seçim · ${part}: ${key}`;
+    }
+    return `Hurda ve yeniden işlem kayıtları — ${unitLabel ?? '—'} · ${part}: ${key}`;
+};
+
+const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonicalUnitCtx = {}, onHurdaReworkPivotDrill }) => {
     const copqData = useMemo(() => {
         if (!costs || costs.length === 0) {
             return {
@@ -234,6 +244,18 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonical
         };
     }, [costs, producedVehicles, dateRange, canonicalUnitCtx]);
 
+    const openHrPivotDrill = useCallback(
+        (spec) => {
+            if (!onHurdaReworkPivotDrill) return;
+            const list = filterCostsForHurdaReworkPivotDrill(costs, canonicalUnitCtx, spec);
+            onHurdaReworkPivotDrill({
+                title: buildHrPivotDrillTitle(spec),
+                costs: list,
+            });
+        },
+        [costs, canonicalUnitCtx, onHurdaReworkPivotDrill],
+    );
+
     if (loading) {
         return (
             <Card>
@@ -417,24 +439,34 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonical
                                     </CardTitle>
                                 </div>
                                 <div className="flex flex-wrap justify-end gap-2 text-[11px]">
-                                    <Badge variant="secondary" className="font-normal tabular-nums">
-                                        H+R toplam: {formatCurrency(copqData.hurdaReworkDefectAnalysis.totalHr)}
+                                    <Badge variant="secondary" className="font-normal tabular-nums border border-border">
+                                        Hurda (toplam): {formatCurrency(copqData.hurdaReworkDefectAnalysis.totalHurda ?? 0)}
+                                    </Badge>
+                                    <Badge variant="secondary" className="font-normal tabular-nums border border-border">
+                                        Yeniden işlem (toplam): {formatCurrency(copqData.hurdaReworkDefectAnalysis.totalYeniden ?? 0)}
+                                    </Badge>
+                                    <Badge variant="outline" className="font-normal tabular-nums">
+                                        Genel: {formatCurrency(copqData.hurdaReworkDefectAnalysis.totalHr)}
                                     </Badge>
                                     <Badge variant="outline" className="font-normal tabular-nums">
                                         Kalem analizi: {formatCurrency(copqData.hurdaReworkDefectAnalysis.parsedAmt)}
                                     </Badge>
                                     <Badge variant="outline" className="font-normal tabular-nums">
-                                        Hata bağlı (listeli):{' '}
+                                        Hata bağlı (sınıflı):{' '}
                                         {formatCurrency(copqData.hurdaReworkDefectAnalysis.classifiedAmt)}
                                     </Badge>
                                     <Badge variant="outline" className="font-normal tabular-nums border-amber-500/40 text-amber-950 dark:text-amber-200">
                                         Sınıflanamayan:{' '}
                                         {formatCurrency(copqData.hurdaReworkDefectAnalysis.unclassifiedAmt)}
                                     </Badge>
-                                    {copqData.hurdaReworkDefectAnalysis.reconciliationGap > 1 && (
-                                        <Badge variant="outline" className="font-normal tabular-nums border-destructive/40" title="COPQ satır toplamı ile kalem çıktısı farkı (sıfır tutar kalemleri vb.)">
-                                            Kalan fark (izleme):{' '}
-                                            {formatCurrency(copqData.hurdaReworkDefectAnalysis.reconciliationGap)}
+                                    {copqData.hurdaReworkDefectAnalysis.reconciliationGapHurda > 1 && (
+                                        <Badge variant="outline" className="font-normal tabular-nums border-destructive/40 text-[10px]" title="Hurda COPQ ile kalem çıktısı farkı">
+                                            Hurda farkı:{' '}{formatCurrency(copqData.hurdaReworkDefectAnalysis.reconciliationGapHurda)}
+                                        </Badge>
+                                    )}
+                                    {copqData.hurdaReworkDefectAnalysis.reconciliationGapYeniden > 1 && (
+                                        <Badge variant="outline" className="font-normal tabular-nums border-destructive/40 text-[10px]" title="Yeniden işlem COPQ ile kalem çıktısı farkı">
+                                            Yeniden işlem farkı:{' '}{formatCurrency(copqData.hurdaReworkDefectAnalysis.reconciliationGapYeniden)}
                                         </Badge>
                                     )}
                                 </div>
@@ -450,19 +482,51 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonical
                                         <TableHeader>
                                             <TableRow className="hover:bg-transparent">
                                                 <TableHead className="h-9 text-xs font-semibold">Disiplin / grup</TableHead>
-                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tutar</TableHead>
-                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">% Hurda+R</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Hurda</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Yeniden işlem</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tüm hurda içinde</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tüm yeniden işlemde</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {copqData.hurdaReworkDefectAnalysis.defectGroupsSorted.map((row) => (
-                                                <TableRow key={row.name} className="text-sm">
+                                                <TableRow
+                                                    key={row.name}
+                                                    className={cn(
+                                                        'text-sm',
+                                                        onHurdaReworkPivotDrill &&
+                                                            'cursor-pointer hover:bg-muted/70',
+                                                    )}
+                                                    onClick={
+                                                        onHurdaReworkPivotDrill
+                                                            ? (e) => {
+                                                                  e.stopPropagation();
+                                                                  openHrPivotDrill({
+                                                                      scope: 'global',
+                                                                      dimension: 'group',
+                                                                      key: row.name,
+                                                                  });
+                                                              }
+                                                            : undefined
+                                                    }
+                                                    title={
+                                                        onHurdaReworkPivotDrill
+                                                            ? 'İlgili maliyet kayıtlarını açmak için tıklayın'
+                                                            : undefined
+                                                    }
+                                                >
                                                     <TableCell className="font-medium align-middle">{row.name}</TableCell>
-                                                    <TableCell className="text-right tabular-nums font-semibold text-primary align-middle">
-                                                        {formatCurrency(row.amount)}
+                                                    <TableCell className="text-right tabular-nums align-middle">
+                                                        {formatCurrency(row.amountHurda ?? 0)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right tabular-nums align-middle">
+                                                        {formatCurrency(row.amountYeniden ?? 0)}
                                                     </TableCell>
                                                     <TableCell className="text-right text-muted-foreground tabular-nums align-middle">
-                                                        %{row.pctOfHr.toFixed(1)}
+                                                        %{row.pctOfHurda.toFixed(1)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground tabular-nums align-middle">
+                                                        %{row.pctOfYeniden.toFixed(1)}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -477,19 +541,51 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonical
                                         <TableHeader>
                                             <TableRow className="hover:bg-transparent">
                                                 <TableHead className="h-9 text-xs font-semibold">Hata kökü</TableHead>
-                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tutar</TableHead>
-                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">% Hurda+R</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Hurda</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Yeniden işlem</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tüm hurda içinde</TableHead>
+                                                <TableHead className="h-9 text-xs font-semibold text-right tabular-nums">Tüm yeniden işlemde</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {copqData.hurdaReworkDefectAnalysis.defectTypesSorted.map((row) => (
-                                                <TableRow key={row.name} className="text-sm">
+                                                <TableRow
+                                                    key={row.name}
+                                                    className={cn(
+                                                        'text-sm',
+                                                        onHurdaReworkPivotDrill &&
+                                                            'cursor-pointer hover:bg-muted/70',
+                                                    )}
+                                                    onClick={
+                                                        onHurdaReworkPivotDrill
+                                                            ? (e) => {
+                                                                  e.stopPropagation();
+                                                                  openHrPivotDrill({
+                                                                      scope: 'global',
+                                                                      dimension: 'type',
+                                                                      key: row.name,
+                                                                  });
+                                                              }
+                                                            : undefined
+                                                    }
+                                                    title={
+                                                        onHurdaReworkPivotDrill
+                                                            ? 'İlgili maliyet kayıtlarını açmak için tıklayın'
+                                                            : undefined
+                                                    }
+                                                >
                                                     <TableCell className="align-middle">{row.name}</TableCell>
-                                                    <TableCell className="text-right tabular-nums font-semibold align-middle">
-                                                        {formatCurrency(row.amount)}
+                                                    <TableCell className="text-right tabular-nums align-middle">
+                                                        {formatCurrency(row.amountHurda ?? 0)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right tabular-nums align-middle">
+                                                        {formatCurrency(row.amountYeniden ?? 0)}
                                                     </TableCell>
                                                     <TableCell className="text-right text-muted-foreground tabular-nums align-middle">
-                                                        %{row.pctOfHr.toFixed(1)}
+                                                        %{row.pctOfHurda.toFixed(1)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground tabular-nums align-middle">
+                                                        %{row.pctOfYeniden.toFixed(1)}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -507,15 +603,21 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonical
                                 <div className="divide-y divide-border rounded-lg border border-border">
                                     {copqData.hurdaReworkDefectAnalysis.hrUnitsPivot.map((u, idx) => (
                                         <details key={u.unitLabel} className="group" {...(idx === 0 ? { open: true } : {})}>
-                                            <summary className="flex cursor-pointer select-none flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-3 hover:bg-muted/40 list-none [&::-webkit-details-marker]:hidden">
-                                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                                                    <span className="font-semibold text-sm truncate" title={u.unitLabel}>{u.unitLabel}</span>
+                                            <summary className="flex cursor-pointer select-none flex-col gap-2 px-3 py-3 hover:bg-muted/40 list-none [&::-webkit-details-marker]:hidden">
+                                                <div className="flex min-w-0 w-full items-start gap-2">
+                                                    <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                                                    <span className="min-w-0 flex-1 break-words font-semibold leading-snug text-sm text-foreground [overflow-wrap:anywhere]">
+                                                        {u.unitLabel}
+                                                    </span>
                                                 </div>
-                                                <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 text-xs tabular-nums">
-                                                    <span className="text-primary font-semibold">{formatCurrency(u.total)}</span>
-                                                    <span className="text-muted-foreground">% H+R {u.pctOfHrTotal.toFixed(1)}%</span>
-                                                    <span className="text-muted-foreground">· % COPQ {copqData.totalCOPQ > 0 ? u.pctOfCopq.toFixed(1) : '0'}%</span>
+                                                <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-2 text-xs tabular-nums">
+                                                    <span className="text-muted-foreground">Hurda: {formatCurrency(u.totalHurda ?? 0)}</span>
+                                                    <span className="text-muted-foreground">Yeniden işlem: {formatCurrency(u.totalYeniden ?? 0)}</span>
+                                                    <span className="text-primary font-semibold">Σ {formatCurrency(u.total)}</span>
+                                                    <span className="text-muted-foreground hidden sm:inline">
+                                                        Tüm hurda: {u.pctHurdaOfPool != null ? u.pctHurdaOfPool.toFixed(1) : '0'}% · Tüm yeniden işlem: {u.pctYenidenOfPool != null ? u.pctYenidenOfPool.toFixed(1) : '0'}% · Birlikte: %{u.pctOfHrTotal.toFixed(1)}%
+                                                    </span>
+                                                    <span className="text-muted-foreground">· COPQ %{copqData.totalCOPQ > 0 ? u.pctOfCopq.toFixed(1) : '0'}%</span>
                                                     <Badge variant={u.unclassified > 1 ? 'destructive' : 'outline'} className="font-normal text-[10px]">
                                                         sınıfsız{' '}{formatCurrency(u.unclassified)}
                                                     </Badge>
@@ -531,18 +633,47 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonical
                                                             <TableHeader>
                                                                 <TableRow className="hover:bg-transparent h-8">
                                                                     <TableHead className="h-8 text-[11px]">Grup</TableHead>
-                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">Tutar</TableHead>
+                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">Hurda</TableHead>
+                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">Yeniden işlem</TableHead>
                                                                     <TableHead className="h-8 text-[11px] text-right tabular-nums">
-                                                                        % birim içi
+                                                                        Birim toplamına göre
                                                                     </TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {(u.groupsSorted || []).slice(0, 12).map((g) => (
-                                                                    <TableRow key={g.key} className="text-xs">
+                                                                    <TableRow
+                                                                        key={g.key}
+                                                                        className={cn(
+                                                                            'text-xs',
+                                                                            onHurdaReworkPivotDrill &&
+                                                                                'cursor-pointer hover:bg-muted/70',
+                                                                        )}
+                                                                        onClick={
+                                                                            onHurdaReworkPivotDrill
+                                                                                ? (e) => {
+                                                                                      e.stopPropagation();
+                                                                                      openHrPivotDrill({
+                                                                                          scope: 'unit',
+                                                                                          unitLabel: u.unitLabel,
+                                                                                          dimension: 'group',
+                                                                                          key: g.key,
+                                                                                      });
+                                                                                  }
+                                                                                : undefined
+                                                                        }
+                                                                        title={
+                                                                            onHurdaReworkPivotDrill
+                                                                                ? 'İlgili maliyet kayıtlarını açmak için tıklayın'
+                                                                                : undefined
+                                                                        }
+                                                                    >
                                                                         <TableCell className="py-2 font-medium">{g.key}</TableCell>
                                                                         <TableCell className="py-2 text-right tabular-nums">
-                                                                            {formatCurrency(g.amount)}
+                                                                            {formatCurrency(g.amountHurda ?? 0)}
+                                                                        </TableCell>
+                                                                        <TableCell className="py-2 text-right tabular-nums">
+                                                                            {formatCurrency(g.amountYeniden ?? 0)}
                                                                         </TableCell>
                                                                         <TableCell className="py-2 text-right text-muted-foreground tabular-nums">
                                                                             %{g.pctWithinUnit.toFixed(1)}
@@ -561,19 +692,50 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange, canonical
                                                                 <TableRow className="hover:bg-transparent h-8">
                                                                     <TableHead className="h-8 text-[11px]">Kök neden görünümü</TableHead>
                                                                     <TableHead className="h-8 text-[11px] text-right tabular-nums">
-                                                                        Tutar
+                                                                        Hurda
                                                                     </TableHead>
                                                                     <TableHead className="h-8 text-[11px] text-right tabular-nums">
-                                                                        % birim içi
+                                                                        Yeniden işlem
+                                                                    </TableHead>
+                                                                    <TableHead className="h-8 text-[11px] text-right tabular-nums">
+                                                                        Birim toplamına göre
                                                                     </TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {(u.typesSorted || []).slice(0, 12).map((t) => (
-                                                                    <TableRow key={t.key} className="text-xs">
+                                                                    <TableRow
+                                                                        key={t.key}
+                                                                        className={cn(
+                                                                            'text-xs',
+                                                                            onHurdaReworkPivotDrill &&
+                                                                                'cursor-pointer hover:bg-muted/70',
+                                                                        )}
+                                                                        onClick={
+                                                                            onHurdaReworkPivotDrill
+                                                                                ? (e) => {
+                                                                                      e.stopPropagation();
+                                                                                      openHrPivotDrill({
+                                                                                          scope: 'unit',
+                                                                                          unitLabel: u.unitLabel,
+                                                                                          dimension: 'type',
+                                                                                          key: t.key,
+                                                                                      });
+                                                                                  }
+                                                                                : undefined
+                                                                        }
+                                                                        title={
+                                                                            onHurdaReworkPivotDrill
+                                                                                ? 'İlgili maliyet kayıtlarını açmak için tıklayın'
+                                                                                : undefined
+                                                                        }
+                                                                    >
                                                                         <TableCell className="py-2">{t.key}</TableCell>
                                                                         <TableCell className="py-2 text-right tabular-nums">
-                                                                            {formatCurrency(t.amount)}
+                                                                            {formatCurrency(t.amountHurda ?? 0)}
+                                                                        </TableCell>
+                                                                        <TableCell className="py-2 text-right tabular-nums">
+                                                                            {formatCurrency(t.amountYeniden ?? 0)}
                                                                         </TableCell>
                                                                         <TableCell className="py-2 text-right text-muted-foreground tabular-nums">
                                                                             %{t.pctWithinUnit.toFixed(1)}

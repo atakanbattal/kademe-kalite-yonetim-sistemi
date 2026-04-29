@@ -2687,10 +2687,12 @@ const generateListReportHtml = (record, type) => {
 				? `
 			<div style="background:#fffbfb; border:1px solid #fecaca; border-radius:8px; padding:16px 18px; margin:20px 0;">
 				<h3 style="font-size:15px;font-weight:700;color:#991b1b;margin:0 0 10px;border-bottom:2px solid #fca5a5;padding-bottom:6px;">
-					Bu birim kapsamında — hurda / yeniden işlem (H+R)</h3>
+					Bu birim seçiminde — hurda ve yeniden işlem</h3>
 				<p style="margin:0 0 10px;font-size:12px;color:#64748b;">
-					Rapor kapsamındaki toplam maliyet: <strong>${formatCurrencyListHr(record.totalAmount)}</strong>
-					· H+R (bu seçim): <strong style="color:#991b1b;">${formatCurrencyListHr(hrLi.totalHr)}</strong>
+					Rapor toplamı: <strong>${formatCurrencyListHr(record.totalAmount)}</strong>
+					· Hurda: <strong style="color:#991b1b;">${formatCurrencyListHr(hrLi.totalHurda ?? 0)}</strong>
+					· Yeniden işlem: <strong style="color:#991b1b;">${formatCurrencyListHr(hrLi.totalYeniden ?? 0)}</strong>
+					· Σ: <strong>${formatCurrencyListHr(hrLi.totalHr)}</strong>
 				</p>
 				<table style="width:100%; border-collapse:collapse; margin-bottom:12px;font-size:11px;">
 					<tbody>
@@ -2699,44 +2701,65 @@ const generateListReportHtml = (record, type) => {
 						<tr><td style="padding:4px 6px;color:#475569;">Sınıfsız tutar</td><td style="padding:4px 6px;text-align:right;">${formatCurrencyListHr(hrLi.unclassifiedAmt)}</td></tr>
 					</tbody>
 				</table>
-				<h4 style="font-size:12px;font-weight:700;color:#1e40af;margin:10px 0 6px;">Disiplin — H+R içindeki pay</h4>
+				<h4 style="font-size:12px;font-weight:700;color:#1e40af;margin:10px 0 6px;">Disipline göre (genel yüzdeler ayrı)</h4>
 				<table class="info-table results-table" style="width:100%; margin-bottom:12px; font-size:11px;">
-					<thead><tr style="background:#1e40af;color:#fff;"><th style="padding:8px;text-align:left;">Grup</th><th style="padding:8px;text-align:right;">Tutar</th><th style="padding:8px;text-align:right;">% H+R</th></tr></thead>
+					<thead><tr style="background:#1e40af;color:#fff;">
+						<th style="padding:8px;text-align:left;">Grup</th>
+						<th style="padding:8px;text-align:right;">Hurda</th>
+						<th style="padding:8px;text-align:right;">Yeniden işlem</th>
+						<th style="padding:8px;text-align:right;">Tüm hurda içinde</th>
+						<th style="padding:8px;text-align:right;">Tüm yeniden işlemde</th>
+					</tr></thead>
 					<tbody>
 						${(hrLi.defectGroupsSorted || [])
 							.map(
 								(row) =>
-									`<tr><td style="padding:8px;">${escHrLi(row.name)}</td><td style="padding:8px;text-align:right;font-weight:600;">${formatCurrencyListHr(row.amount)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(row.pctOfHr)}</td></tr>`
+									`<tr><td style="padding:8px;">${escHrLi(row.name)}</td><td style="padding:8px;text-align:right;">${formatCurrencyListHr(row.amountHurda ?? 0)}</td><td style="padding:8px;text-align:right;">${formatCurrencyListHr(row.amountYeniden ?? 0)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(row.pctOfHurda)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(row.pctOfYeniden)}</td></tr>`
 							)
 							.join('')}
 					</tbody>
 				</table>
-				<h4 style="font-size:12px;font-weight:700;color:#1e40af;margin:10px 0 6px;">Hata tipi — H+R içindeki pay</h4>
+				<h4 style="font-size:12px;font-weight:700;color:#1e40af;margin:10px 0 6px;">Hata kökü / tip</h4>
 				<table class="info-table results-table" style="width:100%; margin-bottom:12px; font-size:11px;">
-					<thead><tr style="background:#1e40af;color:#fff;"><th style="padding:8px;text-align:left;">Hata tipi</th><th style="padding:8px;text-align:right;">Tutar</th><th style="padding:8px;text-align:right;">% H+R</th></tr></thead>
+					<thead><tr style="background:#1e40af;color:#fff;">
+						<th style="padding:8px;text-align:left;">Hata tipi</th>
+						<th style="padding:8px;text-align:right;">Hurda</th>
+						<th style="padding:8px;text-align:right;">Yeniden işlem</th>
+						<th style="padding:8px;text-align:right;">Tüm hurda içinde</th>
+						<th style="padding:8px;text-align:right;">Tüm yeniden işlemde</th>
+					</tr></thead>
 					<tbody>
 						${(hrLi.defectTypesSorted || [])
 							.map(
 								(row) =>
-									`<tr><td style="padding:8px;">${escHrLi(row.name)}</td><td style="padding:8px;text-align:right;font-weight:600;">${formatCurrencyListHr(row.amount)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(row.pctOfHr)}</td></tr>`
+									`<tr><td style="padding:8px;">${escHrLi(row.name)}</td><td style="padding:8px;text-align:right;">${formatCurrencyListHr(row.amountHurda ?? 0)}</td><td style="padding:8px;text-align:right;">${formatCurrencyListHr(row.amountYeniden ?? 0)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(row.pctOfHurda)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(row.pctOfYeniden)}</td></tr>`
 							)
 							.join('')}
 					</tbody>
 				</table>
-				<h4 style="font-size:12px;font-weight:700;color:#1e40af;margin:10px 0 6px;">Sorumlu birim (H+R tutarı)</h4>
+				<h4 style="font-size:12px;font-weight:700;color:#1e40af;margin:10px 0 6px;">Sorumlu birim</h4>
 				<table class="info-table results-table" style="width:100%; font-size:11px;">
-					<thead><tr style="background:#0f172a;color:#fff;"><th style="padding:8px;text-align:left;">Birim</th><th style="padding:8px;text-align:right;">Tutar</th><th style="padding:8px;text-align:right;">% H+R</th><th style="padding:8px;text-align:right;">% toplam maliyet</th><th style="padding:8px;text-align:right;">Sınıfsız</th></tr></thead>
+					<thead><tr style="background:#0f172a;color:#fff;">
+						<th style="padding:8px;text-align:left;">Birim</th>
+						<th style="padding:8px;text-align:right;">Hurda</th>
+						<th style="padding:8px;text-align:right;">Yeniden işlem</th>
+						<th style="padding:8px;text-align:right;">Birlikte</th>
+						<th style="padding:8px;text-align:right;">Tüm hurda içinde</th>
+						<th style="padding:8px;text-align:right;">Tüm yeniden işlemde</th>
+						<th style="padding:8px;text-align:right;">Birlikte içinde</th>
+						<th style="padding:8px;text-align:right;">COPQ içinde</th>
+						<th style="padding:8px;text-align:right;">Sınıfsız</th>
+					</tr></thead>
 					<tbody>
 						${(hrLi.hrUnitsPivot || [])
 							.slice(0, 20)
 							.map(
 								(u) =>
-									`<tr><td style="padding:8px;font-weight:600;">${escHrLi(u.unitLabel)}</td><td style="padding:8px;text-align:right;">${formatCurrencyListHr(u.total)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(u.pctOfHrTotal)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(u.pctOfCopq)}</td><td style="padding:8px;text-align:right;color:#b45309;">${formatCurrencyListHr(u.unclassified)}</td></tr>`
+									`<tr><td style="padding:8px;font-weight:600;">${escHrLi(u.unitLabel)}</td><td style="padding:8px;text-align:right;">${formatCurrencyListHr(u.totalHurda ?? 0)}</td><td style="padding:8px;text-align:right;">${formatCurrencyListHr(u.totalYeniden ?? 0)}</td><td style="padding:8px;text-align:right;font-weight:700;">${formatCurrencyListHr(u.total)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(u.pctHurdaOfPool)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(u.pctYenidenOfPool)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(u.pctOfHrTotal)}</td><td style="padding:8px;text-align:right;">%${formatPercentListHr(u.pctOfCopq)}</td><td style="padding:8px;text-align:right;color:#b45309;">${formatCurrencyListHr(u.unclassified)}</td></tr>`
 							)
 							.join('')}
 					</tbody>
 				</table>
-				<p style="margin:8px 0 0;font-size:10px;color:#94a3b8;">«% toplam maliyet» bu raporun seçilen birim toplamına (yukarıdaki toplam maliyet satırı) göredir.</p>
 			</div>`
 				: '';
 
@@ -3484,26 +3507,27 @@ const generateListReportHtml = (record, type) => {
 					? `
 			<div style="background:#fffbfb; border:1px solid #fecaca; border-radius:8px; padding:18px 20px; margin-bottom:28px;">
 				<h3 style="font-size:17px;font-weight:700;color:#991b1b;margin:0 0 12px;border-bottom:2px solid #fca5a5;padding-bottom:8px;">
-					Hurda ve yeniden işlem maliyeti — özet ve kırılım</h3>
+					Hurda ve yeniden işlem — özet ve kırılım</h3>
 				<table style="width:100%; border-collapse:collapse; margin-bottom:16px;font-size:12px;">
 					<tbody>
-						<tr><td style="padding:6px 8px;color:#475569;">Toplam Hurda + Yeniden İşlem (H+R)</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:#991b1b;">${formatCurrencyLocal(hrRepEx.totalHr)}</td></tr>
+						<tr><td style="padding:6px 8px;color:#475569;">Hurda maliyeti (toplam)</td><td style="padding:6px 8px;text-align:right;font-weight:700;">${formatCurrencyLocal(hrRepEx.totalHurda ?? 0)}</td></tr>
+						<tr><td style="padding:6px 8px;color:#475569;">Yeniden işlem maliyeti (toplam)</td><td style="padding:6px 8px;text-align:right;font-weight:700;">${formatCurrencyLocal(hrRepEx.totalYeniden ?? 0)}</td></tr>
+						<tr><td style="padding:6px 8px;color:#475569;">Birleşik toplam (Σ)</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:#991b1b;">${formatCurrencyLocal(hrRepEx.totalHr)}</td></tr>
 						<tr><td style="padding:6px 8px;color:#475569;">Kalem satırları toplamı</td><td style="padding:6px 8px;text-align:right;font-weight:600;">${formatCurrencyLocal(hrRepEx.parsedAmt)}</td></tr>
-						<tr><td style="padding:6px 8px;color:#475569;">Hata / disipline bağlı (sınıflı)</td><td style="padding:6px 8px;text-align:right;">${formatCurrencyLocal(hrRepEx.classifiedAmt)}</td></tr>
+						<tr><td style="padding:6px 8px;color:#475569;">Hata/disipline bağlı (sınıflı)</td><td style="padding:6px 8px;text-align:right;">${formatCurrencyLocal(hrRepEx.classifiedAmt)}</td></tr>
 						<tr><td style="padding:6px 8px;color:#475569;">Sınıflanmamış</td><td style="padding:6px 8px;text-align:right;">${formatCurrencyLocal(hrRepEx.unclassifiedAmt)}</td></tr>
-						${
-							hrRepEx.reconciliationGap > 1
-								? `<tr><td style="padding:6px 8px;color:#475569;">Genel tutar ile kalem farkı (izleme)</td><td style="padding:6px 8px;text-align:right;color:#b45309;">${formatCurrencyLocal(hrRepEx.reconciliationGap)}</td></tr>`
-								: ''
-						}
+						${(hrRepEx.reconciliationGapHurda ?? 0) > 1 ? `<tr><td style="padding:6px 8px;color:#475569;">Hurda tutar ile kalem farkı</td><td style="padding:6px 8px;text-align:right;color:#b45309;">${formatCurrencyLocal(hrRepEx.reconciliationGapHurda)}</td></tr>` : ''}
+						${(hrRepEx.reconciliationGapYeniden ?? 0) > 1 ? `<tr><td style="padding:6px 8px;color:#475569;">Yeniden işlem tutarı ile kalem farkı</td><td style="padding:6px 8px;text-align:right;color:#b45309;">${formatCurrencyLocal(hrRepEx.reconciliationGapYeniden)}</td></tr>` : ''}
 					</tbody>
 				</table>
-				<h4 style="font-size:14px;font-weight:700;color:#1e3a8a;margin:16px 0 10px;">Disiplin / hata grubu (H+R payı)</h4>
+				<h4 style="font-size:14px;font-weight:700;color:#1e3a8a;margin:16px 0 10px;">Disiplin / hata grubu</h4>
 				<table class="info-table results-table" style="width:100%; margin-bottom:18px;">
 					<thead><tr style="background:#1e40af;color:#fff;">
 						<th style="padding:10px;text-align:left;">Grup</th>
-						<th style="padding:10px;text-align:right;">Tutar</th>
-						<th style="padding:10px;text-align:right;">% H+R</th>
+						<th style="padding:10px;text-align:right;">Hurda</th>
+						<th style="padding:10px;text-align:right;">Yeniden işlem</th>
+						<th style="padding:10px;text-align:right;">Tüm hurda içinde</th>
+						<th style="padding:10px;text-align:right;">Tüm yeniden işlemde</th>
 					</tr></thead>
 					<tbody>
 						${(hrRepEx.defectGroupsSorted || [])
@@ -3511,19 +3535,23 @@ const generateListReportHtml = (record, type) => {
 								(row) => `
 							<tr style="border-bottom:1px solid #e5e7eb;">
 								<td style="padding:10px;">${escHurdaEx(row.name)}</td>
-								<td style="padding:10px;text-align:right;font-weight:600;">${formatCurrencyLocal(row.amount)}</td>
-								<td style="padding:10px;text-align:right;color:#059669;">%${formatPercent(row.pctOfHr)}</td>
+								<td style="padding:10px;text-align:right;">${formatCurrencyLocal(row.amountHurda ?? 0)}</td>
+								<td style="padding:10px;text-align:right;">${formatCurrencyLocal(row.amountYeniden ?? 0)}</td>
+								<td style="padding:10px;text-align:right;color:#059669;">%${formatPercent(row.pctOfHurda)}</td>
+								<td style="padding:10px;text-align:right;color:#059669;">%${formatPercent(row.pctOfYeniden)}</td>
 							</tr>`
 							)
 							.join('')}
 					</tbody>
 				</table>
-				<h4 style="font-size:14px;font-weight:700;color:#1e3a8a;margin:16px 0 10px;">Hata kökü / tip (H+R payı)</h4>
+				<h4 style="font-size:14px;font-weight:700;color:#1e3a8a;margin:16px 0 10px;">Hata kökü / tip</h4>
 				<table class="info-table results-table" style="width:100%; margin-bottom:18px;">
 					<thead><tr style="background:#1e40af;color:#fff;">
 						<th style="padding:10px;text-align:left;">Hata tipi</th>
-						<th style="padding:10px;text-align:right;">Tutar</th>
-						<th style="padding:10px;text-align:right;">% H+R</th>
+						<th style="padding:10px;text-align:right;">Hurda</th>
+						<th style="padding:10px;text-align:right;">Yeniden işlem</th>
+						<th style="padding:10px;text-align:right;">Tüm hurda içinde</th>
+						<th style="padding:10px;text-align:right;">Tüm yeniden işlemde</th>
 					</tr></thead>
 					<tbody>
 						${(hrRepEx.defectTypesSorted || [])
@@ -3531,21 +3559,27 @@ const generateListReportHtml = (record, type) => {
 								(row) => `
 							<tr style="border-bottom:1px solid #e5e7eb;">
 								<td style="padding:10px;">${escHurdaEx(row.name)}</td>
-								<td style="padding:10px;text-align:right;font-weight:600;">${formatCurrencyLocal(row.amount)}</td>
-								<td style="padding:10px;text-align:right;color:#059669;">%${formatPercent(row.pctOfHr)}</td>
+								<td style="padding:10px;text-align:right;">${formatCurrencyLocal(row.amountHurda ?? 0)}</td>
+								<td style="padding:10px;text-align:right;">${formatCurrencyLocal(row.amountYeniden ?? 0)}</td>
+								<td style="padding:10px;text-align:right;color:#059669;">%${formatPercent(row.pctOfHurda)}</td>
+								<td style="padding:10px;text-align:right;color:#059669;">%${formatPercent(row.pctOfYeniden)}</td>
 							</tr>`
 							)
 							.join('')}
 					</tbody>
 				</table>
-				<h4 style="font-size:14px;font-weight:700;color:#1e3a8a;margin:16px 0 10px;">Sorumlu birime göre (H+R tutarı)</h4>
+				<h4 style="font-size:14px;font-weight:700;color:#1e3a8a;margin:16px 0 10px;">Sorumlu birime göre</h4>
 				<table class="info-table results-table" style="width:100%;">
 					<thead><tr style="background:#0f172a;color:#fff;">
 						<th style="padding:10px;text-align:left;">Birim</th>
-						<th style="padding:10px;text-align:right;">Tutar</th>
-						<th style="padding:10px;text-align:right;">% H+R</th>
-						<th style="padding:10px;text-align:right;">% COPQ</th>
-						<th style="padding:10px;text-align:right;">Sınıfsız tutar</th>
+						<th style="padding:10px;text-align:right;">Hurda</th>
+						<th style="padding:10px;text-align:right;">Yeniden işlem</th>
+						<th style="padding:10px;text-align:right;">Birlikte</th>
+						<th style="padding:10px;text-align:right;">Tüm hurda içinde</th>
+						<th style="padding:10px;text-align:right;">Tüm yeniden işlemde</th>
+						<th style="padding:10px;text-align:right;">Birlikte içinde</th>
+						<th style="padding:10px;text-align:right;">COPQ içinde</th>
+						<th style="padding:10px;text-align:right;">Sınıfsız</th>
 					</tr></thead>
 					<tbody>
 						${(hrRepEx.hrUnitsPivot || [])
@@ -3554,7 +3588,11 @@ const generateListReportHtml = (record, type) => {
 								(u) => `
 							<tr style="border-bottom:1px solid #e5e7eb;">
 								<td style="padding:10px;font-weight:600;">${escHurdaEx(u.unitLabel)}</td>
+								<td style="padding:10px;text-align:right;">${formatCurrencyLocal(u.totalHurda ?? 0)}</td>
+								<td style="padding:10px;text-align:right;">${formatCurrencyLocal(u.totalYeniden ?? 0)}</td>
 								<td style="padding:10px;text-align:right;font-weight:700;">${formatCurrencyLocal(u.total)}</td>
+								<td style="padding:10px;text-align:right;">%${formatPercent(u.pctHurdaOfPool)}</td>
+								<td style="padding:10px;text-align:right;">%${formatPercent(u.pctYenidenOfPool)}</td>
 								<td style="padding:10px;text-align:right;">%${formatPercent(u.pctOfHrTotal)}</td>
 								<td style="padding:10px;text-align:right;">%${formatPercent(u.pctOfCopq)}</td>
 								<td style="padding:10px;text-align:right;color:#b45309;">${formatCurrencyLocal(u.unclassified)}</td>

@@ -76,11 +76,13 @@ export function getDefectContributionsFromCost(cost, canonicalUnitCtx = {}) {
  * Birim kaynağı = kalem sorumlu birimi veya (kalemsiz) ana kayıt birimi.
  * @param {unknown} cost
  * @param {Record<string, unknown>} [canonicalUnitCtx]
- * @returns {{ amount: number, defect_type: string|null, group_key: string|null, group_label: string, unit_label: string, classified: boolean }[]}
+ * @returns {{ amount: number, defect_type: string|null, group_key: string|null, group_label: string, unit_label: string, classified: boolean, maliyetGrubu: 'hurda'|'yeniden' }[]}
  */
 export function getScrapReworkMonetaryRows(cost, canonicalUnitCtx = {}) {
   const ctype = cost?.cost_type;
   if (!SCRAP_TYPES.includes(ctype || '')) return [];
+
+  const maliyetGrubu = ctype === 'Hurda Maliyeti' ? 'hurda' : 'yeniden';
 
   const substantive = (li) =>
     (parseFloat(li?.amount) || 0) > 0 ||
@@ -116,6 +118,7 @@ export function getScrapReworkMonetaryRows(cost, canonicalUnitCtx = {}) {
           group_label: meta.groupLabel || 'Diğer / Eşlenmemiş',
           unit_label: ul,
           classified: true,
+          maliyetGrubu,
         });
       } else {
         out.push({
@@ -125,6 +128,7 @@ export function getScrapReworkMonetaryRows(cost, canonicalUnitCtx = {}) {
           group_label: UNCLASS_LABEL,
           unit_label: ul,
           classified: false,
+          maliyetGrubu,
         });
       }
     }
@@ -156,6 +160,7 @@ export function getScrapReworkMonetaryRows(cost, canonicalUnitCtx = {}) {
         group_label: meta.groupLabel || 'Diğer / Eşlenmemiş',
         unit_label: ul,
         classified: true,
+        maliyetGrubu,
       },
     ];
   }
@@ -168,6 +173,7 @@ export function getScrapReworkMonetaryRows(cost, canonicalUnitCtx = {}) {
       group_label: UNCLASS_LABEL,
       unit_label: ul,
       classified: false,
+      maliyetGrubu,
     },
   ];
 }
@@ -188,12 +194,20 @@ function amountForCopqRecord(cost) {
  * @param {{ totalCopq?: number, canonicalUnitCtx?: Record<string, unknown>, includeMonetaryRow?: (r: { amount: number, unit_label?: string, classified?: boolean }) => boolean }} [opts]
  * @returns {null | {
  *   totalHr: number,
+ *   totalHurda: number,
+ *   totalYeniden: number,
  *   parsedAmt: number,
  *   classifiedAmt: number,
+ *   classifiedAmtHurda: number,
+ *   classifiedAmtYeniden: number,
  *   unclassifiedAmt: number,
+ *   unclassifiedAmtHurda: number,
+ *   unclassifiedAmtYeniden: number,
  *   reconciliationGap: number,
- *   defectGroupsSorted: { name: string, amount: number, pctOfHr: number }[],
- *   defectTypesSorted: { name: string, amount: number, pctOfHr: number }[],
+ *   reconciliationGapHurda: number,
+ *   reconciliationGapYeniden: number,
+ *   defectGroupsSorted: { name: string, amountHurda: number, amountYeniden: number, amount: number, pctOfHurda: number, pctOfYeniden: number }[],
+ *   defectTypesSorted: { name: string, amountHurda: number, amountYeniden: number, amount: number, pctOfHurda: number, pctOfYeniden: number }[],
  *   hrUnitsPivot: object[],
  * }}
  */
@@ -203,13 +217,17 @@ export function computeHurdaReworkDefectAnalysis(costs, opts = {}) {
   const includeMonetaryRow = opts.includeMonetaryRow;
 
   const allScrapReworkMonetaryRows = [];
-  let hurdaReworkGlobalRecordSum = 0;
+  let recordSumHurda = 0;
+  let recordSumYeniden = 0;
 
   for (const cost of costs || []) {
     const ctype = cost?.cost_type;
     if (!SCRAP_COST_TYPES_FOR_TOTAL.includes(ctype || '')) continue;
 
-    hurdaReworkGlobalRecordSum += amountForCopqRecord(cost);
+    const recAmt = amountForCopqRecord(cost);
+    if (ctype === 'Hurda Maliyeti') recordSumHurda += recAmt;
+    else if (ctype === 'Yeniden İşlem Maliyeti') recordSumYeniden += recAmt;
+
     const rows = getScrapReworkMonetaryRows(cost, canonicalUnitCtx);
     for (const row of rows) {
       if (includeMonetaryRow && !includeMonetaryRow(row)) continue;
@@ -217,108 +235,236 @@ export function computeHurdaReworkDefectAnalysis(costs, opts = {}) {
     }
   }
 
-  const rowParsedSum = allScrapReworkMonetaryRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+  const sumAmt = (r) => parseFloat(r.amount) || 0;
+  let sumHurda = 0;
+  let sumYeniden = 0;
+  for (const r of allScrapReworkMonetaryRows) {
+    if (r.maliyetGrubu === 'yeniden') sumYeniden += sumAmt(r);
+    else sumHurda += sumAmt(r);
+  }
+
+  const rowParsedSum = sumHurda + sumYeniden;
 
   let hurdaReworkTotalAmount;
   if (includeMonetaryRow) {
     hurdaReworkTotalAmount = rowParsedSum;
   } else {
-    hurdaReworkTotalAmount = hurdaReworkGlobalRecordSum;
+    hurdaReworkTotalAmount = recordSumHurda + recordSumYeniden;
   }
 
   if (hurdaReworkTotalAmount <= 0 || allScrapReworkMonetaryRows.length === 0) return null;
 
-  let hrClassifiedAmt = 0;
-  let hrUnclassifiedAmt = 0;
+  let classifiedAmt = 0;
+  let classifiedAmtHurda = 0;
+  let classifiedAmtYeniden = 0;
+  let unclassifiedAmt = 0;
+  let unclassifiedAmtHurda = 0;
+  let unclassifiedAmtYeniden = 0;
   for (const r of allScrapReworkMonetaryRows) {
-    if (r.classified) hrClassifiedAmt += r.amount || 0;
-    else hrUnclassifiedAmt += r.amount || 0;
+    const a = sumAmt(r);
+    const isY = r.maliyetGrubu === 'yeniden';
+    if (r.classified) {
+      classifiedAmt += a;
+      if (isY) classifiedAmtYeniden += a;
+      else classifiedAmtHurda += a;
+    } else {
+      unclassifiedAmt += a;
+      if (isY) unclassifiedAmtYeniden += a;
+      else unclassifiedAmtHurda += a;
+    }
   }
 
   let reconciliationGap = 0;
+  let reconciliationGapHurda = 0;
+  let reconciliationGapYeniden = 0;
   if (!includeMonetaryRow) {
-    reconciliationGap = hurdaReworkGlobalRecordSum > 0 ? Math.max(0, hurdaReworkGlobalRecordSum - rowParsedSum) : 0;
+    const parsedHurda = sumHurda;
+    const parsedYeniden = sumYeniden;
+    reconciliationGapHurda = Math.max(0, recordSumHurda - parsedHurda);
+    reconciliationGapYeniden = Math.max(0, recordSumYeniden - parsedYeniden);
+    reconciliationGap = reconciliationGapHurda + reconciliationGapYeniden;
   }
+
+  const bump = (agg, label, amt, grp) => {
+    if (!agg[label]) agg[label] = { hurda: 0, yeniden: 0 };
+    agg[label][grp] += amt;
+  };
 
   const globalHrGroupMap = {};
   const globalHrTypeMap = {};
   const unitPivotScratch = {};
 
   for (const r of allScrapReworkMonetaryRows) {
-    const g = r.group_label || 'Diğer';
-    globalHrGroupMap[g] = (globalHrGroupMap[g] || 0) + r.amount;
+    const a = sumAmt(r);
+    const grp = r.maliyetGrubu === 'yeniden' ? 'yeniden' : 'hurda';
+    const gl = r.group_label || 'Diğer';
+    bump(globalHrGroupMap, gl, a, grp);
+
     const dtype = r.defect_type || 'Hata tipi atanmamış';
-    globalHrTypeMap[dtype] = (globalHrTypeMap[dtype] || 0) + r.amount;
+    bump(globalHrTypeMap, dtype, a, grp);
 
     const uk = r.unit_label || 'Belirtilmemiş';
     if (!unitPivotScratch[uk]) {
       unitPivotScratch[uk] = {
         unitLabel: uk,
-        total: 0,
-        classified: 0,
-        unclassified: 0,
+        totalHurda: 0,
+        totalYeniden: 0,
+        classifiedHurda: 0,
+        classifiedYeniden: 0,
+        unclassifiedHurda: 0,
+        unclassifiedYeniden: 0,
         groups: {},
         types: {},
       };
     }
     const uw = unitPivotScratch[uk];
-    uw.total += r.amount || 0;
-    if (r.classified) uw.classified += r.amount || 0;
-    else uw.unclassified += r.amount || 0;
-    uw.groups[g] = (uw.groups[g] || 0) + r.amount;
-    uw.types[dtype] = (uw.types[dtype] || 0) + r.amount;
+    uw.totalHurda += grp === 'hurda' ? a : 0;
+    uw.totalYeniden += grp === 'yeniden' ? a : 0;
+    if (r.classified) {
+      uw.classifiedHurda += grp === 'hurda' ? a : 0;
+      uw.classifiedYeniden += grp === 'yeniden' ? a : 0;
+    } else {
+      uw.unclassifiedHurda += grp === 'hurda' ? a : 0;
+      uw.unclassifiedYeniden += grp === 'yeniden' ? a : 0;
+    }
+    bump(uw.groups, gl, a, grp);
+    bump(uw.types, dtype, a, grp);
   }
 
-  const defectGroupsSorted = Object.entries(globalHrGroupMap)
-    .map(([name, amount]) => ({
-      name,
-      amount,
-      pctOfHr: hurdaReworkTotalAmount > 0 ? (amount / hurdaReworkTotalAmount) * 100 : 0,
-    }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 14);
+  const mapSplitToSorted = (
+    agg,
+    denomH,
+    denomY,
+  ) =>
+    Object.entries(agg)
+      .map(([name, hv]) => {
+        const ah = hv.hurda || 0;
+        const ay = hv.yeniden || 0;
+        const at = ah + ay;
+        return {
+          name,
+          amountHurda: ah,
+          amountYeniden: ay,
+          amount: at,
+          pctOfHurda: denomH > 0 ? (ah / denomH) * 100 : 0,
+          pctOfYeniden: denomY > 0 ? (ay / denomY) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 14);
 
-  const defectTypesSorted = Object.entries(globalHrTypeMap)
-    .map(([name, amount]) => ({
-      name,
-      amount,
-      pctOfHr: hurdaReworkTotalAmount > 0 ? (amount / hurdaReworkTotalAmount) * 100 : 0,
-    }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 14);
+  const denomHParsed = sumHurda;
+  const denomYParsed = sumYeniden;
+
+  const defectGroupsSorted = mapSplitToSorted(globalHrGroupMap, denomHParsed, denomYParsed);
+  const defectTypesSorted = mapSplitToSorted(globalHrTypeMap, denomHParsed, denomYParsed);
 
   const hrUnitsPivot = Object.values(unitPivotScratch)
+    .map((u) => {
+      const total = u.totalHurda + u.totalYeniden;
+      const row = {
+        ...u,
+        total,
+        unclassified: u.unclassifiedHurda + u.unclassifiedYeniden,
+        pctHurdaOfPool: denomHParsed > 0 ? (u.totalHurda / denomHParsed) * 100 : 0,
+        pctYenidenOfPool: denomYParsed > 0 ? (u.totalYeniden / denomYParsed) * 100 : 0,
+        pctOfHrTotal: hurdaReworkTotalAmount > 0 ? (total / hurdaReworkTotalAmount) * 100 : 0,
+        pctOfCopq: totalCopq > 0 ? (total / totalCopq) * 100 : 0,
+        pctClassifiedWithinUnit:
+          total > 0 ? ((u.classifiedHurda + u.classifiedYeniden) / total) * 100 : 0,
+        groupsSorted: Object.entries(u.groups || {})
+          .map(([key, hv]) => {
+            const ah = hv.hurda || 0;
+            const ay = hv.yeniden || 0;
+            const at = ah + ay;
+            return {
+              key,
+              amountHurda: ah,
+              amountYeniden: ay,
+              amount: at,
+              pctWithinUnit: total > 0 ? (at / total) * 100 : 0,
+            };
+          })
+          .sort((a, b) => b.amount - a.amount),
+        typesSorted: Object.entries(u.types || {})
+          .map(([key, hv]) => {
+            const ah = hv.hurda || 0;
+            const ay = hv.yeniden || 0;
+            const at = ah + ay;
+            return {
+              key,
+              amountHurda: ah,
+              amountYeniden: ay,
+              amount: at,
+              pctWithinUnit: total > 0 ? (at / total) * 100 : 0,
+            };
+          })
+          .sort((a, b) => b.amount - a.amount),
+      };
+      delete row.groups;
+      delete row.types;
+      return row;
+    })
     .sort((a, b) => b.total - a.total)
-    .slice(0, 40)
-    .map((u) => ({
-      ...u,
-      pctOfHrTotal: hurdaReworkTotalAmount > 0 ? (u.total / hurdaReworkTotalAmount) * 100 : 0,
-      pctOfCopq: totalCopq > 0 ? (u.total / totalCopq) * 100 : 0,
-      pctClassifiedWithinUnit: u.total > 0 ? (u.classified / u.total) * 100 : 0,
-      groupsSorted: Object.entries(u.groups || {})
-        .map(([key, amt]) => ({
-          key,
-          amount: amt,
-          pctWithinUnit: u.total > 0 ? (amt / u.total) * 100 : 0,
-        }))
-        .sort((a, b) => b.amount - a.amount),
-      typesSorted: Object.entries(u.types || {})
-        .map(([key, amt]) => ({
-          key,
-          amount: amt,
-          pctWithinUnit: u.total > 0 ? (amt / u.total) * 100 : 0,
-        }))
-        .sort((a, b) => b.amount - a.amount),
-    }));
+    .slice(0, 40);
 
   return {
     totalHr: hurdaReworkTotalAmount,
+    totalHurda: denomHParsed,
+    totalYeniden: denomYParsed,
     parsedAmt: rowParsedSum,
-    classifiedAmt: hrClassifiedAmt,
-    unclassifiedAmt: hrUnclassifiedAmt,
+    classifiedAmt,
+    classifiedAmtHurda,
+    classifiedAmtYeniden,
+    unclassifiedAmt,
+    unclassifiedAmtHurda,
+    unclassifiedAmtYeniden,
     reconciliationGap,
+    reconciliationGapHurda,
+    reconciliationGapYeniden,
     defectGroupsSorted,
     defectTypesSorted,
     hrUnitsPivot,
   };
+}
+
+/**
+ * COPQ hurda/yeniden pivot satırından ilgili kalite maliyeti kayıtlarını döner.
+ * @param {unknown[]} costs
+ * @param {Record<string, unknown>} canonicalUnitCtx
+ * @param {{ scope?: 'global'|'unit', unitLabel?: string, dimension: 'group'|'type', key: string }} spec
+ * @returns {unknown[]}
+ */
+export function filterCostsForHurdaReworkPivotDrill(costs, canonicalUnitCtx = {}, spec) {
+  const { scope = 'unit', unitLabel, dimension, key } = spec || {};
+  if (!dimension || key == null || key === '') return [];
+
+  /** @type {unknown[]} */
+  const out = [];
+  const seen = new Set();
+
+  for (const cost of costs || []) {
+    const ctype = cost?.cost_type;
+    if (!SCRAP_COST_TYPES_FOR_TOTAL.includes(ctype || '')) continue;
+
+    const rows = getScrapReworkMonetaryRows(cost, canonicalUnitCtx);
+
+    for (const r of rows) {
+      const ul = r.unit_label || 'Belirtilmemiş';
+      if (scope === 'unit' && ul !== unitLabel) continue;
+
+      const ok =
+        dimension === 'group'
+          ? (r.group_label || 'Diğer') === key
+          : (r.defect_type || 'Hata tipi atanmamış') === key;
+
+      if (ok && !seen.has(cost.id)) {
+        seen.add(cost.id);
+        out.push(cost);
+        break;
+      }
+    }
+  }
+
+  return out;
 }

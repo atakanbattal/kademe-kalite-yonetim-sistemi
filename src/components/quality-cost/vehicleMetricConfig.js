@@ -36,7 +36,7 @@ export const VEHICLE_METRIC_DEFINITIONS = {
     rework_cost_per_vehicle: {
         key: 'rework_cost_per_vehicle',
         label: 'Yeniden İşlem Maliyeti',
-        shortLabel: 'Y. İşlem',
+        shortLabel: 'Yeniden işlem',
         unit: 'TRY / araç',
         contributionUnit: 'TRY',
         chartUnit: 'TRY',

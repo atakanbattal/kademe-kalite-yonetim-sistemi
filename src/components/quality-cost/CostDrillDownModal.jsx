@@ -35,6 +35,8 @@ import {
     Sparkles,
     Loader2,
     LineChart,
+    Edit,
+    Trash2,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
@@ -61,6 +63,29 @@ import { getCanonicalUnitLabel } from '@/lib/qualityCostUnitGroups';
 
 const formatCurrency = (value) =>
     (typeof value === 'number' ? value : 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+
+/** Kayıtlar sekmesinde birim: ana kayıt üstü birim yoksa ilk kalem satırından */
+const formatDrillRecordUnitLabel = (cost, canonicalUnitCtx) => {
+    const ctx = canonicalUnitCtx || {};
+    if (cost?.unit) return getCanonicalUnitLabel(cost.unit, ctx);
+    if (cost?.is_supplier_nc && cost.supplier?.name) return cost.supplier.name;
+    const items = cost?.cost_line_items;
+    if (!Array.isArray(items) || items.length === 0) return '—';
+    const li = items[0];
+    if (li.responsible_type === 'supplier') {
+        return li.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi';
+    }
+    if (li.responsible_unit) return getCanonicalUnitLabel(li.responsible_unit, ctx);
+    return '—';
+};
+
+const formatDrillRecordPartLabel = (cost) => {
+    if (cost?.part_code || cost?.part_name) return cost.part_code || cost.part_name || '—';
+    const items = cost?.cost_line_items;
+    if (!Array.isArray(items) || items.length === 0) return '—';
+    const li = items[0];
+    return li.part_code || li.part_name || '—';
+};
 
 const clampImprovementPercent = (raw) => {
     const n = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
@@ -163,6 +188,8 @@ const CostDrillDownModal = ({
     onCreateNC,
     onOpenNCView,
     hasNCAccess,
+    /** COPQ / analiz modallarında kayıtlar sekmesi: görüntüle, düzenle, sil */
+    recordDrillActions,
 }) => {
     const costs = Array.isArray(data?.costs) ? data.costs : [];
     const title = data?.title || 'Maliyet detayı';
@@ -903,26 +930,46 @@ const CostDrillDownModal = ({
                                                     <TableHead className="text-right text-[11px] font-semibold">Hurda kg</TableHead>
                                                 </>
                                             )}
-                                            <TableHead className="text-right text-[11px] font-semibold pr-5 sm:pr-8">Tutar</TableHead>
+                                            <TableHead className="text-right text-[11px] font-semibold pr-2 sm:pr-4">Tutar</TableHead>
+                                            {recordDrillActions && (
+                                                <TableHead className="text-right text-[11px] font-semibold whitespace-nowrap min-w-[8.5rem] pl-2 pr-5 sm:pr-8 align-middle">
+                                                    İşlem
+                                                </TableHead>
+                                            )}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {[...costs]
                                             .sort((a, b) => new Date(b.cost_date || 0) - new Date(a.cost_date || 0))
                                             .map((c, idx) => (
-                                                <TableRow key={c.id} className={cn('transition-colors hover:bg-muted/30', idx % 2 === 1 && 'bg-muted/[0.06]')}>
+                                                <TableRow
+                                                    key={c.id}
+                                                    className={cn(
+                                                        'transition-colors',
+                                                        idx % 2 === 1 && 'bg-muted/[0.06]',
+                                                        typeof recordDrillActions?.onView === 'function' && 'cursor-pointer hover:bg-muted/50 active:bg-muted/60',
+                                                    )}
+                                                    onClick={() => {
+                                                        if (typeof recordDrillActions?.onView === 'function') {
+                                                            recordDrillActions.onView(c);
+                                                        }
+                                                    }}
+                                                    title={
+                                                        typeof recordDrillActions?.onView === 'function'
+                                                            ? 'Kayda gitmek için tıklayın'
+                                                            : undefined
+                                                    }
+                                                >
                                                     <TableCell className="whitespace-nowrap text-xs tabular-nums pl-5 sm:pl-8">
                                                         {c.cost_date ? format(new Date(c.cost_date), 'dd.MM.yyyy', { locale: tr }) : '—'}
                                                     </TableCell>
                                                     <TableCell className="text-xs max-w-[160px] truncate">{c.cost_type || '—'}</TableCell>
                                                     <TableCell className="text-xs">
-                                                        {c.unit
-                                                            ? getCanonicalUnitLabel(c.unit, canonicalUnitCtx)
-                                                            : c.is_supplier_nc && c.supplier?.name
-                                                                ? c.supplier.name
-                                                                : '—'}
+                                                        {formatDrillRecordUnitLabel(c, canonicalUnitCtx)}
                                                     </TableCell>
-                                                    <TableCell className="text-xs max-w-[180px] truncate">{c.part_code || c.part_name || '—'}</TableCell>
+                                                    <TableCell className="text-xs max-w-[220px] truncate" title={formatDrillRecordPartLabel(c)}>
+                                                        {formatDrillRecordPartLabel(c)}
+                                                    </TableCell>
                                                     {vehicleContext && (
                                                         <>
                                                             <TableCell className="text-right text-xs tabular-nums">
@@ -935,9 +982,42 @@ const CostDrillDownModal = ({
                                                             </TableCell>
                                                         </>
                                                     )}
-                                                    <TableCell className="text-right text-xs font-semibold tabular-nums pr-5 sm:pr-8">
+                                                    <TableCell className="text-right text-xs font-semibold tabular-nums pr-2 sm:pr-4">
                                                         {formatCurrency(parseFloat(c.amount) || 0)}
                                                     </TableCell>
+                                                    {recordDrillActions && (
+                                                        <TableCell
+                                                            className="p-2 pl-3 pr-5 sm:pr-8 text-right align-middle"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                                                {typeof recordDrillActions.onEdit === 'function' && (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="secondary"
+                                                                        size="sm"
+                                                                        className="h-8 gap-1.5 px-2.5 text-xs font-medium"
+                                                                        onClick={() => recordDrillActions.onEdit(c)}
+                                                                    >
+                                                                        <Edit className="h-3.5 w-3.5 shrink-0" />
+                                                                        Düzenle
+                                                                    </Button>
+                                                                )}
+                                                                {typeof recordDrillActions.onRequestDelete === 'function' && (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-8 gap-1.5 px-2.5 text-xs font-medium text-destructive border-destructive/30 hover:bg-destructive/10"
+                                                                        onClick={() => recordDrillActions.onRequestDelete(c.id)}
+                                                                    >
+                                                                        <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                                                                        Sil
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
                                                 </TableRow>
                                             ))}
                                     </TableBody>

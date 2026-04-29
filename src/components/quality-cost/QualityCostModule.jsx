@@ -392,6 +392,32 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         setIsViewModalOpen(true);
     };
 
+    /** COPQ / grafik drill-down içinde Kayıtlar sekmesi: üst modal kapanmadan ikinci modal arkada kalıyordu */
+    const handleDrillRecordView = useCallback((cost) => {
+        setDetailModalOpen(false);
+        queueMicrotask(() => {
+            setSelectedCost(cost);
+            setSelectedLineItem(null);
+            setIsViewModalOpen(true);
+        });
+    }, []);
+
+    const handleDrillRecordEdit = useCallback((cost) => {
+        setDetailModalOpen(false);
+        queueMicrotask(() => {
+            setSelectedCost(cost);
+            setCostPrefill(null);
+            setProcessInspectionCostFlow(null);
+            clearProcessInspectionFlow(PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY);
+            setFormModalOpen(true);
+        });
+    }, []);
+
+    const handleDrillRecordDeleteRequest = useCallback((costId) => {
+        setDetailModalOpen(false);
+        queueMicrotask(() => setDeleteConfirmId(costId));
+    }, []);
+
     const buildAnalysisContextDescription = useCallback((cost, context) => {
         if (!context) return cost.description;
 
@@ -506,6 +532,10 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         } else {
             toast({ title: 'Başarılı!', description: 'Maliyet kaydı başarıyla silindi.' });
             await refreshQualityCosts?.();
+            setDetailModalContent((prev) => ({
+                ...prev,
+                costs: (prev.costs || []).filter((x) => x?.id !== costId),
+            }));
         }
     };
 
@@ -519,6 +549,21 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         });
         setDetailModalOpen(true);
     }, []);
+
+    const handleHurdaReworkPivotDrill = useCallback(
+        ({ title, costs }) => {
+            if (!costs?.length) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Kayıt bulunamadı',
+                    description: 'Bu kırılıma ait seçili döneme uyan kayıt yok veya kalemlerde eşleşme oluşmadı.',
+                });
+                return;
+            }
+            handleOpenDrillDownModal(title, costs);
+        },
+        [handleOpenDrillDownModal, toast],
+    );
 
     const handleYearCOPQDrillDown = useCallback(
         (year) => {
@@ -1063,6 +1108,11 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 onCreateNC={handleCreateNC}
                 onOpenNCView={onOpenNCView}
                 hasNCAccess={hasNCAccess}
+                recordDrillActions={{
+                    onView: handleDrillRecordView,
+                    onEdit: handleDrillRecordEdit,
+                    onRequestDelete: handleDrillRecordDeleteRequest,
+                }}
             />
             <UnitReportModal
                 isOpen={isReportModalOpen}
@@ -1436,6 +1486,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                         loading={loading}
                         dateRange={dateRange}
                         canonicalUnitCtx={canonicalUnitCtx}
+                        onHurdaReworkPivotDrill={handleHurdaReworkPivotDrill}
                     />
                     <CostTrendAnalysis costs={filteredCosts} />
                     <PartCostLeaders
