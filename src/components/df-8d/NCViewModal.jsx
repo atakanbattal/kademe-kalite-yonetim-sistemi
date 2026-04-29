@@ -68,7 +68,7 @@ import {
   stripDuplicateRootCauseFromProblemDescription,
   getNonConformityListTitle,
 } from '@/lib/df8dTextUtils';
-import { normalizeNcAttachmentPathsList } from '@/lib/df8dAttachmentUtils';
+import { normalizeNcAttachmentPathsList, getBucketForNcAttachmentPath } from '@/lib/df8dAttachmentUtils';
 
 // Varsayılan 8D başlıkları - Component dışında tanımlanmalı
 const getDefault8DTitle = (stepKey) => {
@@ -85,187 +85,149 @@ const getDefault8DTitle = (stepKey) => {
   return titles[stepKey] || stepKey;
 };
 
-// Tarayıcıda doğrudan render edilebilen resim formatları
-const BROWSER_RENDERABLE_IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
-// Resim olduğu bilinen ama tarayıcıda açılamayan formatlar (HEIC, TIFF vb.)
-const NON_RENDERABLE_IMAGE_EXT = /\.(heic|heif|tiff|tif|raw|cr2|nef|arw|dng)$/i;
-const ALL_IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|bmp|svg|heic|heif|tiff|tif|raw|cr2|nef|arw|dng)$/i;
-
-const EXT_TO_MIME = {
-  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-  gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
-  svg: 'image/svg+xml', heic: 'image/heic', heif: 'image/heif',
-  tiff: 'image/tiff', tif: 'image/tiff',
-};
-
 const AttachmentItem = ({ path, onPreview }) => {
-  const [signedUrl, setSignedUrl] = React.useState(null);
-  const [urlError, setUrlError] = React.useState(false);
+  const [displayUrl, setDisplayUrl] = React.useState(null);
   const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
   const [isLoading, setIsLoading] = React.useState(true);
+  const [pdfOpening, setPdfOpening] = React.useState(false);
   const [imageError, setImageError] = React.useState(false);
-  const [blobUrl, setBlobUrl] = React.useState(null);
+  const [fallbackAttempted, setFallbackAttempted] = React.useState(false);
+  const blobRef = React.useRef(null);
 
   React.useEffect(() => {
     let cancelled = false;
-    const fetchSignedUrl = async () => {
-      setIsLoading(true);
-      setUrlError(false);
+    const revoke = () => { if (blobRef.current) { URL.revokeObjectURL(blobRef.current); blobRef.current = null; } };
+
+    const load = () => {
+      revoke();
+      setDisplayUrl(null);
       setImageError(false);
-      setBlobUrl(null);
+      setFallbackAttempted(false);
+      setIsLoading(true);
+
+      const storagePath = String(path || '').trim();
+      if (!storagePath) { if (!cancelled) setIsLoading(false); return; }
+
+      const bucket = getBucketForNcAttachmentPath(storagePath);
+      // getPublicUrl: ağ isteği yapmaz, URL'yi anında oluşturur; public bucket'ta direkt çalışır
       try {
-        const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
-        if (cancelled) return;
-        if (!error && data?.signedUrl) {
-          setSignedUrl(data.signedUrl);
-        } else {
-          setUrlError(true);
+        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+        if (!cancelled && publicUrl) {
+          setDisplayUrl(publicUrl);
         }
-      } catch (err) {
-        if (!cancelled) setUrlError(true);
+      } catch (e) {
+        console.error('getPublicUrl hatası:', e);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
     };
 
-    if (path) fetchSignedUrl();
-    return () => { cancelled = true; };
+    if (path) load();
+    else setIsLoading(false);
+    return () => { cancelled = true; revoke(); };
   }, [path]);
 
-  // blob URL'i temizle
-  React.useEffect(() => {
-    return () => { if (blobUrl) window.URL.revokeObjectURL(blobUrl); };
-  }, [blobUrl]);
+  const storagePath = String(path || '').trim();
+  const isRenderableImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(storagePath);
+  const isNonRenderableImage = /\.(heic|heif|tiff|tif|raw|cr2|nef|arw|dng)$/i.test(storagePath);
+  const isPdf = /\.pdf$/i.test(storagePath);
+  const fileName = storagePath.split('/').pop() || 'ek';
+  const bucket = getBucketForNcAttachmentPath(storagePath);
 
-  const isRenderableImage = BROWSER_RENDERABLE_IMAGE_EXT.test(path);
-  const isNonRenderableImage = NON_RENDERABLE_IMAGE_EXT.test(path);
-  const isAnyImage = ALL_IMAGE_EXT.test(path);
-  const isPdf = /\.pdf$/i.test(path);
-  const fileName = path.split('/').pop();
-
-  // Resim yüklenemeyince blob olarak indirip dene
+  // Public URL yüklenemedi → bucket'tan blob indir, blob URL ile yeniden dene
   const handleImageError = async () => {
-    if (blobUrl) { setImageError(true); return; }
+    if (fallbackAttempted) { setImageError(true); return; }
+    setFallbackAttempted(true);
     try {
-      const { data, error } = await supabase.storage.from('df_attachments').download(path);
+      const { data, error } = await supabase.storage.from(bucket).download(storagePath);
       if (error || !data) { setImageError(true); return; }
-      const ext = (path.split('.').pop() || 'jpg').toLowerCase();
-      const mime = EXT_TO_MIME[ext] || 'image/jpeg';
-      const blob = new Blob([data], { type: mime });
-      const url = window.URL.createObjectURL(blob);
-      setBlobUrl(url);
+      const ext = (storagePath.split('.').pop() || 'jpg').toLowerCase();
+      const mimeMap = { jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',svg:'image/svg+xml' };
+      const blob = new Blob([data], { type: mimeMap[ext] || 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      blobRef.current = url;
+      setDisplayUrl(url);
       setImageError(false);
-    } catch {
-      setImageError(true);
-    }
+    } catch { setImageError(true); }
   };
 
   const handlePdfClick = async (e) => {
     e.preventDefault();
-    if (!path) return;
-    setIsLoading(true);
+    if (!storagePath) return;
+    setPdfOpening(true);
     try {
-      const { data, error } = await supabase.storage.from('df_attachments').download(path);
-      if (error) {
-        if (signedUrl) setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
-        return;
+      const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+      if (!error && data) {
+        const blob = new Blob([data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        setPdfViewerState({ isOpen: true, url, title: fileName });
+      } else if (displayUrl) {
+        setPdfViewerState({ isOpen: true, url: displayUrl, title: fileName });
       }
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      setPdfViewerState({ isOpen: true, url, title: fileName });
-    } catch {
-      if (signedUrl) setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { if (displayUrl) setPdfViewerState({ isOpen: true, url: displayUrl, title: fileName }); }
+    finally { setPdfOpening(false); }
   };
 
   const handlePdfViewerClose = () => {
-    if (pdfViewerState.url?.startsWith('blob:')) window.URL.revokeObjectURL(pdfViewerState.url);
+    if (pdfViewerState.url?.startsWith('blob:')) URL.revokeObjectURL(pdfViewerState.url);
     setPdfViewerState({ isOpen: false, url: null, title: null });
   };
 
-  // Yükleniyor
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 animate-pulse">
-        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="flex flex-col items-center justify-center gap-2 p-4 bg-muted/30 rounded-lg h-32">
+      <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+    </div>
+  );
 
-  // URL alınamadı
-  if (urlError) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center">
-        <Paperclip className="w-6 h-6 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
-        <span className="text-xs text-destructive">Dosya erişilemiyor</span>
-      </div>
-    );
-  }
+  if (!displayUrl) return (
+    <div className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center">
+      <Paperclip className="w-6 h-6 text-muted-foreground" />
+      <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+      <span className="text-xs text-destructive">Dosya erişilemiyor</span>
+    </div>
+  );
 
-  // HEIC/TIFF gibi tarayıcıda açılamayan resim formatları → indirme linki
-  if (isNonRenderableImage) {
-    return (
-      <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
-        <Image className="w-6 h-6 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
-        <span className="text-xs text-blue-500">İndir / Aç</span>
-      </a>
-    );
-  }
+  if (isNonRenderableImage) return (
+    <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
+      <Image className="w-6 h-6 text-muted-foreground" />
+      <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+      <span className="text-xs text-blue-500">İndir / Aç</span>
+    </a>
+  );
 
-  // Tarayıcıda render edilebilen resim
-  if (isRenderableImage && !imageError) {
-    const imgSrc = blobUrl || signedUrl;
-    return (
-      <div className="group cursor-pointer" onClick={() => onPreview(imgSrc)}>
-        <img
-          src={imgSrc}
-          alt="Ek"
-          className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105"
-          onError={handleImageError}
-        />
-      </div>
-    );
-  }
+  if (isRenderableImage && !imageError) return (
+    <div className="group cursor-pointer" onClick={() => onPreview(displayUrl)}>
+      <img
+        src={displayUrl}
+        alt="Ek"
+        className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105"
+        onError={handleImageError}
+      />
+    </div>
+  );
 
-  // Resim yükleme hatası (blob da denendi, hata devam ediyor)
-  if (isRenderableImage && imageError) {
-    return (
-      <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
-        <Image className="w-6 h-6 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
-        <span className="text-xs text-orange-500">Önizleme açılamıyor — İndir</span>
-      </a>
-    );
-  }
+  if (isRenderableImage && imageError) return (
+    <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
+      <Image className="w-6 h-6 text-muted-foreground" />
+      <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+      <span className="text-xs text-orange-500">Önizleme açılamıyor — İndir</span>
+    </a>
+  );
 
-  if (isPdf) {
-    return (
-      <>
-        <div
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors"
-          onClick={handlePdfClick}
-        >
+  if (isPdf) return (
+    <>
+      <div className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors" onClick={handlePdfClick}>
+        {pdfOpening ? <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" /> : <>
           <FileText className="w-6 h-6 text-muted-foreground" />
           <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
-        </div>
-        {pdfViewerState.isOpen && (
-          <PdfViewerModal
-            isOpen={pdfViewerState.isOpen}
-            setIsOpen={handlePdfViewerClose}
-            pdfUrl={pdfViewerState.url}
-            title={pdfViewerState.title}
-          />
-        )}
-      </>
-    );
-  }
+        </>}
+      </div>
+      {pdfViewerState.isOpen && <PdfViewerModal isOpen={pdfViewerState.isOpen} setIsOpen={handlePdfViewerClose} pdfUrl={pdfViewerState.url} title={pdfViewerState.title} />}
+    </>
+  );
 
   return (
-    <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
+    <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
       <Paperclip className="w-6 h-6 text-muted-foreground" />
       <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
     </a>
