@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,20 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
     const [uploading, setUploading] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [previewType, setPreviewType] = useState(null);
+
+    // Yarış koruması: handleUpload async; dosya yüklenirken kullanıcı başka kayda
+    // geçerse (Tabs key={recordId} → unmount) eski closure yeni kaydın formData'sına
+    // yazmasın. Upload sonunda ncId/stepKey snapshot'ı hâlâ geçerli mi diye bakarız.
+    const ncIdRef = useRef(ncId);
+    const stepKeyRef = useRef(stepKey);
+    useEffect(() => { ncIdRef.current = ncId; }, [ncId]);
+    useEffect(() => { stepKeyRef.current = stepKey; }, [stepKey]);
+
+    const isMountedRef = useRef(true);
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
     // Dosya adını normalize et ve güvenli hale getir
     const normalizeFileName = (fileName) => {
@@ -100,10 +114,11 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
         return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
     };
 
+    // Üst kayıt değiştiğinde props.evidenceFiles boşaldığında yerel state'i de temizle.
+    // Eski hâli sadece length>0 olduğunda kopyalıyordu; bu, kayıttan kayda geçişlerde
+    // önceki kaydın listesinin görünür kalmasına yol açabiliyordu.
     useEffect(() => {
-        if (evidenceFiles && evidenceFiles.length > 0) {
-            setFiles(evidenceFiles);
-        }
+        setFiles(Array.isArray(evidenceFiles) ? evidenceFiles : []);
     }, [evidenceFiles]);
 
     const handleFileSelect = (e) => {
@@ -154,6 +169,12 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
 
     const handleUpload = async () => {
         if (files.length === 0) return;
+
+        // Upload başlangıcındaki kayıt/adım kimliklerini sabitle. Async tamamlanma
+        // sonrasında prop hâlâ aynı mı diye bunlarla karşılaştıracağız; aksi halde
+        // başka bir kaydın formData'sına yazmamak için sessizce çıkarız.
+        const startNcId = ncId;
+        const startStepKey = stepKey;
 
         setUploading(true);
         const uploadedFiles = [];
@@ -243,6 +264,26 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                 });
             }
 
+            // Yarış koruması: upload sırasında kullanıcı başka kayda geçtiyse
+            // (ncId/stepKey değiştiyse) ya da component unmount olduysa yeni kaydın
+            // formData'sını kirletme; yüklenen dosyalar storage'da startNcId klasöründe
+            // kalır, ama yanlış kayda iliştirilmez.
+            const stillCurrent =
+                isMountedRef.current &&
+                ncIdRef.current === startNcId &&
+                stepKeyRef.current === startStepKey;
+
+            if (!stillCurrent) {
+                console.warn('[EvidenceUploader] kayıt/adım değişti, yükleme sonucu yutuldu', {
+                    startNcId,
+                    currentNcId: ncIdRef.current,
+                    startStepKey,
+                    currentStepKey: stepKeyRef.current,
+                    fileCount: uploadedFiles.length,
+                });
+                return;
+            }
+
             setFiles(uploadedFiles);
             if (onEvidenceChange) {
                 onEvidenceChange(uploadedFiles);
@@ -253,18 +294,23 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                 description: `${uploadedFiles.length} dosya yüklendi.`
             });
         } catch (error) {
+            if (!isMountedRef.current) return;
             toast({
                 variant: 'destructive',
                 title: 'Yükleme hatası',
                 description: error.message
             });
         } finally {
-            setUploading(false);
+            if (isMountedRef.current) {
+                setUploading(false);
+            }
         }
     };
 
     const handleRemove = async (index) => {
         const fileToRemove = files[index];
+        const startNcId = ncId;
+        const startStepKey = stepKey;
 
         if (fileToRemove.uploaded && fileToRemove.path) {
             try {
@@ -274,6 +320,7 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
 
                 if (error) throw error;
             } catch (error) {
+                if (!isMountedRef.current) return;
                 toast({
                     variant: 'destructive',
                     title: 'Silme hatası',
@@ -282,6 +329,14 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                 return;
             }
         }
+
+        // Aynı yarış koruması: silme tamamlanırken kullanıcı başka kayda geçtiyse
+        // yeni kaydın evidenceFiles listesine dokunma.
+        const stillCurrent =
+            isMountedRef.current &&
+            ncIdRef.current === startNcId &&
+            stepKeyRef.current === startStepKey;
+        if (!stillCurrent) return;
 
         const newFiles = files.filter((_, i) => i !== index);
         setFiles(newFiles);

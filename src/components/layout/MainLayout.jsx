@@ -515,6 +515,90 @@ const MainLayout = () => {
         }
         if (dbData.type === 'MDI') dbData.nc_number = null;
 
+        // Yarış / kayıt-arası sızıntı koruması (savunma katmanı):
+        // EvidenceUploader'daki async upload bittiğinde başka kayda geçilmiş olsaydı,
+        // dosya yolu `nc-evidence/{eski-id}/...` olduğu hâlde yeni kaydın
+        // eight_d_progress JSONB'sine yazılabilirdi. Burada güncel kaydın id'sine
+        // ait olmayan kanıt yollarını kaydetmeden önce ayıkla. attachments için de
+        // aynısını uygula. Yenilenen kayıtlarda (insert) henüz id netleşmediği için
+        // sadece edit yolunda doğrulama yapıyoruz.
+        const expectedRecordId = isEditMode ? id : (dbData.id || null);
+        if (expectedRecordId) {
+            const dropped = [];
+            const evidencePrefix = `nc-evidence/${expectedRecordId}/`;
+            const attachmentPrefix = `${expectedRecordId}/`;
+
+            // attachments: `{recordId}/...` formatında olmalı
+            if (Array.isArray(dbData.attachments)) {
+                const before = dbData.attachments.length;
+                dbData.attachments = dbData.attachments.filter((entry) => {
+                    const p = typeof entry === 'string' ? entry : entry?.path;
+                    if (!p) return true; // tipi anlaşılmıyorsa dokunma
+                    if (p.startsWith(attachmentPrefix)) return true;
+                    // Mevcut kayıtlardaki "klasör id farklı" durumlar (tarihsel) için:
+                    // kökünde uuid bulunmayan eski yolları (legacy) silme.
+                    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//i.test(p)) return true;
+                    dropped.push({ kind: 'attachment', path: p });
+                    return false;
+                });
+                if (before !== dbData.attachments.length) {
+                    uploadedFilePaths = dbData.attachments;
+                }
+            }
+            if (Array.isArray(dbData.closing_attachments)) {
+                dbData.closing_attachments = dbData.closing_attachments.filter((entry) => {
+                    const p = typeof entry === 'string' ? entry : entry?.path;
+                    if (!p) return true;
+                    // Kapanış ekleri bucket'ı 'nc_closing_attachments/{recordId}/...' biçimindedir
+                    if (p.startsWith(attachmentPrefix)) return true;
+                    if (p.startsWith(`nc_closing_attachments/${expectedRecordId}/`)) return true;
+                    if (!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(p)) return true;
+                    dropped.push({ kind: 'closing_attachment', path: p });
+                    return false;
+                });
+            }
+
+            // eight_d_progress[stepKey].evidenceFiles: yol `nc-evidence/{recordId}/...`
+            if (dbData.eight_d_progress && typeof dbData.eight_d_progress === 'object') {
+                Object.keys(dbData.eight_d_progress).forEach((stepKey) => {
+                    const step = dbData.eight_d_progress[stepKey];
+                    if (!step || !Array.isArray(step.evidenceFiles)) return;
+                    step.evidenceFiles = step.evidenceFiles.filter((f) => {
+                        const p = typeof f === 'string' ? f : f?.path;
+                        if (!p) return true;
+                        if (p.startsWith(evidencePrefix)) return true;
+                        // Eski 'nc-evidence/unknown/...' yollarını koru (yeni kayıttan gelmiş olabilir)
+                        if (p.startsWith('nc-evidence/unknown/')) return true;
+                        // UUID içermeyen tarihsel yollar dokunma
+                        if (!/nc-evidence\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//i.test(p)) return true;
+                        dropped.push({ kind: 'evidence', stepKey, path: p });
+                        return false;
+                    });
+                });
+                // eight_d_steps senkron tutulduğu için onu da yeniden üret
+                if (dbData.eight_d_steps && typeof dbData.eight_d_steps === 'object') {
+                    Object.keys(dbData.eight_d_progress).forEach((stepKey) => {
+                        if (dbData.eight_d_steps[stepKey]) {
+                            dbData.eight_d_steps[stepKey].evidenceFiles =
+                                dbData.eight_d_progress[stepKey]?.evidenceFiles || [];
+                        }
+                    });
+                }
+            }
+
+            if (dropped.length > 0) {
+                console.warn('[handleSaveNC] yabancı kayıt id\'sine ait dosya yolları kaydetmeden önce ayıklandı', {
+                    expectedRecordId,
+                    dropped,
+                });
+                toast({
+                    variant: 'warning',
+                    title: 'Uyarı',
+                    description: `${dropped.length} adet kanıt/dosya bağlantısı bu kayda ait olmadığı için temizlendi. (Detay konsolda)`,
+                });
+            }
+        }
+
         let result, mainNCData;
         if (isEditMode) {
             delete dbData.user_id;
