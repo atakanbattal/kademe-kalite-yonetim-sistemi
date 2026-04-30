@@ -48,7 +48,7 @@ import {
   CircleDot,
 } from 'lucide-react';
 import Df8dImageLightbox from '@/components/df-8d/Df8dImageLightbox';
-import { RejectModal } from '@/components/df-8d/modals/ActionModals';
+import { EditRejectionDetailsModal } from '@/components/df-8d/modals/ActionModals';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RevisionHistory from './RevisionHistory';
@@ -68,7 +68,13 @@ import {
   stripDuplicateRootCauseFromProblemDescription,
   getNonConformityListTitle,
 } from '@/lib/df8dTextUtils';
-import { normalizeNcAttachmentPathsList } from '@/lib/df8dAttachmentUtils';
+import {
+  normalizeNcAttachmentPath,
+  normalizeNcAttachmentPathsList,
+  fetchNcAttachmentAsBlob,
+  prepareNcAttachmentPreviewBlob,
+  getBucketForNcAttachmentPath,
+} from '@/lib/df8dAttachmentUtils';
 
 // Varsayılan 8D başlıkları - Component dışında tanımlanmalı
 const getDefault8DTitle = (stepKey) => {
@@ -86,62 +92,132 @@ const getDefault8DTitle = (stepKey) => {
 };
 
 const AttachmentItem = ({ path, onPreview }) => {
-  const [signedUrl, setSignedUrl] = React.useState(null);
+  const [displayUrl, setDisplayUrl] = React.useState(null);
   const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [pdfOpening, setPdfOpening] = React.useState(false);
   const [imageError, setImageError] = React.useState(false);
+  const [blobLooksImage, setBlobLooksImage] = React.useState(false);
+  const [noInlineImgPreview, setNoInlineImgPreview] = React.useState(false);
+  // fallbackAttempted: public URL başarısız olunca blob indirme denendi mi
+  const [fallbackAttempted, setFallbackAttempted] = React.useState(false);
+  const blobPreviewRef = React.useRef(null);
 
   React.useEffect(() => {
-    const fetchSignedUrl = async () => {
+    let cancelled = false;
+
+    const revokeBlob = () => {
+      if (blobPreviewRef.current) {
+        URL.revokeObjectURL(blobPreviewRef.current);
+        blobPreviewRef.current = null;
+      }
+    };
+
+    const loadPreview = async () => {
+      revokeBlob();
+      setDisplayUrl(null);
+      setImageError(false);
+      setFallbackAttempted(false);
+      setIsLoading(true);
+      setBlobLooksImage(false);
+      setNoInlineImgPreview(false);
+
+      const storagePath = normalizeNcAttachmentPath(path) || '';
+      if (!storagePath) {
+        if (!cancelled) setIsLoading(false);
+        return;
+      }
+
+      const bucket = getBucketForNcAttachmentPath(storagePath);
+      const isImgPath = /\.(jpg|jpeg|png|gif|webp|bmp|svg|tiff|tif|heic|heif|avif)$/i.test(storagePath);
+      const isHeicFamily = /\.(heic|heif|tif|tiff)$/i.test(storagePath);
+      const isPdfPath = /\.pdf$/i.test(storagePath);
+
+      // Resimler için: getPublicUrl anında URL üretir (ağ isteği yok), public bucket'ta direkt çalışır.
+      // Eğer bucket private ise img onError → blob fallback tetiklenir.
+      if (isImgPath && !isPdfPath) {
+        try {
+          const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+          if (!cancelled && publicUrl) {
+            setBlobLooksImage(!isHeicFamily);
+            setNoInlineImgPreview(isHeicFamily);
+            setDisplayUrl(publicUrl);
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          // getPublicUrl hata verirse blob yoluna geç
+        }
+      }
+
+      // PDF ve diğer dosyalar (veya getPublicUrl başarısız olduysa): blob indir
       try {
-        const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
-        if (!error && data?.signedUrl) {
-          setSignedUrl(data.signedUrl);
+        const { blob, error } = await fetchNcAttachmentAsBlob(supabase, path);
+        if (cancelled) return;
+        if (blob && blob.size > 0) {
+          const prep = await prepareNcAttachmentPreviewBlob(blob, storagePath);
+          if (cancelled) return;
+          const url = URL.createObjectURL(prep.outBlob);
+          blobPreviewRef.current = url;
+          setBlobLooksImage(prep.blobLooksImage);
+          setNoInlineImgPreview(prep.noInlineImgPreview);
+          setDisplayUrl(url);
+        } else {
+          // Blob da başarısız — PDF için public URL'i son çare olarak dene
+          if (isPdfPath) {
+            const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+            if (!cancelled && publicUrl) setDisplayUrl(publicUrl);
+          }
+          if (error) console.error('Ek önizleme:', storagePath, error.message);
         }
       } catch (err) {
-        console.error('Signed URL fetch error:', err);
+        console.error('Ek önizleme yüklenemedi:', storagePath, err);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     if (path) {
-      fetchSignedUrl();
-      setImageError(false); // Reset error state when path changes
+      loadPreview();
+    } else {
+      setIsLoading(false);
     }
+
+    return () => {
+      cancelled = true;
+      revokeBlob();
+    };
   }, [path]);
 
-  // Genişletilmiş resim formatları desteği
-  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg|tiff|tif|heic|heif)$/i.test(path);
-  const isPdf = /\.pdf$/i.test(path);
-  const fileName = path.split('/').pop();
+  const pathStr = normalizeNcAttachmentPath(path) || (typeof path === 'string' ? path : '');
+  const pathSuggestsImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg|tiff|tif|heic|heif|avif)$/i.test(pathStr);
+  const isPdf = /\.pdf$/i.test(pathStr);
+  const fileName = pathStr.split('/').pop() || 'ek';
 
   const handlePdfClick = async (e) => {
     e.preventDefault();
     if (!path) return;
 
-    setIsLoading(true);
+    setPdfOpening(true);
     try {
-      // PDF'i blob olarak indir ve blob URL oluştur
-      const { data, error } = await supabase.storage.from('df_attachments').download(path);
-      if (error) {
-        console.error('PDF indirme hatası:', error);
-        // Hata durumunda signed URL'i kullan
-        if (signedUrl) {
-          setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
-        }
+      const { blob, error } = await fetchNcAttachmentAsBlob(supabase, path);
+      if (blob && blob.size > 0) {
+        const pdfBlob = String(blob.type || '').includes('pdf') ? blob : new Blob([blob], { type: 'application/pdf' });
+        const blobUrl = window.URL.createObjectURL(pdfBlob);
+        setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
         return;
       }
-
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const blobUrl = window.URL.createObjectURL(blob);
-      setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
+      console.error('PDF indirme hatası:', error);
+      if (displayUrl) {
+        setPdfViewerState({ isOpen: true, url: displayUrl, title: fileName });
+      }
     } catch (err) {
       console.error('PDF açılırken hata:', err);
-      // Hata durumunda signed URL'i kullan
-      if (signedUrl) {
-        setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+      if (displayUrl) {
+        setPdfViewerState({ isOpen: true, url: displayUrl, title: fileName });
       }
     } finally {
-      setIsLoading(false);
+      setPdfOpening(false);
     }
   };
 
@@ -153,19 +229,96 @@ const AttachmentItem = ({ path, onPreview }) => {
     setPdfViewerState({ isOpen: false, url: null, title: null });
   };
 
-  // Resim yükleme hatası durumunda
-  const handleImageError = () => {
-    console.error('Resim yüklenemedi:', path);
-    setImageError(true);
+  // Public URL yüklenemedi → blob indirmeyi dene, o da başarısız olursa hata göster
+  const handleImageError = async () => {
+    if (fallbackAttempted) { setImageError(true); return; }
+    setFallbackAttempted(true);
+    const storagePath = normalizeNcAttachmentPath(path) || '';
+    try {
+      const { blob } = await fetchNcAttachmentAsBlob(supabase, path);
+      if (blob && blob.size > 0) {
+        const prep = await prepareNcAttachmentPreviewBlob(blob, storagePath);
+        const url = URL.createObjectURL(prep.outBlob);
+        blobPreviewRef.current = url;
+        setBlobLooksImage(prep.blobLooksImage);
+        setNoInlineImgPreview(prep.noInlineImgPreview);
+        setDisplayUrl(url);
+      } else {
+        setImageError(true);
+      }
+    } catch {
+      setImageError(true);
+    }
   };
 
-  if (!signedUrl && !isLoading) return null;
-
-  if (isImage && !imageError) {
+  if (isLoading) {
     return (
-      <div className="group cursor-pointer" onClick={() => onPreview(signedUrl)}>
+      <div className="flex flex-col items-center justify-center gap-2 p-4 bg-muted/30 rounded-lg h-32">
+        <Loader2 className="h-6 w-6 text-muted-foreground animate-spin shrink-0" aria-hidden />
+        <span className="text-xs text-muted-foreground truncate w-full text-center">{fileName}</span>
+      </div>
+    );
+  }
+
+  if (!displayUrl && isPdf) {
+    return (
+      <>
+        <div
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors"
+          onClick={handlePdfClick}
+        >
+          {pdfOpening ? (
+            <Loader2 className="h-6 w-6 text-muted-foreground animate-spin shrink-0" aria-hidden />
+          ) : (
+            <>
+              <FileText className="w-6 h-6 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+            </>
+          )}
+        </div>
+        {pdfViewerState.isOpen && (
+          <PdfViewerModal
+            isOpen={pdfViewerState.isOpen}
+            setIsOpen={handlePdfViewerClose}
+            pdfUrl={pdfViewerState.url}
+            title={pdfViewerState.title}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (!displayUrl && pathSuggestsImage && !isPdf) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all">
+        <Image className="w-6 h-6 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+        <span className="text-xs text-orange-500">Önizleme yüklenemedi</span>
+      </div>
+    );
+  }
+
+  if (!displayUrl) return null;
+
+  if (displayUrl && noInlineImgPreview) {
+    return (
+      <a
+        href={displayUrl}
+        download={fileName}
+        className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors"
+      >
+        <Image className="w-6 h-6 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+        <span className="text-xs text-primary font-medium">HEIC / önizleme yok — indirmek için tıklayın</span>
+      </a>
+    );
+  }
+
+  if (blobLooksImage && !imageError) {
+    return (
+      <div className="group cursor-pointer" onClick={() => onPreview(displayUrl)}>
         <img
-          src={signedUrl}
+          src={displayUrl}
           alt="Ek"
           className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105"
           onError={handleImageError}
@@ -175,9 +328,9 @@ const AttachmentItem = ({ path, onPreview }) => {
   }
 
   // Resim yükleme hatası veya desteklenmeyen format durumunda dosya ikonu göster
-  if (isImage && imageError) {
+  if (blobLooksImage && imageError) {
     return (
-      <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
+      <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
         <Image className="w-6 h-6 text-muted-foreground" />
         <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
         <span className="text-xs text-orange-500">Önizleme yüklenemedi</span>
@@ -192,8 +345,8 @@ const AttachmentItem = ({ path, onPreview }) => {
           className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors"
           onClick={handlePdfClick}
         >
-          {isLoading ? (
-            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+          {pdfOpening ? (
+            <Loader2 className="h-6 w-6 text-muted-foreground animate-spin shrink-0" aria-hidden />
           ) : (
             <>
               <FileText className="w-6 h-6 text-muted-foreground" />
@@ -214,7 +367,7 @@ const AttachmentItem = ({ path, onPreview }) => {
   }
 
   return (
-    <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
+    <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
       <Paperclip className="w-6 h-6 text-muted-foreground" />
       <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
     </a>
@@ -281,11 +434,10 @@ function getHeaderTitleParts(record) {
   };
 }
 
-const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdit }) => {
+const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRecordUpdated }) => {
   const { toast } = useToast();
   const [lightboxUrl, setLightboxUrl] = useState(null);
-  const [isRejectModalOpen, setRejectModalOpen] = useState(false);
-  const [rejectionNotes, setRejectionNotes] = useState('');
+  const [isEditRejectionOpen, setIsEditRejectionOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [supplierName, setSupplierName] = useState(null);
 
@@ -378,6 +530,17 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
       })
       : '-';
 
+  const formatDateTime = (dateString) =>
+    dateString
+      ? new Date(dateString).toLocaleString('tr-TR', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : '-';
+
   const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value);
@@ -391,11 +554,6 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
       default: return <Badge variant="secondary">{priority}</Badge>;
     }
   };
-
-  const handleRejectConfirm = () => {
-    if (onReject) onReject(record, rejectionNotes);
-    setRejectModalOpen(false);
-  }
 
   const closingNotesViewTitle =
     record.status === 'Kapatıldı'
@@ -483,12 +641,11 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   return (
     <>
       <Df8dImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-      <RejectModal
-        isOpen={isRejectModalOpen}
-        setIsOpen={setRejectModalOpen}
-        rejectionNotes={rejectionNotes}
-        setRejectionNotes={setRejectionNotes}
-        onConfirm={handleRejectConfirm}
+      <EditRejectionDetailsModal
+        isOpen={isEditRejectionOpen}
+        setIsOpen={setIsEditRejectionOpen}
+        record={record}
+        onSaved={() => onNcRecordUpdated?.(record.id)}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent
@@ -1001,12 +1158,32 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                     <>
                       <Separator />
                       <div>
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-destructive">
-                          <XCircle className="h-5 w-5" />
-                          Reddetme Detayları
-                        </h3>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                          <h3 className="text-lg font-semibold flex items-center gap-2 text-destructive">
+                            <XCircle className="h-5 w-5 shrink-0" />
+                            Reddetme Detayları
+                          </h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="border-red-200 text-destructive hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/40"
+                            onClick={() => setIsEditRejectionOpen(true)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Reddetme bilgilerini düzenle
+                          </Button>
+                        </div>
                         <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900">
-                          <CardContent className="p-6">
+                          <CardContent className="p-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <InfoCard
+                                icon={CalendarDays}
+                                label="Reddetme Tarihi"
+                                value={formatDateTime(record.rejected_at)}
+                                variant="danger"
+                              />
+                            </div>
                             <InfoCard
                               icon={XCircle}
                               label="Reddetme Gerekçesi"
@@ -1051,11 +1228,6 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
 
           <DialogFooter className="flex-shrink-0 flex-col gap-3 border-t bg-muted/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="flex flex-wrap gap-2">
-              {onReject && (
-                <Button variant="destructive" onClick={() => setRejectModalOpen(true)}>
-                  <XCircle className="mr-2 h-4 w-4" /> Reddet
-                </Button>
-              )}
               {onEdit && (
                 <Button variant="secondary" onClick={() => onEdit(record)}>
                   <Edit className="mr-2 h-4 w-4" /> Düzenle

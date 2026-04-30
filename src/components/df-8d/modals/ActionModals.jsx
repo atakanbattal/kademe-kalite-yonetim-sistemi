@@ -11,6 +11,120 @@ import { UploadCloud, File as FileIcon, X as XIcon } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 
+const isoToDatetimeLocalValue = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** Reddedilmiş DF / 8D kayıtlarında gerekçe ve reddetme tarihini günceller (durumu değiştirmez). */
+export const EditRejectionDetailsModal = ({ isOpen, setIsOpen, record, onSaved }) => {
+    const { toast } = useToast();
+    const [reason, setReason] = useState('');
+    const [rejectedAtLocal, setRejectedAtLocal] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen || !record) return;
+        setReason(record.rejection_reason || '');
+        const fallback = record.rejected_at || record.created_at || new Date().toISOString();
+        setRejectedAtLocal(isoToDatetimeLocalValue(record.rejected_at) || isoToDatetimeLocalValue(fallback));
+    }, [isOpen, record?.id, record?.rejection_reason, record?.rejected_at, record?.created_at]);
+
+    const handleSave = async () => {
+        const trimmed = (reason || '').trim();
+        if (!trimmed) {
+            toast({ variant: 'destructive', title: 'Açıklama gerekli', description: 'Reddetme gerekçesi boş bırakılamaz.' });
+            return;
+        }
+        if (!rejectedAtLocal) {
+            toast({ variant: 'destructive', title: 'Tarih gerekli', description: 'Reddetme tarihi seçin.' });
+            return;
+        }
+        const rejectedIso = new Date(rejectedAtLocal).toISOString();
+        if (Number.isNaN(new Date(rejectedIso).getTime())) {
+            toast({ variant: 'destructive', title: 'Geçersiz tarih', description: 'Reddetme tarihini kontrol edin.' });
+            return;
+        }
+        setIsSubmitting(true);
+        const { data, error } = await supabase
+            .from('non_conformities')
+            .update({
+                rejection_reason: trimmed,
+                rejected_at: rejectedIso,
+            })
+            .eq('id', record.id)
+            .eq('status', 'Reddedildi')
+            .select('id, rejection_reason, rejected_at')
+            .maybeSingle();
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Kaydedilemedi', description: error.message });
+            setIsSubmitting(false);
+            return;
+        }
+        if (!data) {
+            toast({
+                variant: 'destructive',
+                title: 'Güncellenemedi',
+                description: 'Kayıt reddedilmiş durumda değil veya erişim reddedildi.',
+            });
+            setIsSubmitting(false);
+            return;
+        }
+
+        toast({ title: 'Güncellendi', description: 'Reddetme bilgileri kaydedildi.' });
+        if (onSaved) onSaved({ rejection_reason: data.rejection_reason, rejected_at: data.rejected_at });
+        setIsOpen(false);
+        setIsSubmitting(false);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Reddetme bilgilerini düzenle</DialogTitle>
+                    <DialogDescription>
+                        DF ve 8D kayıtlarında reddetme gerekçesi ve reddetme tarihini güncelleyin.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="edit_rejection_reason">Reddetme gerekçesi <span className="text-red-500">*</span></Label>
+                        <Textarea
+                            id="edit_rejection_reason"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            placeholder="Reddetme nedenini açıklayın."
+                            autoFormat={false}
+                            rows={4}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit_rejected_at">Reddetme tarihi ve saati <span className="text-red-500">*</span></Label>
+                        <Input
+                            id="edit_rejected_at"
+                            type="datetime-local"
+                            value={rejectedAtLocal}
+                            onChange={(e) => setRejectedAtLocal(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
+                        İptal
+                    </Button>
+                    <Button type="button" onClick={handleSave} disabled={isSubmitting}>
+                        {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 export const RejectModal = ({ isOpen, setIsOpen, record, onSave }) => {
     const { toast } = useToast();
     const [notes, setNotes] = useState('');

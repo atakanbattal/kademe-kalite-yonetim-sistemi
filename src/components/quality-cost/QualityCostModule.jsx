@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, Search, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CostFormModal } from '@/components/quality-cost/CostFormModal';
 import CostAnalytics from '@/components/quality-cost/CostAnalytics';
-import CostFilters from '@/components/quality-cost/CostFilters';
+import QualityCostFilterToolbar from '@/components/quality-cost/QualityCostFilterToolbar';
 import VehicleCostBreakdown from '@/components/quality-cost/VehicleCostBreakdown';
 import CostDrillDownModal from '@/components/quality-cost/CostDrillDownModal';
 import CostForecaster from '@/components/quality-cost/CostForecaster';
@@ -25,7 +25,6 @@ import { formatVehicleMetricValue } from '@/components/quality-cost/vehicleMetri
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useData } from '@/contexts/DataContext';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +39,8 @@ import {
     costMatchesUnitUsingIndex,
     createCanonicalUnitCaches,
 } from '@/lib/qualityCostUnitGroups';
+/** Final QC / üretim hattı kaynaklı quality_cost kayıtları (otomatik veya araç finalize akışından) */
+const FINAL_FAULT_SOURCE_TYPES = ['produced_vehicle', 'produced_vehicle_final_faults', 'produced_vehicle_manual'];
 
 const parseLocalDayStart = (isoDate) => {
     if (!isoDate) return null;
@@ -148,7 +149,12 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [unitFilter, setUnitFilter] = useState('all');
     const [sourceFilter, setSourceFilter] = useState('all');
-    const [costCategoryFilter, setCostCategoryFilter] = useState('all'); // 'all' | 'internal' | 'external' | 'prevention'
+    const [costTypeDetailFilter, setCostTypeDetailFilter] = useState('all');
+    const [recordModifiers, setRecordModifiers] = useState({
+        supplier: false,
+        indirect: false,
+        invoice: false,
+    });
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
     const [isCreateNCModalOpen, setIsCreateNCModalOpen] = useState(false);
@@ -161,10 +167,16 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [vehicleTargetsRefreshKey, setVehicleTargetsRefreshKey] = useState(0);
 
+    const resetSecondaryQualityCostFilters = useCallback(() => {
+        setUnitFilter('all');
+        setSourceFilter('all');
+        setCostTypeDetailFilter('all');
+        setRecordModifiers({ supplier: false, indirect: false, invoice: false });
+    }, []);
+
     const handleVehicleTargetsApplied = useCallback(() => {
         setVehicleTargetsRefreshKey((k) => k + 1);
     }, []);
-
     // Proses muayenesi Ret çözüm akışı: Hurda Maliyeti formunu ön-doldurulmuş aç.
     useEffect(() => {
         const flow = readProcessInspectionFlow(PROCESS_INSPECTION_SCRAP_COST_FLOW_KEY);
@@ -203,11 +215,22 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             dateRange,
             unitFilter,
             sourceFilter,
-            costCategoryFilter,
+            costTypeDetailFilter,
+            recordModifiers,
             searchTerm,
             sortConfig,
         }),
-        [dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]
+        [
+            dateRange,
+            unitFilter,
+            sourceFilter,
+            costTypeDetailFilter,
+            recordModifiers.supplier,
+            recordModifiers.indirect,
+            recordModifiers.invoice,
+            searchTerm,
+            sortConfig,
+        ]
     );
     const deferredFilterInputs = useDeferredValue(filterInputs);
     /** `filterInputs !== deferredFilterInputs` → güncellenmiş seçim yazılmış, liste/grafik hâlen eski (hesap devam ediyor) */
@@ -217,7 +240,10 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         const dr = deferredFilterInputs.dateRange;
         const uf = deferredFilterInputs.unitFilter;
         const sf = deferredFilterInputs.sourceFilter;
-        const ccf = deferredFilterInputs.costCategoryFilter;
+        const ctf = deferredFilterInputs.costTypeDetailFilter;
+        const rmSup = deferredFilterInputs.recordModifiers.supplier;
+        const rmInd = deferredFilterInputs.recordModifiers.indirect;
+        const rmInv = deferredFilterInputs.recordModifiers.invoice;
         const st = deferredFilterInputs.searchTerm;
         const sc = deferredFilterInputs.sortConfig;
 
@@ -239,32 +265,29 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
 
         if (sf !== 'all') {
-            if (sf === 'produced_vehicle') {
-                costs = costs.filter((cost) =>
-                    cost.source_type === 'produced_vehicle' ||
-                    cost.source_type === 'produced_vehicle_final_faults' ||
-                    cost.source_type === 'produced_vehicle_manual'
-                );
+            if (sf === 'final_fault_production') {
+                costs = costs.filter((cost) => FINAL_FAULT_SOURCE_TYPES.includes(cost.source_type));
             } else {
                 costs = costs.filter((cost) => cost.source_type === sf);
             }
         }
 
-        // COQ Kategori filtresi: İç Hata, Dış Hata, Önleme, Değerlendirme
-        if (ccf !== 'all') {
-            const internalTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'Final Hataları Maliyeti', 'İç Hata Maliyeti'];
-            const externalTypes = ['Dış Hata Maliyeti'];
-            const preventionTypes = ['Önleme Maliyeti'];
+        if (ctf !== 'all') {
+            costs = costs.filter((cost) => (cost.cost_type || '') === ctf);
+        }
+
+        if (rmSup || rmInd || rmInv) {
             costs = costs.filter((cost) => {
-                const ct = cost.cost_type || '';
-                const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
-                if (ccf === 'internal') return internalTypes.includes(ct) || isSupplierCost;
-                if (ccf === 'external') return externalTypes.includes(ct);
-                if (ccf === 'prevention') return preventionTypes.includes(ct);
-                if (ccf === 'supplier') return isSupplierCost;
-                if (ccf === 'indirect') return (cost.indirect_costs && Array.isArray(cost.indirect_costs) && cost.indirect_costs.length > 0);
-                if (ccf === 'invoice') return (cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0);
-                return true;
+                const isSupplierCost = Boolean(cost.is_supplier_nc && cost.supplier_id);
+                const hasIndirect =
+                    cost.indirect_costs && Array.isArray(cost.indirect_costs) && cost.indirect_costs.length > 0;
+                const hasInvoice =
+                    cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0;
+                return (
+                    (rmSup && isSupplierCost) ||
+                    (rmInd && hasIndirect) ||
+                    (rmInv && hasInvoice)
+                );
             });
         }
 
@@ -307,6 +330,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
         return costs;
     }, [qualityCosts, deferredFilterInputs, canonCaches, costUnitFilterKeyIndex]);
+
 
     const copqYearTotals = useMemo(() => {
         const cy = new Date().getFullYear();
@@ -379,7 +403,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     // Filtre değiştiğinde limiti sıfırla
     useEffect(() => {
         setDisplayLimit(100);
-    }, [dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]);
+    }, [dateRange, unitFilter, sourceFilter, costTypeDetailFilter, recordModifiers.supplier, recordModifiers.indirect, recordModifiers.invoice, searchTerm, sortConfig]);
 
     const handleOpenFormModal = (cost = null) => {
         setSelectedCost(cost);
@@ -1224,73 +1248,24 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 </DialogContent>
             </Dialog>
 
-            <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4 space-y-3">
-                <div className="min-w-0">
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                        İç/dış hata, önleme ve değerlendirme maliyetlerini analiz edin. Aşağıdaki süzgeçler tüm sekmelere uygulanır.
-                    </p>
-                </div>
-                <div className="flex flex-col xl:flex-row xl:flex-wrap gap-2 xl:items-center">
-                    <CostFilters dateRange={dateRange} setDateRange={setDateRange} />
-                    <Select value={costCategoryFilter} onValueChange={setCostCategoryFilter}>
-                        <SelectTrigger className="w-full min-[400px]:w-[160px]">
-                            <SelectValue placeholder="Kategori" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tüm Kategoriler</SelectItem>
-                            <SelectItem value="internal">İç Hata</SelectItem>
-                            <SelectItem value="external">Dış Hata</SelectItem>
-                            <SelectItem value="prevention">Önleme</SelectItem>
-                            <SelectItem value="supplier">Tedarikçi Kaynaklı</SelectItem>
-                            <SelectItem value="indirect">Dolaylı Maliyetler</SelectItem>
-                            <SelectItem value="invoice">Faturalı Kayıtlar</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={unitFilter} onValueChange={setUnitFilter}>
-                        <SelectTrigger className="w-full min-[400px]:w-[170px]">
-                            <SelectValue placeholder="Birim (birleşik)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tüm Birimler</SelectItem>
-                            {unitFilterOptions.map(({ key, label }) => (
-                                <SelectItem key={key} value={key}>{label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                        <SelectTrigger className="w-full min-[400px]:w-[160px]">
-                            <SelectValue placeholder="Kaynak" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tüm Kaynaklar</SelectItem>
-                            <SelectItem value="manual">Manuel</SelectItem>
-                            <SelectItem value="produced_vehicle">Üretilen Araç</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <div className="search-box flex-1 min-w-[160px] max-w-xl">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
-                        <input
-                            type="text"
-                            placeholder="Tabloda ara: tür, parça, açıklama..."
-                            className="search-input w-full text-sm h-10"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex flex-wrap gap-2 shrink-0">
-                        <Button onClick={handleOpenReportModal} variant="outline" size="sm" className="flex-1 sm:flex-none">
-                            <FileText className="w-4 h-4 mr-1.5 sm:mr-2" />
-                            <span className="hidden xs:inline">Rapor Al</span>
-                            <span className="xs:hidden">Rapor</span>
-                        </Button>
-                        <Button onClick={() => handleOpenFormModal()} size="sm" className="flex-1 sm:flex-none">
-                            <Plus className="w-4 h-4 mr-1.5 sm:mr-2" />
-                            <span className="hidden xs:inline">Yeni Maliyet Kaydı</span>
-                            <span className="xs:hidden">Ekle</span>
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            <QualityCostFilterToolbar
+                dateRange={dateRange}
+                setDateRange={setDateRange}
+                unitFilter={unitFilter}
+                setUnitFilter={setUnitFilter}
+                unitFilterOptions={unitFilterOptions}
+                sourceFilter={sourceFilter}
+                setSourceFilter={setSourceFilter}
+                costTypeDetailFilter={costTypeDetailFilter}
+                setCostTypeDetailFilter={setCostTypeDetailFilter}
+                recordModifiers={recordModifiers}
+                setRecordModifiers={setRecordModifiers}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                onOpenReportModal={handleOpenReportModal}
+                onOpenFormModal={() => handleOpenFormModal()}
+                onResetSecondaryFilters={resetSecondaryQualityCostFilters}
+            />
 
             <Tabs value={qualityCostTab} onValueChange={setQualityCostTab} className="w-full">
                 <TabsList className="inline-flex gap-1 p-1 h-auto">
@@ -1411,7 +1386,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                     <td className="text-sm">
                                                         {new Date(cost.cost_date).toLocaleDateString('tr-TR')}
                                                         {cost.source_type === 'produced_vehicle_final_faults' && <Badge variant="outline" className="ml-1 text-[10px]">Final</Badge>}
-                                                        {cost.source_type === 'produced_vehicle_manual' && <Badge variant="outline" className="ml-1 text-[10px]">Manuel</Badge>}
+                                                        {cost.source_type === 'produced_vehicle_manual' && <Badge variant="outline" className="ml-1 text-[10px]" title="Üretilmiş araç QC formundan girilen maliyet">Form</Badge>}
                                                     </td>
                                                     <td className="text-sm">{cost.cost_type}</td>
                                                     <td className="text-sm">{unitDisplay}</td>

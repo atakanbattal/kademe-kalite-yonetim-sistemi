@@ -231,3 +231,55 @@ export function stripDuplicateRootCauseFromProblemDescription(text) {
   if (cut >= text.length) return text.trim();
   return text.slice(0, cut).trim();
 }
+
+/** DF-2026-048 / 8D-2025-001 sonundan Yıl + sıra no ayıklar (tüm rakamları birleştirmek yerine). */
+export function parseDf8dNcSortKey(record) {
+  const raw = String(record?.nc_number || record?.mdi_no || '').trim();
+  if (!raw) return null;
+  const m = raw.match(/(\d{4})[-\s/]+(\d+)\s*$/);
+  if (!m) return null;
+  const year = parseInt(m[1], 10);
+  const serial = parseInt(m[2], 10);
+  if (!Number.isFinite(year) || !Number.isFinite(serial)) return null;
+  return { year, serial, raw };
+}
+
+function recordPrimaryOpenedMs(record) {
+  const raw = record?.df_opened_at || record?.created_at;
+  if (!raw) return 0;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : 0;
+}
+
+/**
+ * Liste / PDF: önce tip (DF → 8D → MDI), sonra aynı yıl içinde küçükten büyüğe sıra no (001, 002, … 048),
+ * farklı yıllarda en yeni yıl önce. Tarih sıralaması kayıt numarasını bozduğu için kaldırıldı.
+ */
+export function compareDf8dRecordsForModuleList(a, b) {
+  const rank = (t) => (t === 'DF' ? 0 : t === '8D' ? 1 : t === 'MDI' ? 2 : 3);
+  const ra = rank(a?.type);
+  const rb = rank(b?.type);
+  if (ra !== rb) return ra - rb;
+
+  const pa = parseDf8dNcSortKey(a);
+  const pb = parseDf8dNcSortKey(b);
+  if (pa && pb) {
+    if (pa.year !== pb.year) return pb.year - pa.year;
+    if (pa.serial !== pb.serial) return pa.serial - pb.serial;
+    const c = pa.raw.localeCompare(pb.raw, 'tr', { numeric: true, sensitivity: 'base' });
+    if (c !== 0) return c;
+  } else {
+    const sa = String(a?.nc_number || a?.mdi_no || '');
+    const sb = String(b?.nc_number || b?.mdi_no || '');
+    const c = sa.localeCompare(sb, 'tr', { numeric: true, sensitivity: 'base' });
+    if (c !== 0) return c;
+  }
+
+  const tb = recordPrimaryOpenedMs(b);
+  const ta = recordPrimaryOpenedMs(a);
+  if (tb !== ta) return tb - ta;
+
+  const ia = String(a?.id || '');
+  const ib = String(b?.id || '');
+  return ia.localeCompare(ib);
+}

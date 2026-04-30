@@ -231,10 +231,24 @@ const generatePrintableReport = async (record) => {
         </div>
     ` : '';
     
+    const rejectionDateLabel = record.rejected_at
+        ? new Date(record.rejected_at).toLocaleString('tr-TR', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+          })
+        : '-';
+
     const rejectionHtml = record.status === 'Reddedildi' ? `
         <div class="section">
             <h2 class="section-title">Reddetme Detayları</h2>
             <div class="info-grid">
+                <div class="info-item">
+                    <span class="label">Reddetme Tarihi</span>
+                    <span class="value">${formatText(rejectionDateLabel)}</span>
+                </div>
                 <div class="info-item full-width">
                     <span class="label">Reddetme Gerekçesi</span>
                     <span class="value">${formatText(record.rejection_reason || '-')}</span>

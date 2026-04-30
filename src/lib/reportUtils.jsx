@@ -26,6 +26,7 @@ import {
 	hasStructuredRootCauseData,
 	stripDuplicateRootCauseFromProblemDescription,
 } from '@/lib/df8dTextUtils';
+import { getBucketForNcAttachmentPath, normalizeNcAttachmentPath } from '@/lib/df8dAttachmentUtils';
 import { formatFiveTopicForPdf, FIVE_T_PDF_LABELS } from '@/lib/fmeaFiveTopics';
 
 // Global formatter helpers
@@ -7067,7 +7068,14 @@ const generateGenericReportHtml = async (record, type) => {
 				if ((type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null) {
 					pathToUse = attachment.file_path || attachment.path || attachment;
 				}
-				const url = await getAttachmentUrl(pathToUse, bucket);
+				let bucketToUse = bucket;
+				if (type === 'nonconformity') {
+					let raw = pathToUse;
+					if (typeof raw === 'object' && raw !== null) raw = raw.path || raw.file_path || '';
+					const p = normalizeNcAttachmentPath(raw) || (typeof raw === 'string' ? raw : '');
+					bucketToUse = getBucketForNcAttachmentPath(p);
+				}
+				const url = await getAttachmentUrl(pathToUse, bucketToUse);
 				const fileName = (type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null
 					? getAttachmentDisplayName(
 							attachment.file_name || attachment.name,

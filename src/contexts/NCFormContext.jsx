@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { defaultEightDSteps, ncOrganizationalUnitFromPersonnel } from '@/lib/ncFormDefaults';
+import { normalizeNcAttachmentPathsList } from '@/lib/df8dAttachmentUtils';
     import { addMonths } from 'date-fns';
 
     export const NCFormContext = createContext();
@@ -364,7 +365,8 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                     closing_date: closedAtValue ? toISODateString(safeParseDate(closedAtValue)) : '',
                     eight_d_steps: mergedEightD,
                     eight_d_progress: eightDProgress,
-                    attachments: initialRecord.attachments || [],
+                    attachments: normalizeNcAttachmentPathsList(initialRecord.attachments || []),
+                    closing_attachments: normalizeNcAttachmentPathsList(initialRecord.closing_attachments || []),
                 };
                 
                 // Eğer supplier_id varsa ama is_supplier_nc yoksa, is_supplier_nc'yi true yap

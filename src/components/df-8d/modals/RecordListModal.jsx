@@ -1,10 +1,9 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { getNonConformityListTitle } from '@/lib/df8dTextUtils';
+import { compareDf8dRecordsForModuleList, getNonConformityListTitle } from '@/lib/df8dTextUtils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 
 const getStatusVariant = (status) => {
     switch (status) {
@@ -16,6 +15,10 @@ const getStatusVariant = (status) => {
 };
 
 const RecordListModal = ({ isOpen, setIsOpen, title, records, onRecordClick }) => {
+    const sortedRecords = React.useMemo(
+        () => (records && records.length ? [...records].sort(compareDf8dRecordsForModuleList) : []),
+        [records]
+    );
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
@@ -27,7 +30,7 @@ const RecordListModal = ({ isOpen, setIsOpen, title, records, onRecordClick }) =
                 </DialogHeader>
                 <ScrollArea className="max-h-[60vh] p-1">
                     <ul className="space-y-2">
-                        {records && records.length > 0 ? records.map(record => (
+                        {sortedRecords.length > 0 ? sortedRecords.map(record => (
                             <li 
                                 key={record.id} 
                                 onClick={() => { onRecordClick(record); setIsOpen(false); }} 

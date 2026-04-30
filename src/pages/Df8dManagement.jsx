@@ -20,7 +20,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
 import { canonicalizeNonConformityOrgFields } from '@/lib/departmentCanonicalization';
-import { getNonConformityListTitle } from '@/lib/df8dTextUtils';
+import { compareDf8dRecordsForModuleList, getNonConformityListTitle } from '@/lib/df8dTextUtils';
 
 const getDepartmentName = (department) => {
     const value = String(department || '').trim();
@@ -39,43 +39,6 @@ const getRecordPrimaryDate = (record) => {
 
     const parsedDate = parseISO(rawDate);
     return isValid(parsedDate) ? parsedDate : null;
-};
-
-const sortRecordsByNewest = (a, b) => {
-    const dateA = getRecordPrimaryDate(a);
-    const dateB = getRecordPrimaryDate(b);
-
-    if (dateA && dateB && dateB - dateA !== 0) {
-        return dateB - dateA;
-    }
-
-    if (dateB && !dateA) {
-        return 1;
-    }
-
-    if (dateA && !dateB) {
-        return -1;
-    }
-
-    const numA = a.nc_number || a.mdi_no || '';
-    const numB = b.nc_number || b.mdi_no || '';
-    const numAValue = parseInt(numA.replace(/\D/g, ''), 10) || 0;
-    const numBValue = parseInt(numB.replace(/\D/g, ''), 10) || 0;
-
-    if (numBValue !== numAValue) {
-        return numBValue - numAValue;
-    }
-
-    return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' });
-};
-
-/** Liste sekmesi: önce tip (DF → 8D → MDI), sonra yeniden eskiye */
-const sortRecordsForDf8dListView = (a, b) => {
-    const rank = (t) => (t === 'DF' ? 0 : t === '8D' ? 1 : t === 'MDI' ? 2 : 3);
-    const ra = rank(a.type);
-    const rb = rank(b.type);
-    if (ra !== rb) return ra - rb;
-    return sortRecordsByNewest(a, b);
 };
 
 const recordMatchesDateFilter = (record, filters) => {
@@ -176,7 +139,7 @@ const filterNonConformityRecords = (records, filters, { ignoreDepartment = false
 
             return recordMatchesDateFilter(record, filters);
         })
-        .sort(sortRecordsByNewest);
+        .sort(compareDf8dRecordsForModuleList);
 };
 
 const buildDepartmentSelectionLabel = (selectedDepartments, availableDepartmentCount) => {
@@ -242,11 +205,6 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         const filteredRecords = useMemo(() => {
             return filterNonConformityRecords(normalizedNonConformities, filters);
         }, [normalizedNonConformities, filters]);
-
-        const listViewRecords = useMemo(
-            () => [...filteredRecords].sort(sortRecordsForDf8dListView),
-            [filteredRecords]
-        );
 
         const reportableRecords = useMemo(() => (
             filterNonConformityRecords(normalizedNonConformities, filters, { ignoreDepartment: true })
@@ -575,7 +533,7 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                         </TabsContent>
                         <TabsContent value="list">
                             <NCTable
-                                records={listViewRecords}
+                                records={filteredRecords}
                                 onView={onOpenNCView}
                                 onEdit={(record) => onOpenNCForm(record, refreshData)}
                                 onToggleStatus={handleToggleStatus}

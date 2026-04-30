@@ -14,61 +14,98 @@ import Df8dImageLightbox from '@/components/df-8d/Df8dImageLightbox';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import { Loader2 } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
+import { normalizeNcAttachmentPath, normalizeNcAttachmentPathsList, fetchNcAttachmentAsBlob, prepareNcAttachmentPreviewBlob } from '@/lib/df8dAttachmentUtils';
 
 const AttachmentItem = ({ path, onRemove, onPreview }) => {
-    const [signedUrl, setSignedUrl] = React.useState(null);
+    const [displayUrl, setDisplayUrl] = React.useState(null);
     const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
-    const [isLoading, setIsLoading] = React.useState(false);
-    
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [pdfOpening, setPdfOpening] = React.useState(false);
+    const [blobLooksImage, setBlobLooksImage] = React.useState(false);
+    const [noInlineImgPreview, setNoInlineImgPreview] = React.useState(false);
+    const [imageError, setImageError] = React.useState(false);
+    const blobPreviewRef = React.useRef(null);
+
     React.useEffect(() => {
-        const fetchSignedUrl = async () => {
-            try {
-                const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
-                if (!error && data?.signedUrl) {
-                    setSignedUrl(data.signedUrl);
-                }
-            } catch (err) {
-                console.error('Signed URL fetch error:', err);
+        let cancelled = false;
+        const revokeBlob = () => {
+            if (blobPreviewRef.current) {
+                URL.revokeObjectURL(blobPreviewRef.current);
+                blobPreviewRef.current = null;
             }
         };
-        
-        if (path) {
-            fetchSignedUrl();
-        }
+
+        const loadPreview = async () => {
+            revokeBlob();
+            setDisplayUrl(null);
+            setIsLoading(true);
+            setBlobLooksImage(false);
+            setNoInlineImgPreview(false);
+            setImageError(false);
+            const storagePath = normalizeNcAttachmentPath(path) || '';
+            if (!storagePath) {
+                if (!cancelled) setIsLoading(false);
+                return;
+            }
+            try {
+                const { blob, error } = await fetchNcAttachmentAsBlob(supabase, path);
+                if (cancelled) return;
+                if (blob && blob.size > 0) {
+                    const prep = await prepareNcAttachmentPreviewBlob(blob, storagePath);
+                    if (cancelled) return;
+                    const url = URL.createObjectURL(prep.outBlob);
+                    blobPreviewRef.current = url;
+                    setBlobLooksImage(prep.blobLooksImage);
+                    setNoInlineImgPreview(prep.noInlineImgPreview);
+                    setDisplayUrl(url);
+                } else if (error) {
+                    console.error('Ek önizleme:', storagePath, error.message);
+                }
+            } catch (err) {
+                console.error('Ek önizleme yüklenemedi:', storagePath, err);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        };
+
+        if (path) loadPreview();
+        else setIsLoading(false);
+
+        return () => {
+            cancelled = true;
+            revokeBlob();
+        };
     }, [path]);
 
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
-    const isPdf = /\.pdf$/i.test(path);
-    const fileName = path.split('/').pop();
+    const pathStr = normalizeNcAttachmentPath(path) || (typeof path === 'string' ? path : '');
+    const pathSuggestsImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg|tiff|tif|heic|heif|avif)$/i.test(pathStr);
+    const isPdf = /\.pdf$/i.test(pathStr);
+    const fileName = pathStr.split('/').pop() || 'ek';
 
     const handlePdfClick = async (e) => {
         e.preventDefault();
         if (!path) return;
-        
-        setIsLoading(true);
+
+        setPdfOpening(true);
         try {
-            // PDF'i blob olarak indir ve blob URL oluştur
-            const { data, error } = await supabase.storage.from('df_attachments').download(path);
-            if (error) {
-                console.error('PDF indirme hatası:', error);
-                // Hata durumunda signed URL'i kullan
-                if (signedUrl) {
-                    setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
-                }
+            const { blob, error } = await fetchNcAttachmentAsBlob(supabase, path);
+            if (blob && blob.size > 0) {
+                const pdfBlob = String(blob.type || '').includes('pdf') ? blob : new Blob([blob], { type: 'application/pdf' });
+                const blobUrl = window.URL.createObjectURL(pdfBlob);
+                setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
                 return;
             }
-            
-            const blob = new Blob([data], { type: 'application/pdf' });
-            const blobUrl = window.URL.createObjectURL(blob);
-            setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
+            console.error('PDF indirme hatası:', error);
+            if (displayUrl) {
+                setPdfViewerState({ isOpen: true, url: displayUrl, title: fileName });
+            }
         } catch (err) {
             console.error('PDF açılırken hata:', err);
-            // Hata durumunda signed URL'i kullan
-            if (signedUrl) {
-                setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+            if (displayUrl) {
+                setPdfViewerState({ isOpen: true, url: displayUrl, title: fileName });
             }
         } finally {
-            setIsLoading(false);
+            setPdfOpening(false);
         }
     };
 
@@ -80,24 +117,23 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
         setPdfViewerState({ isOpen: false, url: null, title: null });
     };
 
-    if (!signedUrl && !isLoading) return null;
+    if (isLoading) {
+        return (
+            <div className="relative group w-24 h-24 flex items-center justify-center bg-muted/30 rounded-lg">
+                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" aria-hidden />
+            </div>
+        );
+    }
 
-    return (
-        <>
-            <div className="relative group w-24 h-24">
-                {isImage ? (
-                    <img
-                        src={signedUrl}
-                        alt="Ek"
-                        className="rounded-lg object-cover w-full h-full cursor-pointer"
-                        onClick={() => onPreview(signedUrl)}
-                    />
-                ) : isPdf ? (
-                    <div 
+    if (!isLoading && !displayUrl && isPdf) {
+        return (
+            <>
+                <div className="relative group w-24 h-24">
+                    <div
                         className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all cursor-pointer hover:bg-secondary transition-colors"
                         onClick={handlePdfClick}
                     >
-                        {isLoading ? (
+                        {pdfOpening ? (
                             <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                         ) : (
                             <>
@@ -106,12 +142,53 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
                             </>
                         )}
                     </div>
-                ) : (
-                    <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all hover:bg-secondary transition-colors">
-                        <FileIcon className="w-6 h-6 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
-                    </a>
+                    {typeof onRemove === 'function' && (
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => onRemove(path)}
+                    >
+                        <Trash2 className="h-3 w-3" />
+                    </Button>
+                    )}
+                </div>
+                {pdfViewerState.isOpen && (
+                    <PdfViewerModal
+                        isOpen={pdfViewerState.isOpen}
+                        setIsOpen={handlePdfViewerClose}
+                        pdfUrl={pdfViewerState.url}
+                        title={pdfViewerState.title}
+                    />
                 )}
+            </>
+        );
+    }
+
+    if (!displayUrl && pathSuggestsImage && !isPdf) {
+        return (
+            <div className="relative group w-24 h-24 flex flex-col items-center justify-center gap-1 p-2 bg-muted/30 rounded-lg text-center">
+                <FileIcon className="w-6 h-6 text-muted-foreground" />
+                <span className="text-[10px] text-orange-500 leading-tight">Yüklenemedi</span>
+            </div>
+        );
+    }
+
+    if (!displayUrl) return null;
+
+    if (noInlineImgPreview) {
+        return (
+            <div className="relative group w-24 h-24">
+                <a
+                    href={displayUrl}
+                    download={fileName}
+                    className="flex flex-col items-center justify-center gap-1 p-2 bg-background rounded-lg h-full text-center break-all hover:bg-secondary transition-colors"
+                >
+                    <FileIcon className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-[10px] text-primary font-medium leading-tight">HEIC — indir</span>
+                </a>
+                {typeof onRemove === 'function' && (
                 <Button
                     type="button"
                     variant="destructive"
@@ -121,6 +198,58 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
                 >
                     <Trash2 className="h-3 w-3" />
                 </Button>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <div className="relative group w-24 h-24">
+                {blobLooksImage && !imageError ? (
+                    <img
+                        src={displayUrl}
+                        alt="Ek"
+                        className="rounded-lg object-cover w-full h-full cursor-pointer"
+                        onClick={() => onPreview(displayUrl)}
+                        onError={() => setImageError(true)}
+                    />
+                ) : blobLooksImage && imageError ? (
+                    <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all hover:bg-secondary transition-colors">
+                        <FileIcon className="w-6 h-6 text-muted-foreground" />
+                        <span className="text-[10px] text-orange-500">Önizleme yok</span>
+                    </a>
+                ) : isPdf ? (
+                    <div 
+                        className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all cursor-pointer hover:bg-secondary transition-colors"
+                        onClick={handlePdfClick}
+                    >
+                        {pdfOpening ? (
+                            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                        ) : (
+                            <>
+                                <FileIcon className="w-6 h-6 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all hover:bg-secondary transition-colors">
+                        <FileIcon className="w-6 h-6 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+                    </a>
+                )}
+                {typeof onRemove === 'function' && (
+                <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => onRemove(path)}
+                >
+                    <Trash2 className="h-3 w-3" />
+                </Button>
+                )}
             </div>
             {pdfViewerState.isOpen && (
                 <PdfViewerModal
@@ -270,11 +399,21 @@ const NCFormGeneral = ({
         : [];
 
     const handleRemoveExistingAttachment = (pathToRemove) => {
-        setFormData(prev => ({
+        const norm = normalizeNcAttachmentPath(pathToRemove);
+        setFormData((prev) => ({
             ...prev,
-            attachments: prev.attachments.filter(path => path !== pathToRemove)
+            attachments: (prev.attachments || []).filter((entry) => normalizeNcAttachmentPath(entry) !== norm),
         }));
     };
+
+    const openingAttachmentPaths = useMemo(
+        () => normalizeNcAttachmentPathsList(formData.attachments || []),
+        [formData.attachments]
+    );
+    const closingAttachmentPaths = useMemo(
+        () => normalizeNcAttachmentPathsList(formData.closing_attachments || []),
+        [formData.closing_attachments]
+    );
 
     return (
         <>
@@ -464,12 +603,25 @@ const NCFormGeneral = ({
             
             <div className="md:col-span-2">
                 <Label>Kanıt Dokümanı</Label>
-                {isEditMode && formData.attachments && formData.attachments.length > 0 && (
+                {isEditMode && openingAttachmentPaths.length > 0 && (
                     <div className="mb-4">
-                        <p className="text-sm font-medium text-muted-foreground mb-2">Mevcut Dokümanlar</p>
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Mevcut dokümanlar (kayıt / açılış)</p>
                         <div className="flex flex-wrap gap-4">
-                            {formData.attachments.map((path, index) => (
-                                <AttachmentItem key={index} path={path} onRemove={handleRemoveExistingAttachment} onPreview={setLightboxUrl} />
+                            {openingAttachmentPaths.map((path, index) => (
+                                <AttachmentItem key={`open-${index}`} path={path} onRemove={handleRemoveExistingAttachment} onPreview={setLightboxUrl} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {isEditMode && closingAttachmentPaths.length > 0 && (
+                    <div className="mb-4">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Kapanış kanıt dokümanları</p>
+                        <p className="text-xs text-muted-foreground mb-2">
+                            Kayıt kapatılırken veya işlem sırasında eklenen dosyalar. Bu listeden silme desteklenmez; gerekirse kayıt durumunu güncelleyerek kapatma akışından yönetin.
+                        </p>
+                        <div className="flex flex-wrap gap-4">
+                            {closingAttachmentPaths.map((path, index) => (
+                                <AttachmentItem key={`close-${index}`} path={path} onPreview={setLightboxUrl} />
                             ))}
                         </div>
                     </div>

@@ -270,6 +270,45 @@ const MainLayout = () => {
         setNcViewState({ isOpen: false, record: null });
     }, []);
 
+    const handleNcRecordUpdated = useCallback(
+        async (recordId) => {
+            refreshData();
+            if (!recordId) return;
+            try {
+                const { data: fullRecord, error: fetchError } = await supabase
+                    .from('non_conformities')
+                    .select('*')
+                    .eq('id', recordId)
+                    .single();
+
+                if (fetchError || !fullRecord || fullRecord.id !== recordId) return;
+
+                let auditData = null;
+                if (fullRecord.source_audit_id) {
+                    const { data: audit, error: auditError } = await supabase
+                        .from('audits')
+                        .select('id, report_number, title, audit_date')
+                        .eq('id', fullRecord.source_audit_id)
+                        .single();
+                    if (!auditError && audit) auditData = audit;
+                }
+
+                const enrichedRecord = {
+                    ...fullRecord,
+                    audit_title: auditData?.title || fullRecord.audit_title || null,
+                };
+
+                setNcViewState((s) => {
+                    if (!s.isOpen || s.record?.id !== recordId) return s;
+                    return { ...s, record: enrichedRecord };
+                });
+            } catch (err) {
+                console.error('handleNcRecordUpdated:', err);
+            }
+        },
+        [refreshData]
+    );
+
     const handleAuditDeepLink = useCallback(
         async (log) => {
             const action = getAuditNavigationAction(log);
@@ -416,7 +455,10 @@ const MainLayout = () => {
         if (dbData.forwarded_unit) dbData.forwarded_unit = canonicalizeDepartmentName(dbData.forwarded_unit, deptCanonCtx);
 
         dbData.attachments = uploadedFilePaths;
-        if (!isEditMode && uploadFolderId && !id && files && files.length > 0) {
+        // Yeni kayıtta dosyalar uploadFolderId klasörüne yüklenir; satır id'si buna eşit olmalı.
+        // formData.id şablon/kopya kalıntısı dolu olsa bile (!id) diye atlamak, INSERT'in başka uuid
+        // üretmesine ve kanıtların yanlış kayda görünmesine yol açar.
+        if (!isEditMode && uploadFolderId && files && files.length > 0) {
             dbData.id = uploadFolderId;
         }
         const fieldsToNullify = ['cost_date', 'measurement_unit', 'part_location', 'quantity', 'scrap_weight', 'rework_duration', 'quality_control_duration'];
@@ -715,7 +757,7 @@ const MainLayout = () => {
     return (
         <>
             <NCFormModal isOpen={ncFormState.isOpen} setIsOpen={(open) => setNcFormState(s => ({ ...s, isOpen: open }))} record={ncFormState.record} onSave={handleSaveNC} onSaveSuccess={onGlobalSaveSuccess} />
-            <NCViewModal isOpen={ncViewState.isOpen} setIsOpen={(open) => { if (!open) handleCloseNCView(); else setNcViewState(s => ({ ...s, isOpen: true })); }} record={ncViewState.record} onEdit={handleOpenNCForm} onDownloadPDF={handleDownloadPDF} />
+            <NCViewModal isOpen={ncViewState.isOpen} setIsOpen={(open) => { if (!open) handleCloseNCView(); else setNcViewState(s => ({ ...s, isOpen: true })); }} record={ncViewState.record} onEdit={handleOpenNCForm} onDownloadPDF={handleDownloadPDF} onNcRecordUpdated={handleNcRecordUpdated} />
             <PdfViewerModal isOpen={pdfViewerState.isOpen} setIsOpen={(open) => setPdfViewerState(s => ({ ...s, isOpen: open }))} pdfUrl={pdfViewerState.url} title={pdfViewerState.title} />
 
             <div className="min-h-screen bg-secondary overflow-x-hidden">
