@@ -1,5 +1,4 @@
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { memo, useMemo } from 'react';
 import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets, Globe2, ShieldAlert, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
@@ -170,18 +169,18 @@ const Sidebar = ({
                   {group.items
                     .filter(item => permittedModules.includes(item.id))
                     .map(item => (
-                      <motion.button
+                      <button
                         key={item.id}
+                        type="button"
                         onClick={() => handleItemClick(item.id)}
-                        className={`w-full flex items-center p-2.5 sm:p-3 rounded-lg text-xs sm:text-sm font-medium transition-colors touch-manipulation ${activeModule === item.id
+                        className={`w-full flex items-center p-2.5 sm:p-3 rounded-lg text-xs sm:text-sm font-medium transition-colors touch-manipulation active:scale-[0.98] ${activeModule === item.id
                             ? 'bg-primary text-primary-foreground'
                             : 'hover:bg-accent hover:text-accent-foreground active:bg-accent'
                           }`}
-                        whileTap={{ scale: 0.98 }}
                       >
                         <item.icon className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                         <span className="truncate">{item.label}</span>
-                      </motion.button>
+                      </button>
                     ))}
                 </div>
               </div>
@@ -210,4 +209,4 @@ const Sidebar = ({
   );
 };
 
-export default Sidebar;
+export default memo(Sidebar);

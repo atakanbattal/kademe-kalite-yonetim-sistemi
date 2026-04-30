@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import CostFilters from '@/components/quality-cost/CostFilters';
 import { COST_TYPES } from '@/components/quality-cost/constants';
@@ -20,8 +20,11 @@ const radioRow = 'flex items-start gap-2 rounded-md border border-transparent px
 /**
  * Kalite maliyeti süzgeçleri: tarih + arama her zaman görünür; kalanı tek panelde gruplanır.
  * Aktif süzgeçler rozet satırında tek tıkla kaldırılabilir.
+ *
+ * React.memo ile sarılı: ana modülde tablo/grafik re-render olurken filtre çubuğunun
+ * (binlerce input ve radio) gereksiz yeniden çizilmesini engellemek için.
  */
-const QualityCostFilterToolbar = ({
+const QualityCostFilterToolbarImpl = ({
     dateRange,
     setDateRange,
     unitFilter,
@@ -42,6 +45,42 @@ const QualityCostFilterToolbar = ({
     const [panelOpen, setPanelOpen] = useState(false);
     const [typeQuery, setTypeQuery] = useState('');
     const [unitQuery, setUnitQuery] = useState('');
+
+    // Search input lokal state'te tutulur, üst state'e debounced yansır.
+    // Aksi halde her tuş vuruşunda 1000+ kayıtlı tablo / grafikler yeniden hesaplanıyordu.
+    const [localSearch, setLocalSearch] = useState(searchTerm || '');
+    const debounceRef = useRef(null);
+    useEffect(() => {
+        // Üst state dışarıdan temizlenirse (chip × veya "Tümünü temizle") senkronize ol.
+        setLocalSearch(searchTerm || '');
+    }, [searchTerm]);
+    const handleSearchChange = useCallback((e) => {
+        const v = e.target.value;
+        setLocalSearch(v);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            startTransition(() => setSearchTerm(v));
+        }, 250);
+    }, [setSearchTerm]);
+    useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+    // Filtre değişimlerini "transition" olarak işaretle: radio tıklaması anlık tepki
+    // verir, ağır liste/grafik hesabı React tarafından arka plana alınır.
+    const setSourceFilterTx = useCallback((v) => {
+        startTransition(() => setSourceFilter(v === SOURCE_FINAL ? SOURCE_FINAL : 'all'));
+    }, [setSourceFilter]);
+    const setCostTypeDetailFilterTx = useCallback((v) => {
+        startTransition(() => setCostTypeDetailFilter(v));
+    }, [setCostTypeDetailFilter]);
+    const setUnitFilterTx = useCallback((v) => {
+        startTransition(() => setUnitFilter(v));
+    }, [setUnitFilter]);
+    const setRecordModifiersTx = useCallback((updater) => {
+        startTransition(() => setRecordModifiers(updater));
+    }, [setRecordModifiers]);
+    const setDateRangeTx = useCallback((v) => {
+        startTransition(() => setDateRange(v));
+    }, [setDateRange]);
 
     useEffect(() => {
         if (panelOpen) {
@@ -107,7 +146,7 @@ const QualityCostFilterToolbar = ({
                 key: 'date',
                 label: `Dönem: ${dateRange.label || 'Seçili aralık'}`,
                 onRemove: () =>
-                    setDateRange({ key: 'all', startDate: null, endDate: null, label: 'Tüm Zamanlar' }),
+                    setDateRangeTx({ key: 'all', startDate: null, endDate: null, label: 'Tüm Zamanlar' }),
             });
         }
         if (unitFilter !== 'all') {
@@ -115,21 +154,21 @@ const QualityCostFilterToolbar = ({
             list.push({
                 key: 'unit',
                 label: `Birim: ${opt?.label || unitFilter}`,
-                onRemove: () => setUnitFilter('all'),
+                onRemove: () => setUnitFilterTx('all'),
             });
         }
         if (sourceFilter === SOURCE_FINAL) {
             list.push({
                 key: 'source',
                 label: 'Kaynak: Final QC maliyetleri',
-                onRemove: () => setSourceFilter('all'),
+                onRemove: () => setSourceFilterTx('all'),
             });
         }
         if (costTypeDetailFilter !== 'all') {
             list.push({
                 key: 'costType',
                 label: `Tür: ${costTypeDetailFilter}`,
-                onRemove: () => setCostTypeDetailFilter('all'),
+                onRemove: () => setCostTypeDetailFilterTx('all'),
             });
         }
         if (modifierActive) {
@@ -141,7 +180,7 @@ const QualityCostFilterToolbar = ({
                 key: 'modifiers',
                 label: `Kayıt: ${parts.join(' · ')}`,
                 onRemove: () =>
-                    setRecordModifiers({
+                    setRecordModifiersTx({
                         supplier: false,
                         indirect: false,
                         invoice: false,
@@ -153,7 +192,10 @@ const QualityCostFilterToolbar = ({
             list.push({
                 key: 'search',
                 label: `Arama: "${q.length > 28 ? `${q.slice(0, 28)}…` : q}"`,
-                onRemove: () => setSearchTerm(''),
+                onRemove: () => {
+                    setLocalSearch('');
+                    startTransition(() => setSearchTerm(''));
+                },
             });
         }
         return list;
@@ -166,12 +208,12 @@ const QualityCostFilterToolbar = ({
         recordModifiers.indirect,
         recordModifiers.invoice,
         searchTerm,
-        setCostTypeDetailFilter,
-        setDateRange,
-        setRecordModifiers,
+        setCostTypeDetailFilterTx,
+        setDateRangeTx,
+        setRecordModifiersTx,
         setSearchTerm,
-        setSourceFilter,
-        setUnitFilter,
+        setSourceFilterTx,
+        setUnitFilterTx,
         sourceFilter,
         unitFilter,
         unitFilterOptions,
@@ -188,15 +230,16 @@ const QualityCostFilterToolbar = ({
             <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
                 <CostFilters dateRange={dateRange} setDateRange={setDateRange} />
 
-                <div className="relative flex min-h-10 flex-1 min-w-[min(100%,220px)] max-w-xl">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <div className="relative block flex-1 min-w-[min(100%,220px)] max-w-xl">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                        type="search"
+                        type="text"
+                        autoFormat={false}
                         placeholder="Şununla ara: tür, parça, açıklama, birim…"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={localSearch}
+                        onChange={handleSearchChange}
                         className={cn(
-                            'h-10 rounded-md border border-input bg-background pl-9 shadow-sm placeholder:text-muted-foreground',
+                            'h-10 rounded-md border border-input bg-background !pl-10 shadow-sm placeholder:text-muted-foreground',
                             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                         )}
                     />
@@ -236,9 +279,7 @@ const QualityCostFilterToolbar = ({
                                     </p>
                                     <RadioGroup
                                         value={sourceFilter === SOURCE_FINAL ? SOURCE_FINAL : 'all'}
-                                        onValueChange={(v) =>
-                                            setSourceFilter(v === SOURCE_FINAL ? SOURCE_FINAL : 'all')
-                                        }
+                                        onValueChange={setSourceFilterTx}
                                         className="gap-1"
                                     >
                                         <label className={radioRow}>
@@ -266,7 +307,7 @@ const QualityCostFilterToolbar = ({
                                     />
                                     <RadioGroup
                                         value={costTypeDetailFilter}
-                                        onValueChange={setCostTypeDetailFilter}
+                                        onValueChange={setCostTypeDetailFilterTx}
                                         className="mt-2 gap-1"
                                     >
                                         <label className={radioRow}>
@@ -296,7 +337,7 @@ const QualityCostFilterToolbar = ({
                                     />
                                     <RadioGroup
                                         value={unitFilter}
-                                        onValueChange={setUnitFilter}
+                                        onValueChange={setUnitFilterTx}
                                         className="mt-2 max-h-[200px] gap-1 overflow-y-auto pr-1"
                                     >
                                         <label className={radioRow}>
@@ -328,7 +369,7 @@ const QualityCostFilterToolbar = ({
                                                 className="mt-0.5"
                                                 checked={recordModifiers.supplier}
                                                 onCheckedChange={(v) =>
-                                                    setRecordModifiers((prev) => ({
+                                                    setRecordModifiersTx((prev) => ({
                                                         ...prev,
                                                         supplier: v === true,
                                                     }))
@@ -344,7 +385,7 @@ const QualityCostFilterToolbar = ({
                                                 className="mt-0.5"
                                                 checked={recordModifiers.indirect}
                                                 onCheckedChange={(v) =>
-                                                    setRecordModifiers((prev) => ({
+                                                    setRecordModifiersTx((prev) => ({
                                                         ...prev,
                                                         indirect: v === true,
                                                     }))
@@ -360,7 +401,7 @@ const QualityCostFilterToolbar = ({
                                                 className="mt-0.5"
                                                 checked={recordModifiers.invoice}
                                                 onCheckedChange={(v) =>
-                                                    setRecordModifiers((prev) => ({
+                                                    setRecordModifiersTx((prev) => ({
                                                         ...prev,
                                                         invoice: v === true,
                                                     }))
@@ -434,9 +475,12 @@ const QualityCostFilterToolbar = ({
                         size="sm"
                         className="h-7 px-2 text-[11px] text-muted-foreground"
                         onClick={() => {
-                            setDateRange({ key: 'all', startDate: null, endDate: null, label: 'Tüm Zamanlar' });
-                            onResetSecondaryFilters?.();
-                            setSearchTerm('');
+                            setLocalSearch('');
+                            startTransition(() => {
+                                setDateRange({ key: 'all', startDate: null, endDate: null, label: 'Tüm Zamanlar' });
+                                onResetSecondaryFilters?.();
+                                setSearchTerm('');
+                            });
                         }}
                     >
                         Tümünü temizle
@@ -446,5 +490,7 @@ const QualityCostFilterToolbar = ({
         </div>
     );
 };
+
+const QualityCostFilterToolbar = memo(QualityCostFilterToolbarImpl);
 
 export default QualityCostFilterToolbar;

@@ -400,10 +400,11 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         setDisplayLimit(prev => prev + 100);
     }, []);
 
-    // Filtre değiştiğinde limiti sıfırla
+    // Filtre değiştiğinde limiti sıfırla — `deferredFilterInputs`'a bağlanması
+    // sayesinde her tuş vuruşunda değil, debounce sonunda çalışıyor.
     useEffect(() => {
         setDisplayLimit(100);
-    }, [dateRange, unitFilter, sourceFilter, costTypeDetailFilter, recordModifiers.supplier, recordModifiers.indirect, recordModifiers.invoice, searchTerm, sortConfig]);
+    }, [deferredFilterInputs]);
 
     const handleOpenFormModal = (cost = null) => {
         setSelectedCost(cost);

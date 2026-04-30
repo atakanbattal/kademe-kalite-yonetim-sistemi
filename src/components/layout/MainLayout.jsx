@@ -169,7 +169,7 @@ const MainLayout = () => {
         }
     }, [location.pathname, DEFAULT_MODULE, navigate, PERMITTED_MODULES, toast, profile, effectivePermissions]);
 
-    const handleModuleChange = (module) => {
+    const handleModuleChange = useCallback((module) => {
         if (PERMITTED_MODULES.includes(module)) {
             setActiveModule(module);
             navigate(`/${module}`);
@@ -179,7 +179,7 @@ const MainLayout = () => {
                 toast({ variant: 'destructive', title: 'Yetkisiz Erişim', description: 'Bu modüle erişim izniniz yok.' });
             }
         }
-    };
+    }, [PERMITTED_MODULES, navigate, profile, effectivePermissions, toast]);
 
     const handleOpenPdfViewer = useCallback((url, title) => {
         if (!url) {
@@ -680,58 +680,53 @@ const MainLayout = () => {
         return openPrintableReportUtil(record, type, useUrlParams);
     };
 
+    // Modül bileşenlerini stable referanslarla map'liyoruz; her render'da yeni JSX
+    // (yeni element identity) oluşmasın diye memoize ediyoruz. Aksi takdirde
+    // <Routes> her render'da modülü yeniden mount ediyor — sayfa geçişi takılıyordu.
+    const moduleElements = useMemo(() => ({
+        dashboard: <Dashboard setActiveModule={handleModuleChange} onOpenNCView={handleOpenNCView} />,
+        tasks: <TaskModule />,
+        kpi: <KPIModule onOpenNCForm={handleOpenNCForm} />,
+        kaizen: <KaizenManagement />,
+        'quality-cost': <QualityCostModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />,
+        quarantine: <QuarantineModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />,
+        'df-8d': <Df8dManagement onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onDownloadPDF={handleDownloadPDF} />,
+        'internal-audit': <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />,
+        document: <DocumentModule />,
+        'external-docs': <ExternalDocumentsModule />,
+        'supplier-quality': <SupplierQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onOpenPdfViewer={handleOpenPdfViewer} />,
+        'customer-complaints': <CustomerComplaintsModule />,
+        'supplier-audit': <SupplierLiveAudit onOpenNCForm={handleOpenNCForm} />,
+        deviation: <DeviationModule />,
+        equipment: <EquipmentModule />,
+        'produced-vehicles': <ProducedVehiclesModule onOpenNCForm={handleOpenNCForm} />,
+        settings: <CostSettingsModule />,
+        'incoming-quality': <IncomingQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />,
+        'leak-test': <LeakTestModule />,
+        wps: <WPSModule />,
+        'audit-logs': <AuditLogModule onOpenRelatedRecord={handleAuditDeepLink} />,
+        training: <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />,
+        polyvalence: <PolyvalenceModule />,
+        benchmark: <BenchmarkModule />,
+        'process-control': <ProcessControlModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />,
+        'dynamic-balance': <DynamicBalanceModule />,
+        nonconformity: <NonconformityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />,
+        fixture: <FixtureModule />,
+        fmea: <FmeaModule />,
+        'control-forms': <ControlFormsModule />,
+    }), [handleAuditDeepLink, handleOpenNCForm, handleOpenNCView, handleOpenPdfViewer]);
+
     const renderModule = (modulePath) => {
         const [module] = modulePath.split('/');
         if (!PERMITTED_MODULES.includes(module)) {
             return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
         }
-
-        // Dashboard lazy loading kullanmaz (ilk görünen sayfa)
         if (module === 'dashboard') {
-            return <Dashboard setActiveModule={handleModuleChange} onOpenNCView={handleOpenNCView} />;
+            return moduleElements.dashboard;
         }
-
-        // Diğer modüller Suspense ile lazy yüklenir
-        const getModuleComponent = () => {
-            switch (module) {
-                case 'tasks': return <TaskModule />;
-                case 'kpi': return <KPIModule onOpenNCForm={handleOpenNCForm} />;
-                case 'kaizen': return <KaizenManagement />;
-                case 'quality-cost': return <QualityCostModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-                case 'quarantine': return <QuarantineModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-                case 'df-8d': return <Df8dManagement onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onDownloadPDF={handleDownloadPDF} />;
-                case 'internal-audit': return <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-                case 'document': return <DocumentModule />;
-                case 'external-docs': return <ExternalDocumentsModule />;
-                case 'supplier-quality': return <SupplierQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onOpenPdfViewer={handleOpenPdfViewer} />;
-                case 'customer-complaints': return <CustomerComplaintsModule />;
-                case 'supplier-audit': return <SupplierLiveAudit onOpenNCForm={handleOpenNCForm} />;
-                case 'deviation': return <DeviationModule />;
-                case 'equipment': return <EquipmentModule />;
-                case 'produced-vehicles': return <ProducedVehiclesModule onOpenNCForm={handleOpenNCForm} />;
-                case 'settings': return <CostSettingsModule />;
-                case 'incoming-quality': return <IncomingQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-                case 'leak-test': return <LeakTestModule />;
-                case 'wps': return <WPSModule />;
-                case 'audit-logs': return <AuditLogModule onOpenRelatedRecord={handleAuditDeepLink} />;
-                case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;
-                case 'polyvalence': return <PolyvalenceModule />;
-                case 'benchmark': return <BenchmarkModule />;
-                case 'process-control': return <ProcessControlModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-                case 'dynamic-balance': return <DynamicBalanceModule />;
-                case 'nonconformity': return <NonconformityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-                case 'fixture': return <FixtureModule />;
-                case 'fmea': return <FmeaModule />;
-                case 'control-forms': return <ControlFormsModule />;
-                default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
-            }
-        };
-
-        return (
-            <Suspense fallback={<PageLoader />}>
-                {getModuleComponent()}
-            </Suspense>
-        );
+        const element = moduleElements[module];
+        if (!element) return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
+        return <Suspense fallback={<PageLoader />}>{element}</Suspense>;
     };
 
     useEffect(() => {
@@ -806,20 +801,19 @@ const MainLayout = () => {
                             </h1>
                         </header>
 
-                        <motion.main
-                            key={location.pathname}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-1 p-3 sm:p-4 md:p-6 safe-bottom overflow-x-hidden min-w-0"
-                        >
+                        {/* `key={location.pathname}` eklenmemeli — yoksa her sayfa geçişinde
+                            tüm içerik unmount/remount oluyor (Suspense fallback yeniden
+                            tetikleniyor, lazy modül yeniden yükleniyor, modal/filtre
+                            state'i sıfırlanıyor). Animasyonu kaldırıp doğal route geçişini
+                            kullanmak hem akıcı hem ucuz. */}
+                        <main className="flex-1 p-3 sm:p-4 md:p-6 safe-bottom overflow-x-hidden min-w-0">
                             <Routes>
                                 {PERMITTED_MODULES.map(mod => <Route key={mod} path={mod} element={renderModule(mod)} />)}
                                 <Route path="supplier-audit/:auditId" element={renderModule('supplier-audit/:auditId')} />
                                 <Route path="/" element={<Navigate to={`/${DEFAULT_MODULE}`} replace />} />
                                 <Route path="*" element={<Navigate to={`/${DEFAULT_MODULE}`} replace />} />
                             </Routes>
-                        </motion.main>
+                        </main>
                     </div>
                 </div>
             </div>

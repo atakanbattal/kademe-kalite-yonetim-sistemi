@@ -627,6 +627,65 @@ export const DataProvider = ({ children }) => {
             }
         };
 
+        /** Targeted documents refresh inline (realtime'da). Full fetchData(true)
+            tek doküman değişikliğinde 30 tabloyu yeniden çekiyordu. */
+        const refreshDocumentsInline = async () => {
+            try {
+                const { data: docsData, error: docsError } = await supabase
+                    .from('documents')
+                    .select('*, department:department_id(id, unit_name), personnel:personnel_id(id, full_name), owner:owner_id(id, full_name)')
+                    .order('created_at', { ascending: false });
+                if (docsError || !docsData) return;
+                const documentIds = docsData.map((doc) => doc.id).filter(Boolean);
+                let revisionsByDocumentId = new Map();
+                if (documentIds.length > 0) {
+                    const { data: revisionsData } = await supabase
+                        .from('document_revisions')
+                        .select('*')
+                        .in('document_id', documentIds)
+                        .order('document_id', { ascending: true })
+                        .order('revision_number', { ascending: false });
+                    if (revisionsData) {
+                        revisionsByDocumentId = revisionsData.reduce((map, revision) => {
+                            const list = map.get(revision.document_id) || [];
+                            list.push(revision);
+                            map.set(revision.document_id, list);
+                            return map;
+                        }, new Map());
+                    }
+                }
+                const docsWithRevisions = docsData.map((doc) => ({
+                    ...doc,
+                    department: normalizeCostSettingsJoin(doc.department),
+                    document_revisions: revisionsByDocumentId.get(doc.id) || [],
+                }));
+                setData((prev) => ({ ...prev, documents: docsWithRevisions }));
+            } catch (err) {
+                console.error('❌ Documents realtime refresh error:', err);
+            }
+        };
+
+        const refreshExternalDocumentsInline = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('external_documents')
+                    .select(
+                        '*, customer:customer_id(id, name, customer_name, customer_code), supplier:supplier_id(id, name), audit_standard:audit_standard_id(id, code, name), training:training_id(id, title, training_code)'
+                    )
+                    .order('received_at', { ascending: false, nullsFirst: false })
+                    .order('created_at', { ascending: false });
+                if (error) return;
+                setData((prev) => ({ ...prev, externalDocuments: data || [] }));
+            } catch (err) {
+                console.error('❌ External documents realtime refresh error:', err);
+            }
+        };
+
+        // Realtime burst koruması: bir kullanıcı 10 doküman aynı anda yüklerse
+        // 10 ardışık refetch atılmasın diye 500ms debounce.
+        let docRefreshTimer = null;
+        let extDocRefreshTimer = null;
+
         const handleDbChanges = (payload) => {
             const { eventType, table, new: newRecord, old: oldRecord } = payload;
             let action = '';
@@ -689,15 +748,15 @@ export const DataProvider = ({ children }) => {
                         return { ...prev, qualityCosts: newCosts };
                     });
                 }
-                // Documents tablosu değiştiyse full refresh (doküman numaraları trigger ile güncellendiği için)
+                // Documents/external_documents — sadece ilgili tablo refetch edilir
+                // (eskiden full fetchData(true) çağrılıyordu, 30 tabloyu yeniden çekiyordu).
                 if (payload.table === 'documents') {
-                    console.log('🔄 Documents değişikliği algılandı:', payload.eventType);
-                    // Doküman numaraları database trigger ile güncellendiğinden full refresh gerekli
-                    fetchData(true);
+                    if (docRefreshTimer) clearTimeout(docRefreshTimer);
+                    docRefreshTimer = setTimeout(() => { refreshDocumentsInline(); }, 500);
                 }
                 if (payload.table === 'external_documents') {
-                    console.log('🔄 Dış kaynaklı doküman değişikliği algılandı:', payload.eventType);
-                    fetchData(true);
+                    if (extDocRefreshTimer) clearTimeout(extDocRefreshTimer);
+                    extDocRefreshTimer = setTimeout(() => { refreshExternalDocumentsInline(); }, 500);
                 }
             })
             .subscribe((status, err) => {
@@ -715,9 +774,11 @@ export const DataProvider = ({ children }) => {
             });
 
         return () => {
+            if (docRefreshTimer) clearTimeout(docRefreshTimer);
+            if (extDocRefreshTimer) clearTimeout(extDocRefreshTimer);
             supabase.removeChannel(subscription);
         };
-    }, [session, logAudit, fetchData]);
+    }, [session, logAudit]);
 
     const refreshProducedVehicles = useCallback(async () => {
         if (!session) return;
@@ -1116,12 +1177,70 @@ export const DataProvider = ({ children }) => {
         }
     }, [session]);
 
-    // Context value'yu useMemo ile optimize et - gereksiz re-render'ları önler
-    const value = useMemo(() => ({
-        ...data,
-        loading,
-        refreshData: () => fetchData(true), // Force refresh (tüm data)
-        // Modül bazlı refresh fonksiyonları (daha hızlı, daha az yük)
+    /** Targeted documents refresh — realtime'da full fetchData(true) yerine kullanılır.
+        Aksi halde tek bir doküman değişikliğinde 30 tablonun tümü yeniden çekiliyordu. */
+    const refreshDocuments = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: docsData, error: docsError } = await supabase
+                .from('documents')
+                .select('*, department:department_id(id, unit_name), personnel:personnel_id(id, full_name), owner:owner_id(id, full_name)')
+                .order('created_at', { ascending: false });
+            if (docsError || !docsData) return;
+            const documentIds = docsData.map(doc => doc.id).filter(Boolean);
+            let revisionsByDocumentId = new Map();
+            if (documentIds.length > 0) {
+                const { data: revisionsData, error: revisionsError } = await supabase
+                    .from('document_revisions')
+                    .select('*')
+                    .in('document_id', documentIds)
+                    .order('document_id', { ascending: true })
+                    .order('revision_number', { ascending: false });
+                if (!revisionsError && revisionsData) {
+                    revisionsByDocumentId = revisionsData.reduce((map, revision) => {
+                        const list = map.get(revision.document_id) || [];
+                        list.push(revision);
+                        map.set(revision.document_id, list);
+                        return map;
+                    }, new Map());
+                }
+            }
+            const docsWithRevisions = docsData.map(doc => ({
+                ...doc,
+                department: normalizeCostSettingsJoin(doc.department),
+                document_revisions: revisionsByDocumentId.get(doc.id) || [],
+            }));
+            setData(prev => ({ ...prev, documents: docsWithRevisions }));
+            console.log('✅ Documents refreshed (targeted):', docsWithRevisions.length);
+        } catch (error) {
+            console.error('❌ Documents refresh error:', error);
+        }
+    }, [session]);
+
+    const refreshExternalDocuments = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data, error } = await supabase
+                .from('external_documents')
+                .select(
+                    '*, customer:customer_id(id, name, customer_name, customer_code), supplier:supplier_id(id, name), audit_standard:audit_standard_id(id, code, name), training:training_id(id, title, training_code)'
+                )
+                .order('received_at', { ascending: false, nullsFirst: false })
+                .order('created_at', { ascending: false });
+            if (error) return;
+            setData(prev => ({ ...prev, externalDocuments: data || [] }));
+            console.log('✅ External documents refreshed (targeted):', data?.length || 0);
+        } catch (error) {
+            console.error('❌ External documents refresh error:', error);
+        }
+    }, [session]);
+
+    // Refresh fonksiyonları zaten useCallback ile sarılı ve session'a bağımlı.
+    // Bunları ayrı bir stable obje içinde tutuyoruz ki value memo'su sadece data
+    // değiştiğinde değişsin. (Aksi halde refresh fonksiyonu kimliği her render'da
+    // değişmediği halde value referansı yine de yenilenebilirdi.)
+    const refreshFns = useMemo(() => ({
+        refreshData: () => fetchData(true),
         refreshProducedVehicles,
         refreshQualityCosts,
         refreshKpis,
@@ -1135,15 +1254,23 @@ export const DataProvider = ({ children }) => {
         refreshCustomerComplaints,
         refreshCustomers,
         refreshTasks,
+        refreshDocuments,
+        refreshExternalDocuments,
         logAudit,
     }), [
-        data, loading, fetchData,
+        fetchData,
         refreshProducedVehicles, refreshQualityCosts, refreshKpis, refreshAutoKpis,
         refreshSuppliers, refreshNonConformities, refreshDeviations,
-        refreshEquipments, refreshEquipment, refreshIncomingInspections, refreshCustomerComplaints,
-        refreshCustomers,
-        refreshTasks, logAudit,
+        refreshEquipments, refreshEquipment, refreshIncomingInspections,
+        refreshCustomerComplaints, refreshCustomers, refreshTasks,
+        refreshDocuments, refreshExternalDocuments, logAudit,
     ]);
+
+    const value = useMemo(() => ({
+        ...data,
+        loading,
+        ...refreshFns,
+    }), [data, loading, refreshFns]);
 
     return (
         <DataContext.Provider value={value}>

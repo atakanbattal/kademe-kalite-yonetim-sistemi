@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, Legend, Brush, AreaChart, Area } from 'recharts';
 import { motion } from 'framer-motion';
 import { PIE_COLORS } from './constants';
@@ -480,4 +480,4 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
     );
 };
 
-export default CostAnalytics;
+export default memo(CostAnalytics);

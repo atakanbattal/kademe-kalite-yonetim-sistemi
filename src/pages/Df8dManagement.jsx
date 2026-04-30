@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useDeferredValue } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -71,7 +71,23 @@ const recordMatchesDateFilter = (record, filters) => {
     return true;
 };
 
-const getSearchableRecordText = (record) => (
+/** 8D progress içindeki text alanlarını JSON.stringify yapmadan toplar.
+    Önceki sürüm her filtre pass'inde her kayıt için JSON.stringify çağırıyordu;
+    1000 kayıtta arama tuş başına milisaniyelerce takıyordu. */
+const collect8dProgressText = (eightDProgress) => {
+    if (!eightDProgress || typeof eightDProgress !== 'object') return '';
+    const parts = [];
+    for (const key in eightDProgress) {
+        const step = eightDProgress[key];
+        if (!step) continue;
+        if (step.responsible) parts.push(step.responsible);
+        if (step.description) parts.push(step.description);
+        if (step.completionDate) parts.push(step.completionDate);
+    }
+    return parts.join(' ');
+};
+
+const buildSearchableRecordText = (record) => (
     [
         record.nc_number,
         record.mdi_no,
@@ -92,12 +108,24 @@ const getSearchableRecordText = (record) => (
         record.notes,
         record.priority,
         record.status,
-        record.eight_d_progress ? JSON.stringify(record.eight_d_progress) : null,
+        collect8dProgressText(record.eight_d_progress),
     ]
         .filter(Boolean)
         .map((value) => normalizeTurkishForSearch(String(value)))
         .join(' ')
 );
+
+/** Kayıt referansından önceden hesaplanmış arama metnine zayıf ref cache.
+    Aynı record nesnesi tekrar geldiğinde stringify atlanır. */
+const searchTextCache = new WeakMap();
+const getSearchableRecordText = (record) => {
+    if (!record || typeof record !== 'object') return '';
+    const cached = searchTextCache.get(record);
+    if (cached !== undefined) return cached;
+    const text = buildSearchableRecordText(record);
+    searchTextCache.set(record, text);
+    return text;
+};
 
 const filterNonConformityRecords = (records, filters, { ignoreDepartment = false } = {}) => {
     const normalizedSearchTerm = normalizeTurkishForSearch((filters.searchTerm || '').trim());
@@ -202,13 +230,18 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
             setRecordListModal({ isOpen: true, title, records });
         };
 
+        // Filtre değerleri anında uygulanmasın diye `useDeferredValue` ile
+        // arka plana atılır — input/select kapanışı bloklanmaz, ağır liste
+        // hesabı kullanıcı yazma duraksamasından sonra çalışır.
+        const deferredFilters = useDeferredValue(filters);
+
         const filteredRecords = useMemo(() => {
-            return filterNonConformityRecords(normalizedNonConformities, filters);
-        }, [normalizedNonConformities, filters]);
+            return filterNonConformityRecords(normalizedNonConformities, deferredFilters);
+        }, [normalizedNonConformities, deferredFilters]);
 
         const reportableRecords = useMemo(() => (
-            filterNonConformityRecords(normalizedNonConformities, filters, { ignoreDepartment: true })
-        ), [normalizedNonConformities, filters]);
+            filterNonConformityRecords(normalizedNonConformities, deferredFilters, { ignoreDepartment: true })
+        ), [normalizedNonConformities, deferredFilters]);
 
         const handleToggleStatus = async (record) => {
             if (record.status === 'Kapatıldı' || record.status === 'Reddedildi') {
