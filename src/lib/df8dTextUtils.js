@@ -252,8 +252,9 @@ function recordPrimaryOpenedMs(record) {
 }
 
 /**
- * Liste / PDF: önce tip (DF → 8D → MDI), sonra aynı yıl içinde küçükten büyüğe sıra no (001, 002, … 048),
- * farklı yıllarda en yeni yıl önce. Tarih sıralaması kayıt numarasını bozduğu için kaldırıldı.
+ * Liste / PDF: önce tip (DF → 8D → MDI), farklı yıllarda en yeni yıl önce.
+ * 8D: aynı yıl içinde sıra no küçükten büyüğe (001 … 048).
+ * DF ve MDI: aynı yıl içinde sıra no büyükten küçüğe (en yeni kayıt üstte).
  */
 export function compareDf8dRecordsForModuleList(a, b) {
   const rank = (t) => (t === 'DF' ? 0 : t === '8D' ? 1 : t === 'MDI' ? 2 : 3);
@@ -261,18 +262,23 @@ export function compareDf8dRecordsForModuleList(a, b) {
   const rb = rank(b?.type);
   if (ra !== rb) return ra - rb;
 
+  const type = a?.type;
+  const serialNewestFirst = type === 'DF' || type === 'MDI';
+
   const pa = parseDf8dNcSortKey(a);
   const pb = parseDf8dNcSortKey(b);
   if (pa && pb) {
     if (pa.year !== pb.year) return pb.year - pa.year;
-    if (pa.serial !== pb.serial) return pa.serial - pb.serial;
+    if (pa.serial !== pb.serial) {
+      return serialNewestFirst ? pb.serial - pa.serial : pa.serial - pb.serial;
+    }
     const c = pa.raw.localeCompare(pb.raw, 'tr', { numeric: true, sensitivity: 'base' });
-    if (c !== 0) return c;
+    if (c !== 0) return serialNewestFirst ? -c : c;
   } else {
     const sa = String(a?.nc_number || a?.mdi_no || '');
     const sb = String(b?.nc_number || b?.mdi_no || '');
     const c = sa.localeCompare(sb, 'tr', { numeric: true, sensitivity: 'base' });
-    if (c !== 0) return c;
+    if (c !== 0) return serialNewestFirst ? -c : c;
   }
 
   const tb = recordPrimaryOpenedMs(b);
