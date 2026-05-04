@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { getCanonicalUnitLabel } from '@/lib/qualityCostUnitGroups';
 import { cn } from '@/lib/utils';
+import { useData } from '@/contexts/DataContext';
 import {
     AlertTriangle,
     CheckCircle2,
