@@ -3,6 +3,7 @@ import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { sanitizeFileName, toCamelCase } from './utils';
+import { shouldReplaceGrupOzetiBlobIn5n1kNe, inferMeaningful5n1kNe } from './df8dTextUtils';
 
 const generatePdf = async (doc, { title, reportNo, record, contentSections, dataContext }) => {
     const { personnel, departments } = dataContext;
@@ -139,12 +140,16 @@ const getNCContent = (record, dataContext) => {
         // 5N1K Analizi
         if (record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) {
             const analysis = record.five_n1k_analysis;
-            if (analysis.what) analysisData.push({ label: '5N1K - Ne', value: analysis.what });
-            if (analysis.where) analysisData.push({ label: '5N1K - Nerede', value: analysis.where });
-            if (analysis.when) analysisData.push({ label: '5N1K - Ne Zaman', value: analysis.when });
-            if (analysis.who) analysisData.push({ label: '5N1K - Kim', value: analysis.who });
-            if (analysis.how) analysisData.push({ label: '5N1K - Nasıl', value: analysis.how });
-            if (analysis.why) analysisData.push({ label: '5N1K - Neden Önemli', value: analysis.why });
+            const rawWhat = analysis.what || analysis.ne || '';
+            const displayWhat = shouldReplaceGrupOzetiBlobIn5n1kNe(rawWhat)
+                ? (inferMeaningful5n1kNe(record) || rawWhat)
+                : rawWhat;
+            if (displayWhat) analysisData.push({ label: '5N1K - Ne', value: displayWhat });
+            if (analysis.where || analysis.nerede) analysisData.push({ label: '5N1K - Nerede', value: analysis.where || analysis.nerede });
+            if (analysis.when || analysis.neZaman) analysisData.push({ label: '5N1K - Ne Zaman', value: analysis.when || analysis.neZaman });
+            if (analysis.who || analysis.kim) analysisData.push({ label: '5N1K - Kim', value: analysis.who || analysis.kim });
+            if (analysis.how || analysis.nasil) analysisData.push({ label: '5N1K - Nasıl', value: analysis.how || analysis.nasil });
+            if (analysis.why || analysis.neden) analysisData.push({ label: '5N1K - Neden Önemli', value: analysis.why || analysis.neden });
         }
         
         // 5 Neden Analizi

@@ -1,17 +1,40 @@
 import React, { useMemo } from 'react';
 import { Layers } from 'lucide-react';
 import { stripSquareBullets } from '@/lib/df8dTextUtils';
+import RelatedNonconformityRecordsTable from '@/components/df-8d/RelatedNonconformityRecordsTable';
 
 /** Bilinen bölüm başlıkları (satır tam eşleşmesi, tr-TR küçük harf) */
 const SECTION_HEADERS = [
+  // Grup DF/8D dönüşümü
   'GRUP ÖZETİ',
   'ETKİLENEN BİRİMLER',
   'ETKİLENEN ARAÇ TİPLERİ',
   'İLGİLİ UYGUNSUZLUK KAYITLARI',
+  'EN SIK TEKRARLAYAN HATALAR',
+  'ALINAN ACİL AKSİYONLAR',
+  'KAYIT DETAYLARI',
+  // Maliyet / süre
   'MALIYET KAYDI DETAYLARI',
   'MALİYET BİLGİLERİ',
   'SÜRE BİLGİLERİ',
   'AÇIKLAMA',
+  // Tekil UYG → DF/8D
+  'KAYNAK BİLGİSİ',
+  'ÜRÜN / PARÇA BİLGİSİ',
+  'UYGUNSUZLUK DETAYI',
+  'TEKRAR ANALİZİ',
+  'ALINAN ACİL AKSİYON',
+  'EK NOTLAR',
+  // Girdi kalite kontrolü (GKK)
+  'MUAYENE BİLGİLERİ',
+  'ÖLÇÜM SONUÇLARI VE TESPİTLER',
+  'UYGUNSUZ BULUNAN ÖLÇÜMLER',
+  'UYGUN BULUNAN ÖLÇÜMLER',
+  'ÖZET BİLGİLER',
+  'KARAR',
+  // Genel
+  'TEKRAR ANALİZİ',
+  'KAYIT BİLGİLERİ',
 ];
 
 const headerKey = (s) => s.replace(/^■\s*/, '').trim().toLocaleLowerCase('tr-TR');
@@ -21,6 +44,17 @@ const HEADER_SET = new Set(SECTION_HEADERS.map((h) => h.toLocaleLowerCase('tr-TR
 function isSectionHeaderLine(line) {
   const k = headerKey(line);
   return HEADER_SET.has(k);
+}
+
+/** «İLGİLİ UYGUNSUZLUK KAYITLARI UYG-26-…» tek satırda yapışık ise başlık + ilk veri satırına böler */
+function expandGluedUyHeaderLine(line) {
+  const trimmed = line.trim();
+  const m = trimmed.match(/^(■\s*)?(İLGİLİ\s+UYGUNSUZLUK\s+KAYITLARI)\s+(.+)$/i);
+  if (m && /\bUYG-\d{2}-\d+/i.test(m[3])) {
+    const prefix = m[1] || '';
+    return [`${prefix}${m[2]}`, m[3]];
+  }
+  return [line];
 }
 
 /** Metindeki ■ ayraçlarını satır sonlarına çevir; başlık satırlarını ayıkla */
@@ -38,7 +72,7 @@ function normalizeBulletSections(text) {
  */
 function parseIntoSections(text) {
   const normalized = normalizeBulletSections(text);
-  const lines = normalized.split('\n');
+  const lines = normalized.split('\n').flatMap((line) => expandGluedUyHeaderLine(line));
   const sections = [];
   let preamble = [];
   let current = null;
@@ -67,10 +101,17 @@ export function looksLikeStructuredProblemDescription(text) {
   const t = text.trim();
   if (t.length < 12) return false;
 
-  // Eski: ■ ile işaretli uzun şablonlar
   if (
     t.includes('■') &&
     (t.includes('Kategori') || t.includes('GRUP') || /\n\s*■/.test(t) || t.length > 160)
+  ) {
+    return true;
+  }
+
+  // Tekil UYG → DF/8D formatı (KAYNAK BİLGİSİ gibi başlıklar varsa)
+  if (
+    /^KAYNAK\s+BİLGİSİ|^ÜRÜN\s*\/\s*PARÇA\s+BİLGİSİ|^MUAYENE\s+BİLGİLERİ/m.test(t) &&
+    t.includes('\n')
   ) {
     return true;
   }
@@ -87,15 +128,7 @@ function SectionBody({ title, bodyText }) {
   const lines = bodyText.split('\n').filter((l) => l.trim().length > 0);
 
   if (titleKey === UYGUNLUK_HEADER_TR) {
-    return (
-      <ul className="m-0 list-none space-y-1.5 p-0 pl-0">
-        {lines.map((line, i) => (
-          <li key={i} className="break-words pl-0 text-sm leading-relaxed">
-            {line.trim()}
-          </li>
-        ))}
-      </ul>
-    );
+    return <RelatedNonconformityRecordsTable bodyText={lines.join('\n')} />;
   }
 
   return (

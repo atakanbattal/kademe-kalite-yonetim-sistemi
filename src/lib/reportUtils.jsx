@@ -25,6 +25,11 @@ import {
 	stripSquareBullets,
 	hasStructuredRootCauseData,
 	stripDuplicateRootCauseFromProblemDescription,
+	triSplitDescriptionForPdfRelatedTable,
+	buildPdfHtmlTableForRelatedNonconformityRecords,
+	parseRelatedNonconformityRecordsBlob,
+	shouldReplaceGrupOzetiBlobIn5n1kNe,
+	inferMeaningful5n1kNe,
 } from '@/lib/df8dTextUtils';
 import { getBucketForNcAttachmentPath, normalizeNcAttachmentPath } from '@/lib/df8dAttachmentUtils';
 import { formatFiveTopicForPdf, FIVE_T_PDF_LABELS } from '@/lib/fmeaFiveTopics';
@@ -5102,109 +5107,114 @@ const generateGenericReportHtml = async (record, type) => {
 					return normalized;
 				};
 
-				// Problem tanımı için profesyonel formatlama
-				const formatProblemDescription = (text) => {
-					if (!text || typeof text !== 'string') return '-';
+				// Problem tanımı için profesyonel formatlama (İlgili UYG listesi → PDF tablosu)
+				/** Büyük harf, boşluk/tire/slash içeren, kolon olmayan bağımsız satır = section başlığı */
+				const isSectionDividerLine = (t) => {
+					if (t.length < 6 || t.length > 80) return false;
+					if (t.includes(':') && !t.endsWith(':')) return false;
+					// ■ ile başlayabilir; rakam içermemeli (tarihler gibi)
+					const clean = t.replace(/^■\s*/, '').trim();
+					return /^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ0-9\s/\-\.]{5,}$/.test(clean) && /[A-ZÇĞİÖŞÜ].*\s+.*[A-ZÇĞİÖŞÜ]/.test(clean);
+				};
 
-					// Önce Türkçe karakterleri normalize et
-					text = normalizeTurkishChars(text);
-
-					// HTML escape yap
-					let escaped = escapeHtml(text);
-
-					// Satır geçişlerini koru-boş satırları da koru
+				const formatProblemDescriptionPlain = (normalizedText) => {
+					let escaped = escapeHtml(normalizedText);
 					let lines = escaped.split('\n');
 					let formattedLines = [];
 					let inList = false;
 					let currentParagraph = [];
 
+					const flushParagraph = () => {
+						if (currentParagraph.length > 0) {
+							formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+							currentParagraph = [];
+						}
+					};
+					const flushList = () => {
+						if (inList) { formattedLines.push('</ul>'); inList = false; }
+					};
+
 					for (let i = 0; i < lines.length; i++) {
 						let line = lines[i];
 						let trimmedLine = line.trim();
 
-						// Boş satır-paragraf sonu veya boşluk
 						if (!trimmedLine) {
-							// Önceki paragrafı bitir
-							if (currentParagraph.length > 0) {
-								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-								currentParagraph = [];
-							}
-							// Liste durumunu bitir
-							if (inList) {
-								formattedLines.push('</ul>');
-								inList = false;
-							}
-							// Boş satırı koru (küçük bir boşluk olarak)
+							flushParagraph();
+							flushList();
 							formattedLines.push('<div style="height: 4px;"></div>');
 							continue;
 						}
 
-						// Başlık tespiti: "Başlık:" veya "Başlık: Değer" formatı
-						const headingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
-						if (headingMatch) {
-							const [, title, value] = headingMatch;
-
-							// Önceki paragrafı bitir
-							if (currentParagraph.length > 0) {
-								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-								currentParagraph = [];
-							}
-
-							// Liste durumunu bitir
-							if (inList) {
-								formattedLines.push('</ul>');
-								inList = false;
-							}
-
-							// Başlığı formatla-siyah bold, mavi renk yok
-							if (value && value.trim()) {
-								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #1f2937; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
-							} else {
-								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #1f2937; font-weight: 600; font-size: 13px;">${title}:</strong></div>`);
-							}
+						// Büyük harf section başlıkları (KAYIT BİLGİLERİ, MUAYENE BİLGİLERİ vb.)
+						if (isSectionDividerLine(trimmedLine)) {
+							flushParagraph();
+							flushList();
+							const cleanTitle = trimmedLine.replace(/^■\s*/, '');
+							formattedLines.push(`<div style="margin: 14px 0 6px 0; padding: 5px 10px; background: #eef2ff; border-left: 3px solid #4f46e5; border-radius: 0 4px 4px 0;"><strong style="font-size: 12px; color: #3730a3; text-transform: uppercase; letter-spacing: 0.05em;">${cleanTitle}</strong></div>`);
 							continue;
 						}
 
-						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
+						// "Başlık: Değer" tipi satırlar
+						const headingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜa-zçğışöüA-Za-z][^:]{1,50}):\s*(.+)$/);
+						if (headingMatch) {
+							const [, title, value] = headingMatch;
+							flushParagraph();
+							flushList();
+							formattedLines.push(`<div style="margin-top: 8px; margin-bottom: 2px;"><strong style="color: #1f2937; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
+							continue;
+						}
+
+						// "Başlık:" (değer yok, sadece kolon)
+						const headingOnlyMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:]{1,50}):$/);
+						if (headingOnlyMatch) {
+							flushParagraph();
+							flushList();
+							formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 2px;"><strong style="color: #1f2937; font-weight: 600; font-size: 13px;">${headingOnlyMatch[1]}:</strong></div>`);
+							continue;
+						}
+
+						// Liste öğesi (•, -, *)
 						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
 						if (listMatch) {
-							// Önceki paragrafı bitir
-							if (currentParagraph.length > 0) {
-								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-								currentParagraph = [];
-							}
-
+							flushParagraph();
 							if (!inList) {
 								formattedLines.push('<ul style="margin: 4px 0; padding-left: 20px; list-style-type: disc;">');
 								inList = true;
 							}
-
-							const itemText = listMatch[2];
-							formattedLines.push(`<li style="margin-bottom: 4px; line-height: 1.5; color: #374151; font-size: 13px;">${itemText}</li>`);
+							formattedLines.push(`<li style="margin-bottom: 4px; line-height: 1.5; color: #374151; font-size: 13px;">${listMatch[2]}</li>`);
 							continue;
 						}
 
-						// Liste durumunu bitir
-						if (inList) {
-							formattedLines.push('</ul>');
-							inList = false;
-						}
-
-						// Normal metin-paragrafa ekle
+						flushList();
 						currentParagraph.push(trimmedLine);
 					}
 
-					// Son paragrafı ekle
-					if (currentParagraph.length > 0) {
-						formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-					}
-
-					// Son liste durumunu bitir
-					if (inList) {
-						formattedLines.push('</ul>');
-					}
+					flushParagraph();
+					flushList();
 
 					return formattedLines.join('\n');
+				};
+
+				const formatProblemDescription = (text) => {
+					if (!text || typeof text !== 'string') return '-';
+
+					const normalized = normalizeTurkishChars(text);
+					const tri = triSplitDescriptionForPdfRelatedTable(normalized);
+					if (tri && /\bUYG-\d{2}-\d+/i.test(tri.recordsBlob)) {
+						const chunks = [];
+						if (tri.before.trim()) chunks.push(formatProblemDescriptionPlain(tri.before));
+						const parsedUy = parseRelatedNonconformityRecordsBlob(tri.recordsBlob);
+						if (parsedUy.rows.length > 0) {
+							chunks.push(buildPdfHtmlTableForRelatedNonconformityRecords(tri.recordsBlob));
+						} else {
+							chunks.push(
+								`<pre style="white-space:pre-wrap;word-wrap:break-word;font-size:12px;border:1px solid #e5e7eb;padding:10px;border-radius:6px;background:#f9fafb;">${escapeHtml(tri.recordsBlob)}</pre>`
+							);
+						}
+						if (tri.after.trim()) chunks.push(formatProblemDescriptionPlain(tri.after));
+						return chunks.filter(Boolean).join('\n');
+					}
+					return formatProblemDescriptionPlain(normalized);
 				};
 
 				// Problem tanımını tablo dışında tutmak için ayrı bir değişkende sakla
@@ -6627,11 +6637,16 @@ const generateGenericReportHtml = async (record, type) => {
 								field === 'how' ? 'nasil' :
 									field === 'why' ? 'neden' : field] || '';
 			};
+			const rawWhat = get5N1KValue('what');
+			const displayWhat =
+				shouldReplaceGrupOzetiBlobIn5n1kNe(rawWhat)
+					? (inferMeaningful5n1kNe(record) || rawWhat)
+					: rawWhat;
 			html += `<div class="analysis-box fillable" >
 				<h4>5N1K Analizi</h4>
 				<div class="fillable-field">
 					<strong>Ne:</strong>
-					<div class="fillable-line">${renderField(get5N1KValue('what'), '')}</div>
+					<div class="fillable-line">${renderField(displayWhat, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Nerede:</strong>

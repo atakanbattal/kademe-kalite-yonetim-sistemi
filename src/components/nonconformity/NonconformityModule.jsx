@@ -706,6 +706,56 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const earliest = sorted[0]?.detection_date;
     const latest = sorted[sorted.length - 1]?.detection_date;
 
+    /** Bir UYG kaydının açıklamasından tespit edilen hata içeriğini çeker */
+    const extractUyFaultItems = (desc) => {
+      if (!desc || typeof desc !== 'string') return [];
+      const lines = desc.split('\n').map(l => l.trim()).filter(Boolean);
+      const items = [];
+      let inFaultSection = false;
+      for (const line of lines) {
+        if (/hata\s*detay/i.test(line) || /UYGUNSUZ\s+BULUNAN/i.test(line) || /tespit.*hata/i.test(line)) {
+          inFaultSection = true;
+          continue;
+        }
+        if (inFaultSection) {
+          if (/^[-•*]\s/.test(line) || /^\d+[\.)]\s/.test(line)) {
+            const clean = line.replace(/^[-•*\d.)]+\s*/, '').trim();
+            if (clean) items.push(clean);
+          } else if (items.length > 0 && line.length > 0 && !line.startsWith(' ')) {
+            break;
+          }
+        } else if (/^[-•]\s/.test(line) || /^\d+[\.)]\s/.test(line)) {
+          const clean = line.replace(/^[-•*\d.)]+\s*/, '').trim();
+          if (clean.length > 5) items.push(clean);
+        }
+      }
+      return items;
+    };
+
+    /** Tek satırlık kısa hata özeti (pipe için güvenli) */
+    const getUyFaultSnippet = (r, maxLen = 150) => {
+      const desc = r.description || '';
+      const faultItems = extractUyFaultItems(desc);
+      if (faultItems.length > 0) {
+        const joined = faultItems.slice(0, 3).join('; ').replace(/\|/g, '·');
+        return joined.length > maxLen ? `${joined.slice(0, maxLen - 1)}…` : joined;
+      }
+      // GKK formatı: ilk anlamlı satır
+      const firstLine = desc.split('\n')
+        .map(l => l.trim())
+        .find(l =>
+          l.length > 10 &&
+          !/^■/.test(l) &&
+          !/^(GİRDİ\s+KALİTE|KAYNAK\s+BİLGİ|MUAYENE\s+BİLGİ|UYGUNSUZLUK\s+DETAY)/i.test(l) &&
+          !/^[A-ZÇĞİÖŞÜ\s]{8,}:?\s*$/.test(l)
+        );
+      if (firstLine) {
+        const clean = firstLine.replace(/\|/g, '·').trim();
+        return clean.length > maxLen ? `${clean.slice(0, maxLen - 1)}…` : clean;
+      }
+      return (r.category || '').replace(/\|/g, '·').slice(0, maxLen);
+    };
+
     const deptCounts = {};
     const vehicleCounts = {};
     const faultSnippets = {};
@@ -713,10 +763,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       if (r.department) deptCounts[r.department] = (deptCounts[r.department] || 0) + 1;
       if (r.vehicle_type) vehicleCounts[r.vehicle_type] = (vehicleCounts[r.vehicle_type] || 0) + 1;
 
-      const desc = r.description || '';
-      const lines = desc.split('\n').filter(l => l.startsWith('- ') || l.startsWith('• '));
-      lines.forEach(l => {
-        const clean = l.replace(/^[-•]\s*/, '').trim();
+      const items = extractUyFaultItems(r.description || '');
+      items.forEach(clean => {
         if (clean) faultSnippets[clean] = (faultSnippets[clean] || 0) + 1;
       });
     });
@@ -754,11 +802,24 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     descLines.push('', 'İLGİLİ UYGUNSUZLUK KAYITLARI');
     sorted.slice(0, 50).forEach(r => {
       const vInfo = [r.vehicle_type, r.vehicle_identifier].filter(Boolean).join('/');
+      const snippet = getUyFaultSnippet(r, 150);
       descLines.push(
-        `  ${getDisplayRecordNumber(r)} | ${fmtDate(r.detection_date)} | ${vInfo || r.part_code || '-'} | x${r.quantity || 1} | ${r.severity || '-'}`
+        `  ${getDisplayRecordNumber(r)} | ${fmtDate(r.detection_date)} | ${vInfo || r.part_code || '-'} | x${r.quantity || 1} | ${r.severity || '-'} | ${snippet}`
       );
     });
     if (sorted.length > 50) descLines.push(`  ... ve ${sorted.length - 50} kayıt daha`);
+
+    // Kayıt başına detaylı hata içeriği
+    const detailLimit = sorted.length <= 10 ? 10 : Math.min(sorted.length, 25);
+    const detailRecords = sorted.slice(0, detailLimit).filter(r => extractUyFaultItems(r.description || '').length > 0);
+    if (detailRecords.length > 0) {
+      descLines.push('', 'KAYIT DETAYLARI');
+      detailRecords.forEach(r => {
+        const vInfo = [r.vehicle_type, r.vehicle_identifier].filter(Boolean).join('/');
+        descLines.push(`  ${getDisplayRecordNumber(r)}${vInfo ? ' · ' + vInfo : ''}:`);
+        extractUyFaultItems(r.description || '').slice(0, 6).forEach(item => descLines.push(`    • ${item}`));
+      });
+    }
 
     const actionRecords = sorted.filter(r => r.action_taken);
     if (actionRecords.length > 0) {

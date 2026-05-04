@@ -67,6 +67,8 @@ import {
   hasStructuredRootCauseData,
   stripDuplicateRootCauseFromProblemDescription,
   getNonConformityListTitle,
+  shouldReplaceGrupOzetiBlobIn5n1kNe,
+  inferMeaningful5n1kNe,
 } from '@/lib/df8dTextUtils';
 import {
   normalizeNcAttachmentPath,
@@ -953,9 +955,14 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
                                 <CardContent className="p-6">
                                   <h4 className="font-semibold mb-4 text-primary">5N1K Analizi</h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {(record.five_n1k_analysis.what || record.five_n1k_analysis.ne) && (
-                                      <InfoCard label="Ne" value={record.five_n1k_analysis.what || record.five_n1k_analysis.ne} />
-                                    )}
+                                    {(() => {
+                                      const raw = record.five_n1k_analysis.what || record.five_n1k_analysis.ne || '';
+                                      if (!String(raw).trim()) return null;
+                                      const display = shouldReplaceGrupOzetiBlobIn5n1kNe(raw)
+                                        ? (inferMeaningful5n1kNe(record) || raw)
+                                        : raw;
+                                      return <InfoCard label="Ne" value={display} />;
+                                    })()}
                                     {(record.five_n1k_analysis.where || record.five_n1k_analysis.nerede) && (
                                       <InfoCard label="Nerede" value={record.five_n1k_analysis.where || record.five_n1k_analysis.nerede} />
                                     )}

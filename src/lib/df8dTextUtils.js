@@ -232,6 +232,211 @@ export function stripDuplicateRootCauseFromProblemDescription(text) {
   return text.slice(0, cut).trim();
 }
 
+const UYG_REF_PATTERN = /UYG-\d{2}-\d+/i;
+
+/**
+ * Tek satır: «UYG-26-0794 | 23.03.2026 | İSTAÇ/736 | x1 | Orta» veya sonda «| açıklama».
+ * @returns {{ refNo: string, detectionDate: string, vehicleOrPart: string, quantity: string, severity: string, description?: string } | null}
+ */
+export function parseOneRelatedNonconformityRecordLine(line) {
+  if (line == null || typeof line !== 'string') return null;
+  const s = line.replace(/^[-•\s]+/, '').trim();
+  if (!UYG_REF_PATTERN.test(s)) return null;
+  const parts = s.split(/\s*\|\s*/).map((p) => p.trim());
+  if (parts.length < 5) return null;
+  if (!/^UYG-\d{2}-\d+$/i.test(parts[0])) return null;
+  const row = {
+    refNo: parts[0],
+    detectionDate: parts[1],
+    vehicleOrPart: parts[2],
+    quantity: parts[3],
+    severity: parts[4],
+  };
+  if (parts.length > 5) {
+    row.description = parts.slice(5).join(' | ');
+  }
+  return row;
+}
+
+/**
+ * GRUP → DF/8D dönüşümünde oluşan liste metni: satır sonları veya tek satırda bitişik « UYG-…» blokları.
+ * @returns {{ rows: object[], tailNotes: string[] }}
+ */
+export function parseRelatedNonconformityRecordsBlob(text) {
+  const rows = [];
+  const tailNotes = [];
+  if (text == null || typeof text !== 'string') return { rows, tailNotes };
+
+  const normalized = text.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return { rows, tailNotes };
+
+  const chunks = [];
+  for (const line of normalized.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const sub = trimmed
+      .split(/(?=\sUYG-\d{2}-\d+)/i)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    chunks.push(...sub);
+  }
+
+  for (const chunk of chunks) {
+    if (/^İLGİLİ\s+UYGUNSUZLUK\s+KAYITLARI$/i.test(chunk.trim())) continue;
+    const parsed = parseOneRelatedNonconformityRecordLine(chunk);
+    if (parsed) rows.push(parsed);
+    else tailNotes.push(chunk);
+  }
+
+  return { rows, tailNotes };
+}
+
+/** PDF / HTML: ilgili uygunsuzluk listesi için basit kaçış */
+export function escapeHtmlForPdfPlain(text) {
+  if (text == null || text === '') return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Açıklama metninde «İlgili uygunsuzluk kayıtları» bloğunu keser (PDF tablo için).
+ * @returns {{ before: string, recordsBlob: string, after: string } | null}
+ */
+export function triSplitDescriptionForPdfRelatedTable(desc) {
+  const text = String(desc ?? '').replace(/\r\n/g, '\n');
+  const re = /İLGİLİ\s+UYGUNSUZLUK\s+KAYITLARI/;
+  const m = text.match(re);
+  if (!m || m.index === undefined) return null;
+  const before = text.slice(0, m.index).replace(/\s+$/u, '');
+  let pos = m.index + m[0].length;
+  while (pos < text.length && /[\s\uFEFF]/.test(text[pos])) pos += 1;
+  const tail = text.slice(pos);
+  const nextSectionM = tail.match(/^\s*(ALINAN\s+ACİL|KAYIT\s+DETAYLARI)/im);
+  let recordsBlob;
+  let after;
+  if (nextSectionM && nextSectionM.index !== undefined) {
+    recordsBlob = tail.slice(0, nextSectionM.index).trim();
+    after = tail.slice(nextSectionM.index).trim();
+  } else {
+    recordsBlob = tail.trim();
+    after = '';
+  }
+  return { before, recordsBlob, after };
+}
+
+/** İlgili kayıt listesi için PDF/HTML tablo (reportUtils ile uyumlu) */
+export function buildPdfHtmlTableForRelatedNonconformityRecords(recordsBlob) {
+  const { rows, tailNotes } = parseRelatedNonconformityRecordsBlob(recordsBlob);
+  if (!rows.length && !tailNotes.length) return '';
+
+  const esc = escapeHtmlForPdfPlain;
+  const hasDesc = rows.some((r) => r.description && String(r.description).trim());
+
+  const head = `
+<div style="margin: 14px 0 10px 0;">
+  <div style="font-weight: 600; font-size: 13px; color: #1f2937; margin-bottom: 8px;">İlgili uygunsuzluk kayıtları</div>
+  <table style="width:100%; border-collapse: collapse; font-size: 11px; border: 1px solid #d1d5db;">
+    <thead>
+      <tr style="background: #f3f4f6;">
+        <th style="border:1px solid #d1d5db; padding:6px 8px; text-align:left; white-space:nowrap;">Kayıt no</th>
+        <th style="border:1px solid #d1d5db; padding:6px 8px; text-align:left; white-space:nowrap;">Tarih</th>
+        <th style="border:1px solid #d1d5db; padding:6px 8px; text-align:left;">Araç / parça</th>
+        <th style="border:1px solid #d1d5db; padding:6px 8px; text-align:left; white-space:nowrap;">Adet</th>
+        <th style="border:1px solid #d1d5db; padding:6px 8px; text-align:left; white-space:nowrap;">Ciddiyet</th>
+        ${hasDesc ? '<th style="border:1px solid #d1d5db; padding:6px 8px; text-align:left;">Tespit / açıklama</th>' : ''}
+      </tr>
+    </thead>
+    <tbody>
+      ${rows
+        .map(
+          (r) => `<tr>
+        <td style="border:1px solid #e5e7eb; padding:6px 8px; font-family:ui-monospace,monospace; vertical-align:top;">${esc(r.refNo)}</td>
+        <td style="border:1px solid #e5e7eb; padding:6px 8px; white-space:nowrap; vertical-align:top;">${esc(r.detectionDate)}</td>
+        <td style="border:1px solid #e5e7eb; padding:6px 8px; vertical-align:top;">${esc(r.vehicleOrPart)}</td>
+        <td style="border:1px solid #e5e7eb; padding:6px 8px; white-space:nowrap; vertical-align:top;">${esc(r.quantity)}</td>
+        <td style="border:1px solid #e5e7eb; padding:6px 8px; white-space:nowrap; vertical-align:top;">${esc(r.severity)}</td>
+        ${hasDesc ? `<td style="border:1px solid #e5e7eb; padding:6px 8px; vertical-align:top;">${esc(r.description || '')}</td>` : ''}
+      </tr>`
+        )
+        .join('')}
+    </tbody>
+  </table>
+</div>`;
+
+  if (!tailNotes.length) return head;
+
+  const notes = tailNotes.map((n) => `<li style="margin:2px 0; color:#4b5563;">${esc(n)}</li>`).join('');
+  return `${head}<ul style="margin:6px 0 0 18px; padding:0; font-size:11px;">${notes}</ul>`;
+}
+
+/** 5N1K «Ne» alanına yanlışlıkla yapışan grup özetini tespit eder (Word/import şişesi). */
+export function shouldReplaceGrupOzetiBlobIn5n1kNe(text) {
+  if (text == null || typeof text !== 'string') return false;
+  const t = stripSquareBullets(text)
+    .normalize('NFC')
+    .replace(/\u2122/g, '')
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('tr-TR');
+  const hasGrup = t.includes('grup') && (t.includes('özet') || t.includes('ozet'));
+  const hasKategori = t.includes('kategori');
+  const hasToplam =
+    t.includes('toplam kayıt') ||
+    t.includes('toplam kayit') ||
+    t.includes('toplam adet');
+  return (hasGrup && hasKategori) || (hasGrup && hasToplam) || (hasKategori && hasToplam && t.length > 40);
+}
+
+/**
+ * Anlamlı «Ne» metni: 5 neden problemi, sonra açıklamanın ilk anlamlı paragrafı (İlgili UYG listesinden önce).
+ */
+export function inferMeaningful5n1kNe(record) {
+  if (!record || typeof record !== 'object') return '';
+  const fw = record.five_why_analysis;
+  if (fw && typeof fw === 'object') {
+    const prob = fw.problem != null ? String(fw.problem).trim() : '';
+    if (prob.length > 3) return prob;
+    const w1 = fw.why1 != null ? String(fw.why1).trim() : '';
+    if (w1.length > 3) return w1;
+  }
+  const desc = record.description;
+  if (typeof desc !== 'string' || !desc.trim()) return '';
+  let d = hasStructuredRootCauseData(record) ? stripDuplicateRootCauseFromProblemDescription(desc) : desc;
+  d = stripSquareBullets(d);
+  const uyIdx = d.search(/İLGİLİ\s+UYGUNSUZLUK\s+KAYITLARI/);
+  let head = (uyIdx >= 0 ? d.slice(0, uyIdx) : d).trim();
+
+  const catM = head.match(/Kategori\s*:\s*([^|\n]+)/i);
+  const areaM = head.match(/Tespit\s*Alan[ıiİ]\s*:\s*([^|\n]+)/i);
+  if (catM || areaM) {
+    const cat = catM ? catM[1].trim().replace(/\s+/g, ' ') : '';
+    const area = areaM ? areaM[1].trim().replace(/\s+/g, ' ') : '';
+    const merged = [cat, area].filter(Boolean).join(' · ');
+    if (merged.length > 5) return merged;
+  }
+
+  const blocks = head
+    .split(/\n\s*\n+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const firstPara = blocks.find(
+    (x) =>
+      x.length > 12 &&
+      !shouldReplaceGrupOzetiBlobIn5n1kNe(x) &&
+      !/^([A-ZÇĞİÖŞÜ][^:\n]{0,48}):\s*$/i.test(x)
+  );
+  if (firstPara) return firstPara.length > 900 ? `${firstPara.slice(0, 897)}…` : firstPara;
+
+  const line = head
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l.length > 12 && !shouldReplaceGrupOzetiBlobIn5n1kNe(l));
+  return line && line.length > 900 ? `${line.slice(0, 897)}…` : line || '';
+}
+
 /** DF-2026-048 / 8D-2025-001 sonundan Yıl + sıra no ayıklar (tüm rakamları birleştirmek yerine). */
 export function parseDf8dNcSortKey(record) {
   const raw = String(record?.nc_number || record?.mdi_no || '').trim();
