@@ -79,7 +79,25 @@ const DetailView = ({ record, onClose, onEdit, onReject, onConvertTo8D, onToggle
                         {getStatusBadge(record.status)}
                     </div>
                     <p className="text-muted-foreground mt-1">
-                        {typeof record.problem_definition === 'string' ? stripSquareBullets(record.problem_definition) : record.problem_definition}
+                        {(() => {
+                            const pd = typeof record.problem_definition === 'string' ? record.problem_definition.trim() : '';
+                            if (pd) return stripSquareBullets(record.problem_definition);
+                            const desc = typeof record.description === 'string' ? record.description.trim() : '';
+                            if (desc) {
+                                const m = desc.match(/Açıklama\s*:\s*\r?\n?\s*([\s\S]+)/i);
+                                if (m) {
+                                    const line = m[1]
+                                        .split(/\r?\n/)
+                                        .map((l) => l.trim())
+                                        .find((l) => l.length > 0);
+                                    if (line) return stripSquareBullets(line);
+                                }
+                                const head = desc.split(/\n\n+/).map((x) => x.trim()).find(Boolean) || desc;
+                                return stripSquareBullets(head);
+                            }
+                            const t = typeof record.title === 'string' ? record.title.trim() : '';
+                            return t ? stripSquareBullets(t) : '—';
+                        })()}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

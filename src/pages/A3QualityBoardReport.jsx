@@ -39,14 +39,10 @@ const fmtCurrency = (n) => new Intl.NumberFormat('tr-TR', { style: 'currency', c
 const fmtNum      = (n) => new Intl.NumberFormat('tr-TR').format(n || 0);
 const fmtPct      = (n, digits = 0) => `%${Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : Number(0).toFixed(digits)}`;
 const safeText = (s) => (s && typeof s === 'string' ? s.normalize('NFC') : s) || '-';
-const trunc = (s, len = 28) => {
-    if (!s) return '-';
-    const str = safeText(String(s));
-    if (str.length <= len) return str;
-    const cut = str.slice(0, len - 1);
-    const lastSpace = cut.lastIndexOf(' ');
-    if (lastSpace > len * 0.5) return cut.slice(0, lastSpace) + '…';
-    return cut + '…';
+/** Rapor çıktısında açıklama/başlık doğruluğu için metin kısaltılmaz. */
+const trunc = (s, _len) => {
+    if (!s && s !== 0) return '-';
+    return safeText(String(s));
 };
 const getAxisWidth = (items, getLabel, min = 90, max = 320, charWidth = 6.6) => {
     if (!Array.isArray(items) || items.length === 0) return min;
@@ -143,7 +139,7 @@ const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10, colWid
             ) : rows.map((row, ri) => (
                 <tr key={ri} style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc' }}>
                     {row.map((cell, ci) => (
-                        <td key={ci} style={{ border: '1px solid #e2e8f0', padding: '3px 6px', verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'anywhere', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cell}</td>
+                        <td key={ci} style={{ border: '1px solid #e2e8f0', padding: '3px 6px', verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cell}</td>
                     ))}
                 </tr>
             ))}
@@ -788,6 +784,7 @@ const A3QualityBoardReport = () => {
                             ? <div style={{textAlign:'center',padding:20,color:C.green,fontWeight:700,fontSize:12}}>Karantinada ürün yok</div>
                             : <MiniTable
                                 headers={['Parça / Parça Kodu','Miktar (Adet)','Karantina Tarihi','Süre','Neden']}
+                                colWidths={['26%','12%','16%','10%','36%']}
                                 rows={activeQuarantine.map(q=>[
                                     <span style={{fontSize:11,fontWeight:500}}>
                                         <strong>{trunc(safeText(q.part_code || q.part_name || '-'),16)}</strong>
@@ -994,6 +991,7 @@ const A3QualityBoardReport = () => {
                         title="Tedarikçi PPM Listesi"
                         color={C.red}
                         headers={['Tedarikçi', 'PPM', 'Kontrol', 'Hatalı']}
+                        colWidths={['52%','16%','16%','16%']}
                         rows={suppliers.ppmBySupplier.map((item) => [
                             <span style={{ fontSize: 10 }}>{trunc(safeText(item.name), 24)}</span>,
                             <span style={{ fontWeight: 700, color: item.ppm > 50000 ? C.red : item.ppm > 10000 ? C.orange : C.green }}>{fmtNum(item.ppm)}</span>,
@@ -1087,24 +1085,22 @@ const A3QualityBoardReport = () => {
                     <ChunkedTablePanels
                         title="Sapma Talepleri Detayı"
                         color={C.indigo}
-                        headers={['No','Parça / Araç','Kaynak','Talep Eden','Durum','Detay']}
+                        headers={['No','Parça / Araç','Kaynak · Birim','Durum']}
+                        colWidths={['8%','30%','44%','18%']}
                         rows={deviations.details.map((item) => [
                             <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.requestNo}</span>,
                             <span style={{fontSize:10}}>
-                                <strong>{trunc(safeText(item.partCode),16)}</strong>
-                                {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.partName),24)}</span>}
-                                {item.vehicleType && item.vehicleType !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.vehicleType),20)}</span>}
+                                <strong>{trunc(safeText(item.partCode),18)}</strong>
+                                {item.partName && item.partName !== '—' && <span style={{color:C.slate}}> · {trunc(safeText(item.partName),18)}</span>}
                             </span>,
-                            <span style={{fontSize:10}}>{trunc(safeText(item.source),18)}</span>,
                             <span style={{fontSize:10}}>
-                                <strong>{trunc(safeText(item.unit),16)}</strong>
-                                {item.requester && item.requester !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.requester),18)}</span>}
+                                <span style={{color:C.indigo,fontWeight:600}}>{trunc(safeText(item.source),16)}</span>
+                                <span style={{color:C.slate}}> / {trunc(safeText(item.unit),14)}</span>
                             </span>,
-                            <span style={{fontSize:10,fontWeight:700}}>{trunc(safeText(item.status),16)}</span>,
-                            <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.description),46)}</span>,
+                            <span style={{fontSize:10,fontWeight:700}}>{trunc(safeText(item.status),14)}</span>,
                         ])}
                         fontSize={10}
-                        chunkSize={7}
+                        chunkSize={10}
                     />
                 )}
 
@@ -1395,6 +1391,7 @@ const A3QualityBoardReport = () => {
                         title="Kritik / Acil Takip Listesi"
                         color={C.red}
                         headers={['Fikstür','Parça','Sınıf','Durum','Uyarı','Sonraki Doğrulama']}
+                        colWidths={['10%','18%','8%','12%','30%','22%']}
                         rows={(fixtureTracking.urgentItems || []).map((item) => [
                             <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
                             <span style={{fontSize:10}}>
@@ -1448,6 +1445,7 @@ const A3QualityBoardReport = () => {
                         title="Son Doğrulamalar"
                         color={C.teal}
                         headers={['Fikstür','Tarih','Sonuç','Numune']}
+                        colWidths={['35%','22%','28%','15%']}
                         rows={(fixtureTracking.recentVerifications || []).map((item) => [
                             <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
                             <span style={{fontSize:10}}>{item.verificationDate ? format(parseISO(item.verificationDate), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
@@ -1775,6 +1773,7 @@ const A3QualityBoardReport = () => {
                         {qualityActivities?.trainingDetails && qualityActivities.trainingDetails.length > 0 ? (
                             <MiniTable
                                 headers={['Eğitim Adı','Başlangıç','Bitiş','Eğitmen','Süre (saat)','Katılımcı','Sınav','Geçme notu','Durum']}
+                                colWidths={['22%','8%','8%','14%','8%','8%','14%','8%','10%']}
                                 rows={qualityActivities.trainingDetails.slice(0, 12).map((d) => [
                                     <span style={{fontSize:11}}>{trunc(safeText(d.title),30)}</span>,
                                     <span style={{fontSize:9}}>{d.startDate ? format(new Date(d.startDate),'dd.MM.yyyy',{locale:tr}) : '—'}</span>,
@@ -1979,10 +1978,11 @@ const A3QualityBoardReport = () => {
                     <Panel title="Top 10 Maliyet Sürücüsü" color={C.red}>
                         <MiniTable
                             headers={['Kalem / Parça', 'Tür', 'Sahip', 'Tutar']}
+                            colWidths={['38%','18%','26%','18%']}
                             rows={(costBurden?.topDrivers || []).map((item) => [
-                                <span style={{ fontSize: 10, fontWeight: 600 }}>{trunc(safeText(item.label), 22)}</span>,
-                                <span style={{ fontSize: 10 }}>{trunc(safeText(item.costType), 16)}</span>,
-                                <span style={{ fontSize: 10 }}>{trunc(safeText(item.owner), 16)}</span>,
+                                <span style={{ fontSize: 10, fontWeight: 600 }}>{trunc(safeText(item.label), 28)}</span>,
+                                <span style={{ fontSize: 10 }}>{trunc(safeText(item.costType), 18)}</span>,
+                                <span style={{ fontSize: 10 }}>{trunc(safeText(item.owner), 22)}</span>,
                                 <span style={{ fontWeight: 800, color: C.red }}>{fmtCurrency(item.amount)}</span>,
                             ])}
                             emptyMsg="Top 10 maliyet sürücüsü oluşmadı."

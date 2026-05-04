@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { sanitizeFileName, toCamelCase } from './utils';
+import { sanitizeFileName } from './utils';
 import { shouldReplaceGrupOzetiBlobIn5n1kNe, inferMeaningful5n1kNe } from './df8dTextUtils';
 
 const generatePdf = async (doc, { title, reportNo, record, contentSections, dataContext }) => {
@@ -60,7 +60,7 @@ const generatePdf = async (doc, { title, reportNo, record, contentSections, data
         if (section.type === 'grid') {
             const body = section.data.map(item => [
                 { content: item.label, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
-                { content: (typeof item.value === 'string' ? toCamelCase(item.value) : item.value) || '-' }
+                { content: (item.value != null && item.value !== '' ? String(item.value) : '-') }
             ]);
             doc.autoTable({
                 startY: y,
@@ -77,7 +77,7 @@ const generatePdf = async (doc, { title, reportNo, record, contentSections, data
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(50);
-            const content = typeof section.content === 'string' ? toCamelCase(section.content) : (section.content || '-');
+            const content = typeof section.content === 'string' ? section.content : (section.content || '-');
             const text = doc.splitTextToSize(content, 170);
             doc.text(text, 20, y);
             y += (text.length * 5) + 5;
@@ -202,10 +202,10 @@ const getNCContent = (record, dataContext) => {
             type: 'table',
             head: ['Adım', 'Sorumlu', 'Tarih', 'Açıklama'],
             body: Object.entries(record.eight_d_steps).map(([key, step]) => [
-                `${key}: ${toCamelCase(step.title || '')}`,
-                typeof step.responsible === 'string' ? toCamelCase(step.responsible) : (step.responsible || '-'),
+                `${key}: ${step.title || ''}`,
+                typeof step.responsible === 'string' ? step.responsible : (step.responsible || '-'),
                 formatDate(step.completionDate),
-                typeof step.description === 'string' ? toCamelCase(step.description) : (step.description || '-')
+                typeof step.description === 'string' ? step.description : (step.description || '-')
             ])
         });
     }

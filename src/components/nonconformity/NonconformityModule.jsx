@@ -661,9 +661,20 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     else if (record.vehicle_type && record.vehicle_identifier) titleParts.push(`${record.vehicle_type}/${record.vehicle_identifier}`);
     else if (record.vehicle_type) titleParts.push(record.vehicle_type);
 
+    const uyDesc = (record.description || '').trim();
+    const fallbackRefTitle = `[UYG-${recNo}] ${titleParts.join(' — ')}`;
+    const firstMeaningfulLine = uyDesc
+      ? uyDesc.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0)
+      : '';
+    /** Liste ve DF detayında asıl problem metni görünsün; numara izlenebilirlik için sonda */
+    const titleForDf = firstMeaningfulLine
+      ? `${firstMeaningfulLine} (Kaynak UYG: ${recNo})`
+      : fallbackRefTitle;
+
     const ncFormData = {
-      title: `[UYG-${recNo}] ${titleParts.join(' — ')}`,
+      title: titleForDf,
       description: L.filter(l => l !== null).join('\n'),
+      problem_definition: uyDesc || undefined,
       type: selectedType,
       part_code: record.part_code || '',
       part_name: record.part_name || '',

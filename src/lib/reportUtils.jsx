@@ -155,10 +155,10 @@ const escapeHtmlTitle = (str) => {
 		.replace(/"/g, '&quot;');
 };
 
-const openPrintableReport = async (record, type, useUrlParams = false) => {
+const openPrintableReport = async (record, type, useUrlParams = false, preOpenedWindow = null) => {
 	if (!record) {
 		console.error("openPrintableReport called with invalid record:", record);
-		return;
+		throw new Error('Rapor için kayıt bulunamadı.');
 	}
 
 	// Türkçe karakterleri normalize et-tüm raporlar için geçerli
@@ -170,7 +170,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 
 	if (!isListType && !hasValidId) {
 		console.error("openPrintableReport: record has no valid ID field:", normalizedRecord);
-		return;
+		throw new Error('Rapor için geçerli bir kayıt kimliği (ID) yok.');
 	}
 
 	const reportId = type === 'sheet_metal_entry'
@@ -182,11 +182,18 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 	/**
 	 * await / async sonrası window.open çoğu tarayıcıda pencere engeline takılır.
 	 * Önce about:blank senkron aç, veri hazır olunca aynı pencerenin location'ına yazdırma URL'ini ver.
+	 * İsteğe bağlı preOpenedWindow: tıklama işleyicisinde senkron açılmış pencere (Safari popup kuralları).
+	 * Not: Bazı Safari sürümleri yeni about:blank için closed=true dönebiliyor; bu yüzden .closed ile elenmez.
 	 */
-	const reportWindow = window.open('about:blank', '_blank');
+	let reportWindow = preOpenedWindow ?? null;
+	if (!reportWindow) {
+		reportWindow = window.open('about:blank', '_blank');
+	}
 	if (!reportWindow) {
 		console.warn('Rapor sekmesi açılamadı (açılır pencere engeli olabilir).');
-		return;
+		throw new Error(
+			'Rapor sekmesi açılamadı. Tarayıcıda bu site için açılır pencere (popup) engelini kaldırın veya adres çubuğundaki simgeye tıklayıp izin verin.'
+		);
 	}
 
 	const navigateReportWindow = (relativePath) => {

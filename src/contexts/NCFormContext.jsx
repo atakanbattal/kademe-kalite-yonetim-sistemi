@@ -125,7 +125,7 @@ import { normalizeNcAttachmentPathsList } from '@/lib/df8dAttachmentUtils';
                 
                 // Tüm bilgileri içeren şeffaf açıklama oluştur
                 let descParts = [];
-                descParts.push('MALIYET KAYDI DETAYLARI\n');
+                descParts.push('Maliyet Kaydı Özeti\n');
                 
                 // Temel Bilgiler
                 if (initialRecord.cost_type) descParts.push(`Maliyet Türü: ${initialRecord.cost_type}`);

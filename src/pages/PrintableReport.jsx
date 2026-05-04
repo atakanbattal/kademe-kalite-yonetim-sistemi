@@ -752,9 +752,53 @@ const PrintableReport = () => {
                         recordData = wpsData;
                         break;
                     }
+                    case 'quality_cost_detail': {
+                        if (recordData) break;
+                        if (!id) {
+                            throw new Error(
+                                'Kalite maliyeti detay rapor verisi bulunamadı. Lütfen tekrar deneyin.',
+                            );
+                        }
+                        const { data: qcRow, error: qcErr } = await supabase
+                            .from('quality_costs')
+                            .select(
+                                '*, supplier:supplier_id(id, name), responsible_personnel:responsible_personnel_id(full_name)',
+                            )
+                            .eq('id', id)
+                            .maybeSingle();
+                        if (qcErr) throw qcErr;
+                        if (!qcRow) throw new Error('Kalite maliyeti kaydı bulunamadı.');
+                        recordData = qcRow;
+                        try {
+                            const { data: docRows } = await supabase
+                                .from('quality_cost_documents')
+                                .select('*')
+                                .eq('quality_cost_id', id);
+                            if (docRows && docRows.length > 0) {
+                                const docsWithUrls = await Promise.all(
+                                    docRows.map(async (doc) => {
+                                        const { data: urlData, error: signErr } = await supabase.storage
+                                            .from('quality_costs')
+                                            .createSignedUrl(doc.file_path, 3600);
+                                        return {
+                                            document_name: doc.document_name,
+                                            document_type: doc.document_type,
+                                            file_path: doc.file_path,
+                                            file_size: doc.file_size,
+                                            url:
+                                                !signErr && urlData?.signedUrl ? urlData.signedUrl : '#',
+                                        };
+                                    }),
+                                );
+                                recordData._documents = docsWithUrls;
+                            }
+                        } catch (docLoadErr) {
+                            console.warn('Kalite maliyeti kanıt dokümanları yüklenemedi:', docLoadErr);
+                        }
+                        break;
+                    }
                     case 'quality_cost_list':
                     case 'quality_cost_executive_summary':
-                    case 'quality_cost_detail':
                     case 'incoming_quality_executive_summary':
                     case 'produced_vehicles_executive_summary':
                     case 'supplier_quality_executive_summary': {
@@ -768,8 +812,6 @@ const PrintableReport = () => {
                                 errorMsg = 'Üretilen araçlar rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'quality_cost_executive_summary') {
                                 errorMsg = 'Kalite maliyeti rapor verisi bulunamadı. Lütfen tekrar deneyin.';
-                            } else if (type === 'quality_cost_detail') {
-                                errorMsg = 'Kalite maliyeti detay rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'supplier_quality_executive_summary') {
                                 errorMsg = 'Tedarikçi kalite yönetimi rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             }

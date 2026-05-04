@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Layers } from 'lucide-react';
-import { stripSquareBullets } from '@/lib/df8dTextUtils';
+import { stripSquareBullets, unfoldGluedSectionHeaders } from '@/lib/df8dTextUtils';
 import RelatedNonconformityRecordsTable from '@/components/df-8d/RelatedNonconformityRecordsTable';
 
 /** Bilinen bölüm başlıkları (satır tam eşleşmesi, tr-TR küçük harf) */
@@ -15,6 +15,7 @@ const SECTION_HEADERS = [
   'KAYIT DETAYLARI',
   // Maliyet / süre
   'MALIYET KAYDI DETAYLARI',
+  'Maliyet Kaydı Özeti',
   'MALİYET BİLGİLERİ',
   'SÜRE BİLGİLERİ',
   'AÇIKLAMA',
@@ -43,7 +44,13 @@ const HEADER_SET = new Set(SECTION_HEADERS.map((h) => h.toLocaleLowerCase('tr-TR
 
 function isSectionHeaderLine(line) {
   const k = headerKey(line);
-  return HEADER_SET.has(k);
+  if (HEADER_SET.has(k)) return true;
+  const unfolded = unfoldGluedSectionHeaders(line);
+  if (unfolded !== line) {
+    const ku = headerKey(unfolded);
+    if (HEADER_SET.has(ku)) return true;
+  }
+  return false;
 }
 
 /** «İLGİLİ UYGUNSUZLUK KAYITLARI UYG-26-…» tek satırda yapışık ise başlık + ilk veri satırına böler */

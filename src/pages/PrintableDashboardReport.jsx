@@ -232,11 +232,10 @@ const PrintableDashboardReport = () => {
                         <tbody>
                             {df8d.overdueRecords && df8d.overdueRecords.length > 0 ? df8d.overdueRecords.map((r, idx) => {
                                 const title = r.title || r.nc_number || '-';
-                                const truncatedTitle = title.length > 60 ? title.substring(0, 57) + '...' : title;
                                 return (
                                     <tr key={r.id || idx}>
                                         <td className="col-no">{r.nc_number || '-'}</td>
-                                        <td className="col-title text-wrap" title={title}>{truncatedTitle}</td>
+                                        <td className="col-title text-wrap">{title}</td>
                                         <td className="col-dept">{r.department || r.requesting_unit || 'Belirtilmemiş'}</td>
                                         <td className="col-days">{r.delay_days || r.daysOverdue || '-'}</td>
                                         <td className="col-status">{r.status || 'Açık'}</td>
@@ -431,6 +430,12 @@ const PrintableDashboardReport = () => {
                             <div>
                                 <h3 className="section-subtitle">En İyi 3 Birim</h3>
                                 <table className="data-table">
+                                    <colgroup>
+                                        <col style={{width:'46%'}} />
+                                        <col style={{width:'14%'}} />
+                                        <col style={{width:'14%'}} />
+                                        <col style={{width:'26%'}} />
+                                    </colgroup>
                                     <thead>
                                         <tr>
                                             <th className="col-dept">Birim</th>
@@ -457,6 +462,12 @@ const PrintableDashboardReport = () => {
                             <div>
                                 <h3 className="section-subtitle">En Kötü 3 Birim</h3>
                                 <table className="data-table">
+                                    <colgroup>
+                                        <col style={{width:'46%'}} />
+                                        <col style={{width:'14%'}} />
+                                        <col style={{width:'14%'}} />
+                                        <col style={{width:'26%'}} />
+                                    </colgroup>
                                     <thead>
                                         <tr>
                                             <th className="col-dept">Birim</th>
@@ -492,6 +503,11 @@ const PrintableDashboardReport = () => {
                                 <div>
                                     <h3 className="section-subtitle">Birim Bazında Hata Yoğunluğu</h3>
                                     <table className="data-table">
+                                        <colgroup>
+                                            <col style={{width:'56%'}} />
+                                            <col style={{width:'22%'}} />
+                                            <col style={{width:'22%'}} />
+                                        </colgroup>
                                         <thead>
                                             <tr>
                                                 <th className="col-dept">Birim</th>
@@ -515,6 +531,10 @@ const PrintableDashboardReport = () => {
                                 <div>
                                     <h3 className="section-subtitle">En Sık Tekrarlayan Kök Nedenler</h3>
                                     <table className="data-table">
+                                        <colgroup>
+                                            <col style={{width:'80%'}} />
+                                            <col style={{width:'20%'}} />
+                                        </colgroup>
                                         <thead>
                                             <tr>
                                                 <th className="col-title">Kök Neden</th>
@@ -673,6 +693,13 @@ const PrintableDashboardReport = () => {
                 {qualityGoals && qualityGoals.length > 0 && (
                     <ReportSection title="Kalite Hedefleri ve Gerçekleşenler" className="page-break-before">
                         <table className="data-table">
+                            <colgroup>
+                                <col style={{width:'44%'}} />
+                                <col style={{width:'16%'}} />
+                                <col style={{width:'14%'}} />
+                                <col style={{width:'13%'}} />
+                                <col style={{width:'13%'}} />
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th className="col-title">Hedef Adı</th>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -437,6 +438,7 @@ function getHeaderTitleParts(record) {
 }
 
 const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRecordUpdated }) => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [isEditRejectionOpen, setIsEditRejectionOpen] = useState(false);
@@ -602,6 +604,17 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
 
   const displayEightDSteps = getDisplayEightDSteps();
 
+  /** Yeni sekme engellendiğinde yazdırma rotası aynı sekmede açılır (Safari / sıkı popup kuralları). */
+  const openPrintInSameTab = () => {
+    navigate(`/print/report/nonconformity/${record.id}?autoprint=true`);
+    setIsOpen(false);
+    toast({
+      title: 'Rapor açılıyor',
+      description:
+        'Yazdırma sayfası bu sekmede açıldı. Listeye dönmek için tarayıcının geri tuşunu kullanabilirsiniz.',
+    });
+  };
+
   const handlePrint = async (e) => {
     // Event'i engelle - sayfa yenilenmesini önle
     if (e) {
@@ -610,7 +623,18 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
     }
 
     if (!record?.id) {
-      console.error('Yazdırılamadı: kayıt id yok');
+      toast({
+        variant: 'destructive',
+        title: 'Yazdırılamadı',
+        description: 'Kayıt kimliği bulunamadı. Sayfayı yenileyip tekrar deneyin.',
+      });
+      return;
+    }
+
+    // window.open'u tıklama ile aynı senkron zincirde çalıştır (Safari ve popup engelleyiciler)
+    const printWindow = window.open('about:blank', '_blank');
+    if (!printWindow) {
+      openPrintInSameTab();
       return;
     }
 
@@ -624,16 +648,27 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
       };
 
       if (onDownloadPDF) {
-        await Promise.resolve(onDownloadPDF(lightweightRecord, 'nonconformity'));
+        await Promise.resolve(onDownloadPDF(lightweightRecord, 'nonconformity', printWindow));
       } else {
-        await openPrintableReport(lightweightRecord, 'nonconformity');
+        await openPrintableReport(lightweightRecord, 'nonconformity', false, printWindow);
       }
     } catch (error) {
       console.error('PDF generation failed:', error);
+      const msg = error?.message || '';
+      const looksLikePopupBlock = /açılır pencere|Rapor sekmesi açılamadı|popup/i.test(msg);
+      if (record?.id && looksLikePopupBlock) {
+        try {
+          printWindow.close();
+        } catch {
+          /* noop */
+        }
+        openPrintInSameTab();
+        return;
+      }
       toast({
         variant: 'destructive',
         title: 'Yazdırılamadı',
-        description: error?.message || 'Rapor açılırken hata oluştu.',
+        description: msg || 'Rapor açılırken hata oluştu.',
       });
     } finally {
       setIsPrinting(false);

@@ -447,18 +447,18 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         if (!context) return cost.description;
 
         const lines = [
-            'Arac Bazli Hedef Analizinden Otomatik Baslatildi',
-            `Donem: ${context.dateRangeLabel || 'Tum Zamanlar'}`,
-            `Arac Tipi: ${context.vehicleType || cost.vehicle_type || '-'}`,
+            'Araç Bazlı Hedef Analizinden Otomatik Başlatıldı',
+            `Dönem: ${context.dateRangeLabel || 'Tüm Zamanlar'}`,
+            `Araç Tipi: ${context.vehicleType || cost.vehicle_type || '-'}`,
             `Metrik: ${context.metricLabel || '-'}`,
         ];
 
         if (typeof context.totalVehicles === 'number') {
-            lines.push(`Analize Giren Arac: ${context.totalVehicles}`);
+            lines.push(`Analize Giren Araç: ${context.totalVehicles}`);
         }
 
         if (typeof context.actualValue === 'number') {
-            lines.push(`Gerceklesen: ${formatVehicleMetricValue(context.actualValue, context.metricKey)}`);
+            lines.push(`Gerçekleşen: ${formatVehicleMetricValue(context.actualValue, context.metricKey)}`);
         }
 
         if (typeof context.targetValue === 'number' && context.targetValue > 0) {
@@ -466,11 +466,11 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
 
         if (typeof context.totalContribution === 'number') {
-            lines.push(`Toplam Katki: ${formatVehicleMetricValue(context.totalContribution, context.metricKey, { perVehicle: false })}`);
+            lines.push(`Toplam Katkı: ${formatVehicleMetricValue(context.totalContribution, context.metricKey, { perVehicle: false })}`);
         }
 
         if (cost.description) {
-            lines.push('', 'Maliyet Kaydi Aciklamasi:', cost.description);
+            lines.push('', 'Maliyet Kaydı Açıklaması:', cost.description);
         }
 
         return lines.join('\n');

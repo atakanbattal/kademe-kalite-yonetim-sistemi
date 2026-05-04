@@ -80,6 +80,7 @@ export function shortenMaliyetKaydiDetailsTitle(title) {
   if (title == null || typeof title !== 'string') return title;
   let t = title.trim();
   t = stripSquareBullets(t).trim();
+  t = unfoldGluedSectionHeaders(t);
   const fold = t.replace(/\u0307/g, '').toLowerCase();
   if (!fold.includes('maliyet') || !fold.includes('detay')) return title;
   const turM = t.match(/Maliyet\s*Türü\s*:\s*(.+?)\s*Tarih\s*:/i);
@@ -113,6 +114,49 @@ function normalizeNcTitleForList(rawTitle, { maxLen = 160 } = {}) {
   return s;
 }
 
+/** «[UYG-26-0031] Kategori — parça» veya «UYG-26-0031: …» — liste özetinde asıl açıklama önce gelsin */
+function isUyReferenceStyleTitle(t) {
+  if (!t || typeof t !== 'string') return false;
+  const s = t.trim();
+  if (/^\[UYG-\d{2}-\d+]/i.test(s)) return true;
+  if (/^UYG-\d{2}-\d+\s*[:\-–]/.test(s)) return true;
+  return false;
+}
+
+/** Bozuk/birleşik başlık: «MALIYETKAYDIDETAYLARI» */
+export function unfoldGluedSectionHeaders(text) {
+  if (!text || typeof text !== 'string') return text;
+  return text.replace(/\bMALIYETKAYDIDETAYLARI\b/gi, 'Maliyet Kaydı Detayları');
+}
+
+/**
+ * Kalite maliyetinden gelen uzun başlık / açıklama (pipe veya çoklu boşluk ile ayrılmış) için kısa özet.
+ */
+function extractCostDetailSummary(text) {
+  if (!text || typeof text !== 'string') return null;
+  const unfolded = unfoldGluedSectionHeaders(text);
+  const flat = unfolded.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+
+  if (flat.includes('|')) {
+    const turM = flat.match(/Maliyet\s*Türü\s*:\s*([^|]+?)(?=\s*\||$)/i);
+    const parcaM = flat.match(/Parça\s*Adı\s*:\s*([^|]+?)(?=\s*\||$)/i);
+    const tur = turM ? turM[1].trim() : null;
+    const parca = parcaM ? parcaM[1].trim() : null;
+    if (tur && parca) return `${tur} — ${parca}`;
+    if (tur) return tur;
+    if (parca) return parca;
+  }
+
+  const turLoose = unfolded.match(/Maliyet\s*Türü\s*:\s*(.+?)(?=\s{2,}Tarih\s*:|\n\n|\s+MAL[Iİ]YET\s+|$)/i);
+  const parcaLoose = unfolded.match(/Parça\s*Adı\s*:\s*(.+?)(?=\s{2,}Parça\s*Kodu\s*:|\s{2,}Araç\s*Tipi|\s+MAL[Iİ]YET\s|$)/i);
+  const tur = turLoose ? turLoose[1].trim().replace(/\s+/g, ' ') : null;
+  const parca = parcaLoose ? parcaLoose[1].trim().replace(/\s+/g, ' ') : null;
+  if (tur && parca) return `${tur} — ${parca}`;
+  if (tur) return tur;
+  if (parca) return parca;
+  return null;
+}
+
 /**
  * DF/8D tablo ve listelerinde gösterilecek başlık: gereksiz GKK şablonunu gizler.
  * @param {string} [emptyLabel='—'] Raporlarda '-' geçmek için kullanılabilir.
@@ -137,20 +181,54 @@ export function getNonConformityListTitle(record, emptyLabel = '—') {
     if (fromParsed !== 'Girdi Kalite Uygunsuzluğu') return fromParsed;
   }
 
-  if (rawTitle) {
-    const cleaned = normalizeNcTitleForList(rawTitle);
+  if (rawTitle && !isUyReferenceStyleTitle(rawTitle)) {
+    const unfoldedTitle = unfoldGluedSectionHeaders(rawTitle);
+    const costFromTitle = extractCostDetailSummary(unfoldedTitle);
+    if (costFromTitle) {
+      const s = normalizeNcTitleForList(costFromTitle);
+      if (s) return s;
+    }
+    const cleaned = normalizeNcTitleForList(unfoldedTitle);
     if (cleaned) return cleaned;
   }
 
   const pd = record.problem_definition;
   if (typeof pd === 'string' && pd.trim() && !isVerboseGirdiKaliteNcTitle(pd)) {
-    const s = normalizeNcTitleForList(pd);
+    const costPd = extractCostDetailSummary(pd);
+    if (costPd) {
+      const s = normalizeNcTitleForList(costPd);
+      if (s) return s;
+    }
+    const s = normalizeNcTitleForList(unfoldGluedSectionHeaders(pd));
     if (s) return s;
   }
 
   const desc = record.description;
   if (typeof desc === 'string' && desc.trim()) {
-    const first = desc.split(/\n/).map((l) => l.trim()).find(Boolean) || '';
+    const costSummary = extractCostDetailSummary(desc);
+    if (costSummary) {
+      const s = normalizeNcTitleForList(costSummary);
+      if (s) return s;
+    }
+    let first = '';
+    const afterAciklama = unfoldGluedSectionHeaders(desc).match(
+      /(?:^|\n)\s*(?:Açıklama|Maliyet\s+Kaydı\s+Açıklaması)\s*:\s*\r?\n?\s*([\s\S]+)/i,
+    );
+    if (afterAciklama) {
+      const chunk = afterAciklama[1];
+      first =
+        chunk
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .find((l) => l.length > 0 && !/^(KAYNAK|ÜRÜN|UYGUNSUZLUK)\s+BİLGİSİ$/i.test(l)) || '';
+    }
+    if (!first) {
+      first = desc
+        .split(/\n/)
+        .map((l) => l.trim())
+        .map((l) => unfoldGluedSectionHeaders(l))
+        .find(Boolean) || '';
+    }
     if (first && !isVerboseGirdiKaliteNcTitle(first)) {
       const s = normalizeNcTitleForList(first);
       if (s) return s;

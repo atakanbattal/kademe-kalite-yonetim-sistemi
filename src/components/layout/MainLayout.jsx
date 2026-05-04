@@ -674,10 +674,10 @@ const MainLayout = () => {
         if (ncFormState.onSaveSuccess) ncFormState.onSaveSuccess(savedRecord);
     };
 
-    const handleDownloadPDF = (record, type) => {
+    const handleDownloadPDF = (record, type, preOpenedWindow) => {
         // nonconformity: her zaman /print üzerinden id ile DB'den tam kayıt (localStorage kotası / sekme sorunu önlenir)
         const useUrlParams = ['incoming_inspection', 'deviation', 'kaizen', 'quarantine', 'sheet_metal_entry'].includes(type);
-        return openPrintableReportUtil(record, type, useUrlParams);
+        return openPrintableReportUtil(record, type, useUrlParams, preOpenedWindow);
     };
 
     // Modül bileşenlerini stable referanslarla map'liyoruz; her render'da yeni JSX

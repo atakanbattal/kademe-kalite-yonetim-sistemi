@@ -26,7 +26,7 @@ const RESULT_COLORS = { Kabul: '#15803d', 'Şartlı Kabul': '#b45309', Ret: '#dc
 const fmtCurrency = (n) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(n || 0);
 const fmtNum = (n) => new Intl.NumberFormat('tr-TR').format(n || 0);
 const fmtPct = (n, d = 0) => `%${Number.isFinite(Number(n)) ? Number(n).toFixed(d) : '0'}`;
-const trunc = (s, len = 30) => { const t = String(s || ''); return t.length > len ? t.slice(0, len) + '…' : t; };
+const trunc = (s, _len) => String(s ?? '');
 
 /* ═══ BİLEŞENLER ═══ */
 const Slide = ({ children, title, subtitle, slideNum, totalSlides }) => (
@@ -65,12 +65,17 @@ const SL = ({ children, color = C.navy }) => (
     </div>
 );
 
-const DT = ({ headers, rows, fontSize = 12, emptyMsg = 'Veri yok' }) => (
+const DT = ({ headers, rows, fontSize = 12, emptyMsg = 'Veri yok', colWidths }) => (
     <table className="ep-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.navy}12`, tableLayout: 'fixed' }}>
-        <thead><tr>{headers.map((h, i) => <th key={i} style={{ background: `linear-gradient(135deg, ${C.navy}, #b91c1c)`, color: 'white', padding: '9px 12px', textAlign: 'left', fontWeight: 700, fontSize: Math.max(10, fontSize - 1) }}>{h}</th>)}</tr></thead>
+        {colWidths && (
+            <colgroup>
+                {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+            </colgroup>
+        )}
+        <thead><tr>{headers.map((h, i) => <th key={i} style={{ background: `linear-gradient(135deg, ${C.navy}, #b91c1c)`, color: 'white', padding: '9px 12px', textAlign: 'left', fontWeight: 700, fontSize: Math.max(10, fontSize - 1), wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{h}</th>)}</tr></thead>
         <tbody>{rows.length === 0
             ? <tr className="ep-tr"><td colSpan={headers.length} style={{ textAlign: 'center', padding: 22, color: C.slate, fontStyle: 'italic' }}>{emptyMsg}</td></tr>
-            : rows.map((row, ri) => <tr key={ri} className="ep-tr" style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc' }}>{row.map((cell, ci) => <td key={ci} style={{ padding: '8px 12px', verticalAlign: 'middle', borderBottom: `1px solid ${C.navy}08`, wordBreak: 'break-word' }}>{cell}</td>)}</tr>)
+            : rows.map((row, ri) => <tr key={ri} className="ep-tr" style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc' }}>{row.map((cell, ci) => <td key={ci} style={{ padding: '8px 12px', verticalAlign: 'top', borderBottom: `1px solid ${C.navy}08`, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cell}</td>)}</tr>)
         }</tbody>
     </table>
 );
@@ -280,7 +285,7 @@ const ExecutivePresentation = () => {
                         {costBurden?.bySource?.length>0&&<div><SL color={C.red}>Maliyet kaynağı dağılımı</SL><DT headers={['Kaynak','Kayıt','Tutar']} rows={costBurden.bySource.slice(0,12).map(s=>[<span style={{fontWeight:600}}>{trunc(s.name,36)}</span>,<span style={{fontWeight:600}}>{fmtNum(s.count)}</span>,<span style={{fontWeight:700,color:C.red}}>{fmtCurrency(s.value)}</span>])} fontSize={12}/></div>}
                         <div>
                             <SL color={C.red}>Öne çıkan maliyet kalemleri</SL>
-                            <DT headers={['#','Kalem','Tür','Sahip','Tutar']} rows={(costBurden?.topDrivers||[]).slice(0,12).map((d,i)=>[<span style={{fontWeight:800,color:C.navy}}>{i+1}</span>,<span style={{fontWeight:600}}>{trunc(d.label,32)}</span>,<span style={{fontSize:11,color:C.slate}}>{trunc(d.costType,20)}</span>,<span style={{fontSize:11}}>{trunc(d.owner,24)}</span>,<span style={{fontWeight:800,color:C.red}}>{fmtCurrency(d.amount)}</span>])} fontSize={12}/>
+                            <DT headers={['#','Kalem','Tür','Sahip','Tutar']} colWidths={['5%','32%','18%','26%','19%']} rows={(costBurden?.topDrivers||[]).slice(0,12).map((d,i)=>[<span style={{fontWeight:800,color:C.navy}}>{i+1}</span>,<span style={{fontWeight:600}}>{trunc(d.label,36)}</span>,<span style={{fontSize:11,color:C.slate}}>{trunc(d.costType,22)}</span>,<span style={{fontSize:11}}>{trunc(d.owner,28)}</span>,<span style={{fontWeight:800,color:C.red}}>{fmtCurrency(d.amount)}</span>])} fontSize={12}/>
                         </div>
                         {costBurden?.byComponent?.length>0&&<div><SL color={C.indigo}>Yük bileşenleri</SL><DT headers={['Bileşen','Tutar']} rows={costBurden.byComponent.map(item=>[<span style={{fontWeight:600}}>{item.name}</span>,<span style={{fontWeight:700,color:C.indigo}}>{fmtCurrency(item.value)}</span>])} fontSize={12}/></div>}
                     </VStack>
@@ -306,11 +311,11 @@ const ExecutivePresentation = () => {
                         </div>
                         <div>
                             <SL color={C.green}>Sorumlu birim — performans (dönem DF/8D/MDI)</SL>
-                            <DT headers={['Sorumlu birim','Toplam','Açık','İşlemde','Kapalı','Ret','Geciken','Ort. kapanma (gün)','Kapanma %']} rows={(df8dResponsiblePerformance||[]).slice(0,12).map(d=>[<span style={{fontWeight:600}}>{trunc(d.unit,28)}</span>,<span style={{fontWeight:600}}>{fmtNum(d.total)}</span>,<span style={{fontWeight:700,color:C.red}}>{fmtNum(d.open)}</span>,<span style={{fontWeight:700,color:'#b91c1c'}}>{fmtNum(d.inProgress)}</span>,<span style={{fontWeight:700,color:C.green}}>{fmtNum(d.closed)}</span>,<span style={{color:C.slate}}>{fmtNum(d.rejected)}</span>,<span style={{fontWeight:800,color:d.overdue>0?C.red:C.slate}}>{fmtNum(d.overdue)}</span>,<span>{d.avgClosureTime}</span>,<span style={{fontWeight:700}}>{d.closurePct}{d.closurePct==='—'?'':'%'}</span>])} fontSize={11}/>
+                            <DT headers={['Sorumlu birim','Toplam','Açık','İşlemde','Kapalı','Ret','Geciken','Ort. kapanma (gün)','Kapanma %']} colWidths={['22%','8%','8%','8%','8%','6%','8%','20%','12%']} rows={(df8dResponsiblePerformance||[]).slice(0,12).map(d=>[<span style={{fontWeight:600}}>{trunc(d.unit,28)}</span>,<span style={{fontWeight:600}}>{fmtNum(d.total)}</span>,<span style={{fontWeight:700,color:C.red}}>{fmtNum(d.open)}</span>,<span style={{fontWeight:700,color:'#b91c1c'}}>{fmtNum(d.inProgress)}</span>,<span style={{fontWeight:700,color:C.green}}>{fmtNum(d.closed)}</span>,<span style={{color:C.slate}}>{fmtNum(d.rejected)}</span>,<span style={{fontWeight:800,color:d.overdue>0?C.red:C.slate}}>{fmtNum(d.overdue)}</span>,<span>{d.avgClosureTime}</span>,<span style={{fontWeight:700}}>{d.closurePct}{d.closurePct==='—'?'':'%'}</span>])} fontSize={11}/>
                         </div>
                         <div>
                             <SL color={C.teal}>Talep eden birim — katkı ve tür dağılımı</SL>
-                            <DT headers={['Talep eden birim','Toplam','Açık','Kapalı','DF','8D','MDI','Katkı %']} rows={(df8dRequesterContribution||[]).filter(r=>r.total>0).slice(0,12).map(r=>[<span style={{fontWeight:600}}>{trunc(r.unit,28)}</span>,<span style={{fontWeight:600}}>{fmtNum(r.total)}</span>,<span style={{fontWeight:700,color:C.red}}>{fmtNum(r.open)}</span>,<span style={{fontWeight:700,color:C.green}}>{fmtNum(r.closed)}</span>,<span>{fmtNum(r.DF)}</span>,<span>{fmtNum(r['8D'])}</span>,<span>{fmtNum(r.MDI)}</span>,<span style={{fontWeight:700}}>{r.contribution}</span>])} fontSize={11}/>
+                            <DT headers={['Talep eden birim','Toplam','Açık','Kapalı','DF','8D','MDI','Katkı %']} colWidths={['28%','9%','9%','9%','9%','9%','9%','18%']} rows={(df8dRequesterContribution||[]).filter(r=>r.total>0).slice(0,12).map(r=>[<span style={{fontWeight:600}}>{trunc(r.unit,28)}</span>,<span style={{fontWeight:600}}>{fmtNum(r.total)}</span>,<span style={{fontWeight:700,color:C.red}}>{fmtNum(r.open)}</span>,<span style={{fontWeight:700,color:C.green}}>{fmtNum(r.closed)}</span>,<span>{fmtNum(r.DF)}</span>,<span>{fmtNum(r['8D'])}</span>,<span>{fmtNum(r.MDI)}</span>,<span style={{fontWeight:700}}>{r.contribution}</span>])} fontSize={11}/>
                         </div>
                         <div>
                             <SL color={C.indigo}>NC tip dağılımı</SL>
@@ -433,13 +438,13 @@ const ExecutivePresentation = () => {
                             <SL color={C.indigo}>Sapma talepleri — detay</SL>
                             {(deviations?.details || []).length > 0 ? (
                                 <DT
-                                    headers={['Talep no', 'Birim', 'Durum', 'Parça', 'Özet açıklama']}
+                                    headers={['Talep no', 'Parça', 'Kaynak · Birim', 'Durum']}
+                                    colWidths={['12%','22%','48%','18%']}
                                     rows={(deviations.details || []).slice(0, 18).map((d) => [
                                         <span style={{ fontSize: 11, fontWeight: 700 }}>{trunc(d.requestNo, 16)}</span>,
-                                        <span style={{ fontSize: 11 }}>{trunc(d.unit, 22)}</span>,
-                                        <span style={{ fontSize: 11 }}>{trunc(d.status, 14)}</span>,
                                         <span style={{ fontSize: 11 }}>{trunc(d.partCode, 18)}</span>,
-                                        <span style={{ fontSize: 11 }}>{trunc(d.description, 56)}</span>,
+                                        <span style={{ fontSize: 11 }}><span style={{ fontWeight: 600 }}>{trunc(d.source, 14)}</span><span style={{ color: '#64748b' }}> / {trunc(d.unit, 14)}</span></span>,
+                                        <span style={{ fontSize: 11, fontWeight: 700 }}>{trunc(d.status, 14)}</span>,
                                     ])}
                                     fontSize={12}
                                 />
@@ -551,6 +556,7 @@ const ExecutivePresentation = () => {
                                 <SL color={C.teal}>Tedarikçi bazlı muayene ve parça özeti</SL>
                                 <DT
                                     headers={['Tedarikçi', 'Muayene', 'Gelen miktar', 'Ret miktar', 'Kabul', 'Ş.Kabul', 'Ret']}
+                                    colWidths={['28%','12%','12%','12%','12%','12%','12%']}
                                     rows={incoming.supplierBreakdown.slice(0, 16).map((r) => [
                                         <span style={{ fontWeight: 600 }}>{trunc(r.name, 36)}</span>,
                                         <span>{fmtNum(r.inspections)}</span>,

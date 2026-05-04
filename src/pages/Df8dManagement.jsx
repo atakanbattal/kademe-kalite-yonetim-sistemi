@@ -570,7 +570,8 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                                 onView={onOpenNCView}
                                 onEdit={(record) => onOpenNCForm(record, refreshData)}
                                 onToggleStatus={handleToggleStatus}
-                                onDownloadPDF={(record) => onDownloadPDF(record, 'nonconformity')}
+                                onDownloadPDF={(record, type, preOpenedWindow) =>
+                                    onDownloadPDF(record, type || 'nonconformity', preOpenedWindow)}
                                 onDelete={handleDelete}
                                 onReject={(record) => handleAction('reject', record)}
                                 onForward={(record) => handleAction('forward', record)}
