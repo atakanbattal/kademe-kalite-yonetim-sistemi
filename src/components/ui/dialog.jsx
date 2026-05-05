@@ -24,7 +24,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, hideCloseButton = false, overlayClassName, ...props }, ref) => (
+const DialogContent = React.forwardRef(({ className, children, hideCloseButton = false, overlayClassName, onPointerDownOutside, onFocusOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
@@ -48,6 +48,20 @@ const DialogContent = React.forwardRef(({ className, children, hideCloseButton =
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         className
       )}
+      onPointerDownOutside={(event) => {
+        const target = event.detail?.originalEvent?.target;
+        if (target instanceof Element && target.closest("[data-kdm-combobox-content]")) {
+          event.preventDefault();
+        }
+        onPointerDownOutside?.(event);
+      }}
+      onFocusOutside={(event) => {
+        const related = event.detail?.originalEvent?.relatedTarget;
+        if (related instanceof Element && related.closest("[data-kdm-combobox-content]")) {
+          event.preventDefault();
+        }
+        onFocusOutside?.(event);
+      }}
       {...props}
     >
       <DialogPrimitive.Description className="sr-only">

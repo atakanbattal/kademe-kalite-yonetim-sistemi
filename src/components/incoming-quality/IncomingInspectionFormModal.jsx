@@ -175,6 +175,23 @@ setShowRiskyStockAlert(false);
             setCheckingRiskyStock(false);
         }, []);
 
+        /** Radix Dialog, portal ile render edilen Select/Dropdown içeriğini veya sekme/OS diyalog odak kaymasını “dışarı” sayıp kapatıyordu; üst modül modali unmount ettiği için tüm form sıfırlanıyordu. */
+        const preventDialogDismissOnAmbientFocusLoss = useCallback((event) => {
+            event.preventDefault();
+        }, []);
+
+        const handleDialogPointerDownOutside = useCallback((event) => {
+            const target = event.detail?.originalEvent?.target;
+            if (!(target instanceof Element)) return;
+            if (
+                target.closest('[role="listbox"]') ||
+                target.closest('[role="menu"]') ||
+                target.closest('[role="menuitem"]')
+            ) {
+                event.preventDefault();
+            }
+        }, []);
+
         // Load existing inspection data when modal opens
         // ÖNEMLİ: Sadece existingInspection değiştiğinde çalış, isOpen her değişiminde değil
         useEffect(() => {
@@ -1063,7 +1080,11 @@ setShowRiskyStockAlert(false);
         
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogContent
+                    className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0"
+                    onFocusOutside={preventDialogDismissOnAmbientFocusLoss}
+                    onPointerDownOutside={handleDialogPointerDownOutside}
+                >
                     <DialogHeader className="sr-only"><DialogTitle>{title}</DialogTitle></DialogHeader>
                     <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                         <div className="flex items-center gap-4">
@@ -1077,7 +1098,7 @@ setShowRiskyStockAlert(false);
                     </header>
                     <div className="flex flex-1 min-h-0 overflow-hidden">
                     <form id="incoming-inspection-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border">
+                        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain overflow-x-hidden px-6 py-4 border-r border-border">
                             <div className="space-y-6">
                     <div className="space-y-2">
                         {warnings.plan && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.plan}</AlertDescription></Alert>}

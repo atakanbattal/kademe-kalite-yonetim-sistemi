@@ -229,7 +229,7 @@ const ProcessInspectionFormModal = ({
 
     const operatorOptions = useMemo(() => {
         const activePersonnel = Array.isArray(personnel)
-            ? personnel.filter((person) => person?.is_active && person?.full_name)
+            ? personnel.filter((person) => person?.full_name && person?.is_active !== false)
             : [];
 
         const baseOptions = activePersonnel.map((person) => ({
@@ -262,7 +262,7 @@ const ProcessInspectionFormModal = ({
 
     const inspectorOptions = useMemo(() => {
         const activePersonnel = Array.isArray(personnel)
-            ? personnel.filter((person) => person?.is_active && person?.full_name)
+            ? personnel.filter((person) => person?.full_name && person?.is_active !== false)
             : [];
 
         const baseOptions = activePersonnel.map((person) => ({
@@ -966,19 +966,21 @@ const ProcessInspectionFormModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent
+                className="flex max-h-[95vh] w-[98vw] flex-col gap-0 overflow-hidden rounded-2xl border border-border/60 bg-card p-0 shadow-2xl sm:max-w-7xl sm:w-[95vw]"
+            >
                 <DialogHeader className="sr-only">
                     <DialogTitle>{title}</DialogTitle>
                 </DialogHeader>
 
-                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 text-white shrink-0">
+                <header className="relative shrink-0 overflow-hidden bg-gradient-to-br from-primary via-primary to-blue-900 px-6 py-6 text-white shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)]">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <div className="rounded-xl bg-white/20 p-2.5">
                                 <ClipboardCheck className="h-5 w-5 text-white" />
                             </div>
                             <div>
-                                <h1 className="text-lg font-bold tracking-tight">{title}</h1>
+                                <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
                                 <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">
                                     Proses Kontrol Muayenesi
                                 </p>
@@ -1837,7 +1839,7 @@ const ProcessInspectionFormModal = ({
                     </aside>
                 </div>
 
-                <footer className="flex shrink-0 justify-end gap-2 border-t border-border bg-muted/20 px-6 py-4">
+                <footer className="flex shrink-0 justify-end gap-3 border-t border-border/70 bg-muted/30 px-6 py-4 backdrop-blur-sm">
                     <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                         {isViewMode ? 'Kapat' : 'İptal'}
                     </Button>
