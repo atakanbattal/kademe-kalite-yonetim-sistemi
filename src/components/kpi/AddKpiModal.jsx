@@ -20,6 +20,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
     const [targetDirection, setTargetDirection] = useState('decrease');
     const [unit, setUnit] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [manualCategory, setManualCategory] = useState('quality');
     
     const resetForm = () => {
         setName('');
@@ -28,6 +29,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
         setTargetValue('');
         setTargetDirection('decrease');
         setUnit('');
+        setManualCategory('quality');
     };
 
     const handleManualSubmit = async (e) => {
@@ -42,6 +44,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
             unit: unit || null,
             current_value: 0,
             is_auto: false,
+            category: manualCategory || null,
         });
 
         if (error) {
@@ -196,6 +199,19 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
                                     <SelectContent>
                                         <SelectItem value="increase">Artır (Daha yüksek daha iyi)</SelectItem>
                                         <SelectItem value="decrease">Azalt (Daha düşük daha iyi)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right text-foreground">Kategori</Label>
+                                <Select value={manualCategory} onValueChange={setManualCategory}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {KPI_CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
+                                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,9 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
     const { toast } = useToast();
     const { user, profile } = useAuth();
     const { unitCostSettings, refreshData, qualityCosts } = useData();
-    const [faults, setFaults] = useState([]);
+    const [rawFaults, setRawFaults] = useState([]);
+    const fetchFaultsGenRef = useRef(0);
+    const realtimeDebounceRef = useRef(null);
     const [newFault, setNewFault] = useState({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
@@ -140,31 +142,40 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
     }, [profile?.full_name, supabase, user?.email, user?.id, vehicle]);
 
     const fetchFaults = useCallback(async () => {
-        if (!vehicle || !vehicle.id) {
-            setFaults([]);
+        const inspectionId = vehicle?.id;
+        if (!inspectionId) {
+            setRawFaults([]);
             return;
         }
+        const gen = ++fetchFaultsGenRef.current;
         try {
             const { data, error } = await supabase
                 .from('quality_inspection_faults')
                 .select('*, department:production_departments(name), category:fault_categories(name, discipline)')
-                .eq('inspection_id', vehicle.id)
+                .eq('inspection_id', inspectionId)
                 .order('created_at', { ascending: false });
+
+            if (gen !== fetchFaultsGenRef.current) return;
 
             if (error) {
                 console.error('❌ Hatalar alınamadı:', error);
                 toast({ variant: 'destructive', title: 'Hata', description: 'Hatalar alınamadı: ' + error.message });
-                setFaults([]);
+                setRawFaults([]);
             } else {
-                const enrichedFaults = (data || []).map(enrichFaultRecord);
-                setFaults(enrichedFaults);
+                setRawFaults(data || []);
             }
         } catch (err) {
+            if (gen !== fetchFaultsGenRef.current) return;
             console.error('❌ Hatalar yüklenirken beklenmeyen hata:', err);
             toast({ variant: 'destructive', title: 'Hata', description: 'Hatalar yüklenirken bir hata oluştu.' });
-            setFaults([]);
+            setRawFaults([]);
         }
-    }, [vehicle, toast, enrichFaultRecord]);
+    }, [vehicle?.id, toast]);
+
+    const faults = useMemo(
+        () => (rawFaults || []).map(enrichFaultRecord),
+        [rawFaults, enrichFaultRecord]
+    );
 
     // Araç verilerini tam olarak yükle (timeline events ve faults ile birlikte)
     const fetchFullVehicleData = useCallback(async () => {
@@ -200,17 +211,13 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
             }
         };
 
-        if (isOpen) {
-            fetchInitialData();
-            fetchFaults();
+        if (!isOpen) {
+            setRawFaults([]);
+            return;
         }
+        fetchInitialData();
+        fetchFaults();
     }, [isOpen, toast, fetchFaults]);
-
-    useEffect(() => {
-        if (vehicle) {
-            fetchFaults();
-        }
-    }, [vehicle, fetchFaults]);
 
     // Mevcut maliyet kayıtlarını kontrol et - DOĞRUDAN VERİTABANINDAN
     const checkExistingCosts = useCallback(async () => {
@@ -257,7 +264,17 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
         }
     }, [isFaultCostModalOpen, isOpen, checkExistingCosts]);
 
-    // Realtime subscription for dynamic updates
+    const scheduleRealtimeRefetch = useCallback(() => {
+        if (realtimeDebounceRef.current) {
+            clearTimeout(realtimeDebounceRef.current);
+        }
+        realtimeDebounceRef.current = setTimeout(() => {
+            realtimeDebounceRef.current = null;
+            fetchFaults();
+        }, 320);
+    }, [fetchFaults]);
+
+    // Realtime: yerel kayıt + parent yenileme ile aynı anda tetiklenince listeyi çift çekmeyip titremeyi azaltmak için debounce
     useEffect(() => {
         if (!vehicle?.id || !isOpen) return;
 
@@ -268,16 +285,17 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 schema: 'public',
                 table: 'quality_inspection_faults',
                 filter: `inspection_id=eq.${vehicle.id}`
-            }, () => {
-                // Herhangi bir değişiklik olduğunda hataları yeniden yükle
-                fetchFaults();
-            })
+            }, () => scheduleRealtimeRefetch())
             .subscribe();
 
         return () => {
+            if (realtimeDebounceRef.current) {
+                clearTimeout(realtimeDebounceRef.current);
+                realtimeDebounceRef.current = null;
+            }
             supabase.removeChannel(subscription);
         };
-    }, [vehicle?.id, isOpen, fetchFaults]);
+    }, [vehicle?.id, isOpen, scheduleRealtimeRefetch]);
 
     const handleDepartmentChange = (deptId) => {
         setNewFault(prev => ({ ...prev, department_id: deptId, category_id: '', discipline: '' }));
@@ -326,7 +344,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                     : 'Hata ve bağlı uygunsuzluk kaydı başarıyla oluşturuldu.'
             });
 
-            setFaults(prev => [newFaultWithDept, ...prev]);
+            setRawFaults((prev) => [data, ...prev]);
             setNewFault({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
             setFilteredCategories([]);
             if (onUpdate) {
@@ -359,7 +377,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                     : 'Hata ve bağlı otomatik uygunsuzluk kaydı başarıyla silindi.';
 
             toast({ title: syncWarning ? 'Kısmi Başarı' : 'Başarılı', description: successDescription });
-            setFaults(prev => prev.filter(f => f.id !== fault.id));
+            setRawFaults((prev) => prev.filter((f) => f.id !== fault.id));
             if (onUpdate) {
                 await onUpdate();
             }
@@ -394,7 +412,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 });
             }
 
-            setFaults(prev => prev.map(f => f.id === faultId ? updatedFault : f));
+            setRawFaults((prev) => prev.map((f) => (f.id === faultId ? data : f)));
             if (onUpdate) {
                 await onUpdate();
             }
@@ -416,8 +434,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Ar-Ge onay durumu güncellenemedi: ' + error.message });
         } else {
-            const updatedFault = enrichFaultRecord(data);
-            setFaults(prev => prev.map(f => f.id === faultId ? updatedFault : f));
+            setRawFaults((prev) => prev.map((f) => (f.id === faultId ? data : f)));
             toast({
                 title: 'Başarılı',
                 description: !currentStatus ? 'Ar-Ge onayı verildi.' : 'Ar-Ge onayı kaldırıldı.'
@@ -496,7 +513,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                     : 'Hata ve bağlı uygunsuzluk kaydı başarıyla güncellendi.'
             });
 
-            setFaults(prev => prev.map(f => f.id === editingFault.id ? updatedFault : f));
+            setRawFaults((prev) => prev.map((f) => (f.id === editingFault.id ? data : f)));
             setEditingFault(null);
             setEditFaultData({ description: '', department_id: '', category_id: '', discipline: '', quantity: 1 });
             setFilteredCategories([]);

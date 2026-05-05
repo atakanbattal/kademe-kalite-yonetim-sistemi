@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn, normalizeTurkishForSearch } from '@/lib/utils';
 import useDashboardData from '@/hooks/useDashboardData';
+import { getOverdueCalibrationsFromEquipments } from '@/lib/overdueCalibrationsHelpers';
 import { useData } from '@/contexts/DataContext';
 import DashboardDetailModal, { renderNCItem, renderCostItem } from '@/components/dashboard/DashboardDetailModal';
 import DetailModal from '@/components/dashboard/DetailModal';
@@ -172,8 +173,8 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
     });
     const costPieData = Object.entries(costByType).map(([name, value]) => ({ name, value: Math.round(value) })).sort((a, b) => b.value - a.value);
 
+    const overdueCals = getOverdueCalibrationsFromEquipments(equips);
     const allCals = equips.flatMap(e => (e.equipment_calibrations || []).map(c => ({ ...c, equipName: e.name })));
-    const overdueCals = allCals.filter(c => c.next_calibration_date && new Date(c.next_calibration_date) < today);
     const upcomingCals = allCals.filter(c => c.next_calibration_date && new Date(c.next_calibration_date) >= today && new Date(c.next_calibration_date) <= thirtyDays).sort((a, b) => new Date(a.next_calibration_date) - new Date(b.next_calibration_date));
     const expiringDocs = docs.filter(d => d.valid_until && new Date(d.valid_until) >= today && new Date(d.valid_until) <= thirtyDays).sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
 

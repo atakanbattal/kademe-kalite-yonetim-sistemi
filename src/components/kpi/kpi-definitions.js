@@ -558,11 +558,12 @@ export function getAutoKpiDisplayMeta(kpi) {
             target_direction: fallbackDir,
         };
     }
+    const dbCat = kpi?.category != null && String(kpi.category).trim() !== '' ? kpi.category : null;
     return {
         name: def.name,
         description: def.description,
         data_source: def.data_source,
-        category: def.category ?? kpi.category,
+        category: dbCat ?? def.category ?? kpi.category,
         target_direction: def.target_direction ?? fallbackDir,
     };
 }

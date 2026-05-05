@@ -39,6 +39,15 @@ const fmtCurrency = (n) => new Intl.NumberFormat('tr-TR', { style: 'currency', c
 const fmtNum      = (n) => new Intl.NumberFormat('tr-TR').format(n || 0);
 const fmtPct      = (n, digits = 0) => `%${Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : Number(0).toFixed(digits)}`;
 const safeText = (s) => (s && typeof s === 'string' ? s.normalize('NFC') : s) || '-';
+/** KPI tablosu: sayı ile birimi ayırır; % biriminde boşluksuz birleştirir */
+const fmtKpiValueWithUnit = (value, unit) => {
+    const u = (unit || '').trim();
+    if (value == null) return '—';
+    const n = fmtNum(value);
+    if (!u) return n;
+    if (u === '%' || u.startsWith('%')) return `${n}${u}`;
+    return `${n} ${u}`;
+};
 /** Rapor çıktısında açıklama/başlık doğruluğu için metin kısaltılmaz. */
 const trunc = (s, _len) => {
     if (!s && s !== 0) return '-';
@@ -464,7 +473,11 @@ const A3QualityBoardReport = () => {
         (data?.overdueNC?.length || 0) > 0 ||
         (governance?.expiringDocs?.length || 0) > 0 ||
         (overdueCalibrations?.length || 0) > 0 ||
-        (personnelByDept?.length || 0) > 0
+        (personnelByDept?.length || 0) > 0 ||
+        (governance?.qualityGoals?.length || 0) > 0 ||
+        (governance?.externalDocuments?.total || 0) > 0 ||
+        (governance?.processQualityRecords?.inspections?.total || 0) > 0 ||
+        (governance?.processQualityRecords?.controlForms?.total || 0) > 0
     );
 
     const ncByDeptChartHeight = Math.max(360, Math.min(640, (ncByDept.length || 0) * 28 + 80));
@@ -2057,14 +2070,16 @@ const A3QualityBoardReport = () => {
                     <Panel title="Kalite Hedefleri ve KPI Alarm Listesi" color={C.blue}>
                         <MiniTable
                             headers={['KPI', 'Gerçekleşen', 'Hedef', 'Durum']}
-                            rows={(governance?.kpiWatch || []).map((item) => [
-                                <span style={{ fontSize: 10, fontWeight: 600 }}>{trunc(safeText(item.name), 26)}</span>,
-                                <span style={{ fontSize: 10 }}>{fmtNum(item.current)}{item.unit || ''}</span>,
-                                <span style={{ fontSize: 10 }}>{fmtNum(item.target)}{item.unit || ''}</span>,
-                                <span style={{ fontWeight: 700, color: item.status === 'Alarm' ? C.red : item.status === 'Risk' ? C.orange : C.green }}>
-                                    {item.status}
-                                </span>,
-                            ])}
+                            rows={(governance?.kpiWatch || []).map((item) => {
+                                const st = item.status;
+                                const statusColor = st === 'Alarm' ? C.red : st === 'Risk' ? C.orange : st === 'Hedefte' ? C.green : C.slate;
+                                return [
+                                    <span style={{ fontSize: 10, fontWeight: 600 }}>{trunc(safeText(item.name), 26)}</span>,
+                                    <span style={{ fontSize: 10 }}>{fmtKpiValueWithUnit(item.current, item.unit)}</span>,
+                                    <span style={{ fontSize: 10 }}>{item.target != null ? fmtKpiValueWithUnit(item.target, item.unit) : '—'}</span>,
+                                    <span style={{ fontWeight: 700, color: statusColor }}>{st}</span>,
+                                ];
+                            })}
                             emptyMsg="KPI alarm verisi bulunmadı."
                             fontSize={10}
                         />
@@ -2140,6 +2155,122 @@ const A3QualityBoardReport = () => {
                             <StatRow label="Tahmini Aksiyon Maliyeti" value={fmtCurrency(governance?.complaintActions?.estimatedCost)} color={C.orange} />
                             <StatRow label="Gerçekleşen Aksiyon Maliyeti" value={fmtCurrency(governance?.complaintActions?.actualCost)} color={C.rose} bold />
                         </div>
+                    </Panel>
+                </Row>
+
+                <Row cols="1fr" gap={12} mb={14}>
+                    <Panel title="Yıllık Kalite Hedefleri (ISO 6.2)" color={C.teal}>
+                        <MiniTable
+                            headers={['Hedef', 'Tip', 'Hedef değer', 'Sorumlu']}
+                            rows={(governance?.qualityGoals || []).map((g) => [
+                                <span style={{ fontSize: 10, fontWeight: 600 }}>{trunc(safeText(g.name), 28)}</span>,
+                                <span style={{ fontSize: 10 }}>{trunc(safeText(g.typeLabel), 14)}</span>,
+                                <span style={{ fontSize: 10 }}>{fmtNum(g.target)}{g.unit || ''} {g.direction === 'decrease' ? '↓' : '↑'}</span>,
+                                <span style={{ fontSize: 10 }}>{trunc(safeText(g.responsible), 18)}</span>,
+                            ])}
+                            emptyMsg="Bu yıl için kalite hedefi kaydı yok."
+                            fontSize={10}
+                        />
+                    </Panel>
+                    <Panel title="Dış Dokümanlar" color={C.indigo}>
+                        <div style={{ fontSize: 10, color: C.slate, marginBottom: 8 }}>
+                            Toplam {fmtNum(governance?.externalDocuments?.total || 0)} kayıt · Süresi dolan:{' '}
+                            <span style={{ color: C.red, fontWeight: 700 }}>{fmtNum(governance?.externalDocuments?.expiredCount || 0)}</span>
+                            {' · '}30 gün içinde bitecek:{' '}
+                            <span style={{ color: C.orange, fontWeight: 700 }}>{fmtNum(governance?.externalDocuments?.expiringSoonCount || 0)}</span>
+                        </div>
+                        {(governance?.externalDocuments?.byCategory || []).length > 0 && (
+                            <>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.indigo, marginBottom: 6 }}>Kategori dağılımı</div>
+                                <MiniTable
+                                    headers={['Kategori', 'Adet']}
+                                    rows={governance.externalDocuments.byCategory.map((c) => [
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(c.label), 22)}</span>,
+                                        <span style={{ fontWeight: 700, color: C.indigo }}>{fmtNum(c.value)}</span>,
+                                    ])}
+                                    fontSize={10}
+                                />
+                            </>
+                        )}
+                        {(governance?.externalDocuments?.expiringSoon || []).length > 0 && (
+                            <>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, margin: '10px 0 6px' }}>Süresi yaklaşan dış dokümanlar</div>
+                                <MiniTable
+                                    headers={['Başlık', 'Ref.', 'Kategori', 'Kalan gün']}
+                                    rows={governance.externalDocuments.expiringSoon.slice(0, 8).map((d) => [
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(d.title), 20)}</span>,
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(d.reference), 12)}</span>,
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(d.categoryLabel), 14)}</span>,
+                                        <span style={{ fontWeight: 700, color: C.orange }}>{fmtNum(d.daysRemaining)}</span>,
+                                    ])}
+                                    fontSize={10}
+                                />
+                            </>
+                        )}
+                    </Panel>
+                </Row>
+                <Row cols="1fr" gap={12} mb={14}>
+                    <Panel title="Proses Muayene Kayıtları (dönem)" color={C.navy}>
+                        <div style={{ fontSize: 10, color: C.slate, marginBottom: 8 }}>
+                            Dönemde {fmtNum(governance?.processQualityRecords?.inspections?.total || 0)} kayıt
+                        </div>
+                        {(governance?.processQualityRecords?.inspections?.byDecision || []).length > 0 && (
+                            <MiniTable
+                                headers={['Karar', 'Adet']}
+                                rows={governance.processQualityRecords.inspections.byDecision.map((x) => [
+                                    <span style={{ fontSize: 10 }}>{trunc(safeText(x.name), 18)}</span>,
+                                    <span style={{ fontWeight: 700, color: C.navy }}>{fmtNum(x.value)}</span>,
+                                ])}
+                                fontSize={10}
+                            />
+                        )}
+                        {(governance?.processQualityRecords?.inspections?.recent || []).length > 0 && (
+                            <>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, margin: '10px 0 6px' }}>Son kayıtlar</div>
+                                <MiniTable
+                                    headers={['No', 'Tarih', 'Parça', 'Karar']}
+                                    rows={governance.processQualityRecords.inspections.recent.slice(0, 10).map((r) => [
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(r.recordNo), 12)}</span>,
+                                        <span style={{ fontSize: 10 }}>{r.date && isValid(parseISO(r.date)) ? format(parseISO(r.date), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(r.part), 22)}</span>,
+                                        <span style={{ fontSize: 10, fontWeight: 600 }}>{trunc(safeText(r.decision), 12)}</span>,
+                                    ])}
+                                    emptyMsg="Bu dönemde proses muayenesi yok."
+                                    fontSize={10}
+                                />
+                            </>
+                        )}
+                    </Panel>
+                    <Panel title="Kontrol Formu Yürütmeleri (dönem)" color={C.purple}>
+                        <div style={{ fontSize: 10, color: C.slate, marginBottom: 8 }}>
+                            Dönemde {fmtNum(governance?.processQualityRecords?.controlForms?.total || 0)} dolum
+                        </div>
+                        {(governance?.processQualityRecords?.controlForms?.byResult || []).length > 0 && (
+                            <MiniTable
+                                headers={['Sonuç', 'Adet']}
+                                rows={governance.processQualityRecords.controlForms.byResult.map((x) => [
+                                    <span style={{ fontSize: 10 }}>{trunc(safeText(x.name), 18)}</span>,
+                                    <span style={{ fontWeight: 700, color: C.purple }}>{fmtNum(x.value)}</span>,
+                                ])}
+                                fontSize={10}
+                            />
+                        )}
+                        {(governance?.processQualityRecords?.controlForms?.recent || []).length > 0 && (
+                            <>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, margin: '10px 0 6px' }}>Son yürütmeler</div>
+                                <MiniTable
+                                    headers={['Form / No', 'Seri', 'Sonuç', 'Tarih']}
+                                    rows={governance.processQualityRecords.controlForms.recent.slice(0, 10).map((r) => [
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(r.templateName), 18)} · {trunc(safeText(r.executionNo), 10)}</span>,
+                                        <span style={{ fontSize: 10 }}>{trunc(safeText(r.serial), 10)}</span>,
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: r.result === 'RET' ? C.red : r.result === 'ONAY' ? C.green : C.orange }}>{trunc(safeText(r.resultLabel), 12)}</span>,
+                                        <span style={{ fontSize: 10 }}>{r.date && isValid(parseISO(String(r.date))) ? format(parseISO(String(r.date)), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
+                                    ])}
+                                    emptyMsg="Bu dönemde kontrol formu yürütülmedi."
+                                    fontSize={10}
+                                />
+                            </>
+                        )}
                     </Panel>
                 </Row>
 

@@ -8,8 +8,84 @@ import {
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { calculateInspectionDuration, calculateReworkDuration } from '@/lib/vehicleCostCalculator';
-import { fetchExecutiveReportSupplement } from '@/lib/fetchExecutiveReportSupplement';
+import { fetchExecutiveReportSupplement, fetchEquipmentsWithCalibrationsPaginated } from '@/lib/fetchExecutiveReportSupplement';
+import { getOverdueCalibrationsFromEquipments } from '@/lib/overdueCalibrationsHelpers';
 import { isNCOverdue } from '@/lib/statusUtils';
+import { getAutoKpiDisplayMeta } from '@/components/kpi/kpi-definitions';
+
+const EXT_DOC_CATEGORY_LABEL = {
+    yasal_mevzuat: 'Yasal mevzuat',
+    standartlar: 'Standartlar',
+    musteri_dokumanlari: 'Müşteri dokümanları',
+    tedarikci_kataloglari: 'Tedarikçi katalogları',
+};
+
+const QUALITY_GOAL_TYPE_LABEL = {
+    DF_COUNT: 'DF sayısı',
+    '8D_COUNT': '8D sayısı',
+    QUALITY_COST: 'Kalite maliyeti',
+    NC_CLOSURE_RATE: 'UY kapatma oranı',
+    QUARANTINE_COUNT: 'Karantina',
+    CUSTOM: 'Özel',
+};
+
+const CONTROL_FORM_RESULT_LABEL = {
+    ONAY: 'Onay',
+    SARTLI_KABUL: 'Şartlı kabul',
+    RET: 'Ret',
+};
+
+/** KPI izleme: Kalite & Uygunsuzluk kategorisi her zaman dahil; kalan kotayı diğerleri doldurur */
+const buildKpiWatchList = (latestKpiMap, limit) => {
+    const toEntry = (kpi) => {
+        const meta = getAutoKpiDisplayMeta(kpi);
+        const category = meta.category || kpi.category || '';
+        const current = toNumber(kpi.current_value ?? kpi.actual_value ?? kpi.value);
+        const target = toNumber(kpi.target_value ?? kpi.target);
+        const direction = meta.target_direction ?? kpi.direction ?? kpi.trend_direction ?? 'decrease';
+        const isIncrease = direction === 'increase';
+        if (target <= 0) {
+            if (category !== 'quality') return null;
+            return {
+                name: kpi.name || kpi.metric_name || kpi.title || 'KPI',
+                current,
+                target: null,
+                unit: (kpi.unit || '').trim(),
+                status: 'Hedef yok',
+                achieved: null,
+                category,
+            };
+        }
+        const achieved = isIncrease ? current >= target : current <= target;
+        const normalizedProgress = isIncrease
+            ? Math.min((current / target) * 100, 999)
+            : Math.min((target / Math.max(current, 0.0001)) * 100, 999);
+        const status = achieved ? 'Hedefte' : normalizedProgress >= 75 ? 'Risk' : 'Alarm';
+        return {
+            name: kpi.name || kpi.metric_name || kpi.title || 'KPI',
+            current,
+            target,
+            unit: (kpi.unit || '').trim(),
+            status,
+            achieved,
+            category,
+        };
+    };
+    const all = Array.from(latestKpiMap.values()).map(toEntry).filter(Boolean);
+    const rank = { Alarm: 0, Risk: 1, Hedefte: 2, 'Hedef yok': 3 };
+    const sortFn = (a, b) => {
+        const ra = rank[a.status] ?? 9;
+        const rb = rank[b.status] ?? 9;
+        if (ra !== rb) return ra - rb;
+        const da = Math.abs(toNumber(a.target) - toNumber(a.current));
+        const db = Math.abs(toNumber(b.target) - toNumber(b.current));
+        return db - da;
+    };
+    const quality = all.filter((e) => e.category === 'quality').sort(sortFn);
+    const others = all.filter((e) => e.category !== 'quality').sort(sortFn);
+    const rest = Math.max(0, limit - quality.length);
+    return [...quality, ...others.slice(0, rest)];
+};
 
 const inDateRange = (dateStr, startDate, endDate) => {
     if (!dateStr) return false;
@@ -434,7 +510,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 customerComplaints: (supplement?.customerComplaints ?? ctx.customerComplaints) || [],
                 kaizenEntries: ctx.kaizenEntries || [],
                 deviations: ctx.deviations || [],
-                equipments: ctx.equipments || [],
+                equipments: (executiveReport && supplement?.equipments != null ? supplement.equipments : ctx.equipments) || [],
                 audits: ctx.audits || [],
                 auditFindings: ctx.auditFindings || [],
                 personnel: ctx.personnel || [],
@@ -458,6 +534,33 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 stockRiskControls: (supplement?.stockRiskControls ?? ctx.stockRiskControls) || [],
                 inkrReports: ctx.inkrReports || [],
             };
+
+            let qualityGoalsFetched = [];
+            let processInspectionFetched = [];
+            let controlFormExecFetched = [];
+            try {
+                const piLimit = executiveReport ? 1200 : 400;
+                const cfLimit = executiveReport ? 1200 : 400;
+                const goalYear = endDate.getFullYear();
+                const [qgRes, piRes, cfRes] = await Promise.all([
+                    supabase.from('quality_goals').select('*').eq('year', goalYear).order('goal_name'),
+                    supabase.from('process_inspections').select('id, record_no, inspection_date, decision, part_code, part_name')
+                        .gte('inspection_date', format(startDate, 'yyyy-MM-dd'))
+                        .lte('inspection_date', format(endDate, 'yyyy-MM-dd'))
+                        .order('inspection_date', { ascending: false })
+                        .limit(piLimit),
+                    supabase.from('control_form_executions').select('id, execution_no, result, inspection_date, created_at, serial_number, control_form_templates(name, document_no)')
+                        .gte('created_at', startDate.toISOString())
+                        .lte('created_at', endDate.toISOString())
+                        .order('created_at', { ascending: false })
+                        .limit(cfLimit),
+                ]);
+                if (!qgRes.error && qgRes.data) qualityGoalsFetched = qgRes.data;
+                if (!piRes.error && piRes.data) processInspectionFetched = piRes.data;
+                if (!cfRes.error && cfRes.data) controlFormExecFetched = cfRes.data;
+            } catch (extraFetchErr) {
+                console.warn('A3/icra raporu ek kalite verileri:', extraFetchErr);
+            }
 
             let fixtureRows = [];
             try {
@@ -644,7 +747,16 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 inDateRange(nc.created_at, startDate, endDate)
             );
             const personnelData = (raw.personnel || []).filter(p => p.is_active !== false);
-            const equipmentData = raw.equipments || [];
+            let equipmentData = raw.equipments || [];
+            const needFullEquipmentList =
+                equipmentData.length >= 1000 ||
+                (executiveReport && supplement != null && supplement.equipments == null);
+            if (needFullEquipmentList) {
+                const fullEquip = await fetchEquipmentsWithCalibrationsPaginated();
+                if (Array.isArray(fullEquip) && fullEquip.length > 0) {
+                    equipmentData = fullEquip;
+                }
+            }
             const productionDepartments = raw.productionDepartments || [];
             const trainingData = (raw.trainings || []).filter(t =>
                 inDateRange(t.start_date || t.end_date || t.created_at, startDate, endDate)
@@ -848,16 +960,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
             const openTasks = currentOpenTasks.length;
             const overdueTasks = overdueTaskList.length;
 
-            const overdueCalibrations = [];
-            equipmentData.forEach(eq => {
-                (eq.equipment_calibrations || []).forEach(cal => {
-                    if (cal && cal.next_calibration_date && isValid(parseISO(cal.next_calibration_date))) {
-                        const daysOver = differenceInDays(new Date(), parseISO(cal.next_calibration_date));
-                        if (daysOver > 0) overdueCalibrations.push({ cihaz: eq.name, tarih: cal.next_calibration_date, gecikme: daysOver });
-                    }
-                });
-            });
-            overdueCalibrations.sort((a, b) => b.gecikme - a.gecikme);
+            const overdueCalibrations = getOverdueCalibrationsFromEquipments(equipmentData);
 
             const today = new Date();
             const nextThirtyDays = addDays(today, 30);
@@ -1872,34 +1975,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                     }
                 });
 
-            const kpiWatchList = Array.from(latestKpiMap.values())
-                .map(kpi => {
-                    const current = toNumber(kpi.current_value ?? kpi.actual_value ?? kpi.value);
-                    const target = toNumber(kpi.target_value ?? kpi.target);
-                    if (target <= 0) return null;
-                    const direction = kpi.direction || kpi.trend_direction || 'decrease';
-                    const isIncrease = direction === 'increase';
-                    const achieved = isIncrease ? current >= target : current <= target;
-                    const normalizedProgress = isIncrease
-                        ? Math.min((current / target) * 100, 999)
-                        : Math.min((target / Math.max(current, 0.0001)) * 100, 999);
-                    const status = achieved ? 'Hedefte' : normalizedProgress >= 75 ? 'Risk' : 'Alarm';
-                    return {
-                        name: kpi.name || kpi.metric_name || kpi.title || 'KPI',
-                        current,
-                        target,
-                        unit: kpi.unit || '',
-                        status,
-                        achieved,
-                    };
-                })
-                .filter(Boolean)
-                .sort((a, b) => {
-                    const rank = { Alarm: 0, Risk: 1, Hedefte: 2 };
-                    if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status];
-                    return Math.abs(b.target - b.current) - Math.abs(a.target - a.current);
-                })
-                .slice(0, XL);
+            const kpiWatchList = buildKpiWatchList(latestKpiMap, XL);
 
             // Kalitenin yaptıkları metrikleri
             const incomingPlans = raw.incomingControlPlans || [];
@@ -2035,6 +2111,76 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 });
             });
             supplierAuditDetails.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const extDocs = ctx.externalDocuments || [];
+            const todayRef = new Date();
+            const extDocExpiringSoonRows = extDocs
+                .filter(d => d.valid_until && isValid(parseISO(d.valid_until)))
+                .map(d => ({
+                    title: d.title || '—',
+                    reference: d.reference_code || '—',
+                    category: d.category,
+                    categoryLabel: EXT_DOC_CATEGORY_LABEL[d.category] || d.category || '—',
+                    validUntil: d.valid_until,
+                    daysRemaining: differenceInDays(parseISO(d.valid_until), todayRef),
+                }))
+                .filter(d => d.daysRemaining >= 0 && d.daysRemaining <= 30)
+                .sort((a, b) => a.daysRemaining - b.daysRemaining)
+                .slice(0, XL3);
+            const extDocExpiredCount = extDocs.filter(d =>
+                d.valid_until && isValid(parseISO(d.valid_until)) && parseISO(d.valid_until) < startOfDay(todayRef)
+            ).length;
+            const extDocByCategoryArr = (() => {
+                const acc = {};
+                extDocs.forEach(d => {
+                    const k = d.category || '—';
+                    acc[k] = (acc[k] || 0) + 1;
+                });
+                return Object.entries(acc).map(([id, value]) => ({
+                    id,
+                    label: EXT_DOC_CATEGORY_LABEL[id] || id,
+                    value,
+                })).sort((a, b) => b.value - a.value);
+            })();
+
+            const qualityGoalsForReport = qualityGoalsFetched.map(g => ({
+                id: g.id,
+                name: g.goal_name,
+                type: g.goal_type,
+                typeLabel: QUALITY_GOAL_TYPE_LABEL[g.goal_type] || g.goal_type,
+                target: toNumber(g.target_value),
+                direction: g.target_direction || 'decrease',
+                unit: (g.unit || '').trim(),
+                responsible: g.responsible_unit || '—',
+                year: g.year,
+            }));
+
+            const piByDecision = {};
+            processInspectionFetched.forEach((x) => {
+                const d = x.decision || '—';
+                piByDecision[d] = (piByDecision[d] || 0) + 1;
+            });
+            const processInspectionRecent = processInspectionFetched.slice(0, XL3).map((x) => ({
+                recordNo: x.record_no || '—',
+                date: x.inspection_date,
+                decision: x.decision || '—',
+                part: [x.part_code, x.part_name].filter(Boolean).join(' · ') || '—',
+            }));
+
+            const cfByResult = {};
+            controlFormExecFetched.forEach((x) => {
+                const r = x.result || '—';
+                cfByResult[r] = (cfByResult[r] || 0) + 1;
+            });
+            const controlFormRecent = controlFormExecFetched.slice(0, XL3).map((x) => ({
+                executionNo: x.execution_no || '—',
+                templateName: x.control_form_templates?.name || '—',
+                docNo: x.control_form_templates?.document_no || '—',
+                result: x.result,
+                resultLabel: CONTROL_FORM_RESULT_LABEL[x.result] || x.result || '—',
+                serial: x.serial_number || '—',
+                date: x.inspection_date || x.created_at,
+            }));
 
             const governanceSummary = [
                 { label: 'Geciken DF / 8D', value: overdueNC.length, severity: overdueNC.length > 0 ? 'bad' : 'good' },
@@ -2296,6 +2442,34 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                     expiringDocs,
                     expiredDocs,
                     kpiWatch: kpiWatchList,
+                    qualityGoals: qualityGoalsForReport,
+                    externalDocuments: {
+                        total: extDocs.length,
+                        byCategory: extDocByCategoryArr,
+                        expiringSoonCount: extDocExpiringSoonRows.length,
+                        expiredCount: extDocExpiredCount,
+                        expiringSoon: extDocExpiringSoonRows,
+                    },
+                    processQualityRecords: {
+                        inspections: {
+                            total: processInspectionFetched.length,
+                            byDecision: Object.entries(piByDecision)
+                                .map(([name, value]) => ({ name, value }))
+                                .sort((a, b) => b.value - a.value),
+                            recent: processInspectionRecent,
+                        },
+                        controlForms: {
+                            total: controlFormExecFetched.length,
+                            byResult: Object.entries(cfByResult)
+                                .map(([key, value]) => ({
+                                    key,
+                                    name: CONTROL_FORM_RESULT_LABEL[key] || key,
+                                    value,
+                                }))
+                                .sort((a, b) => b.value - a.value),
+                            recent: controlFormRecent,
+                        },
+                    },
                     complaintActions: {
                         total: complaintActionsData.length,
                         completed: complaintActionsData.filter(action => action.status === 'Tamamlandı').length,
@@ -2358,7 +2532,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
         ctx.audits, ctx.auditFindings, ctx.personnel, ctx.tasks, ctx.documents, ctx.kpis,
         ctx.suppliers, ctx.supplierNonConformities, ctx.complaintAnalyses, ctx.complaintActions,
         ctx.incomingControlPlans, ctx.processControlPlans, ctx.trainings,
-        ctx.stockRiskControls, ctx.inkrReports,
+        ctx.stockRiskControls, ctx.inkrReports, ctx.externalDocuments,
         startDate, endDate, executiveReport, calendarYear, calendarMonth,
     ]);
 

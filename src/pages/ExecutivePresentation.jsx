@@ -26,6 +26,15 @@ const RESULT_COLORS = { Kabul: '#15803d', 'Şartlı Kabul': '#b45309', Ret: '#dc
 const fmtCurrency = (n) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(n || 0);
 const fmtNum = (n) => new Intl.NumberFormat('tr-TR').format(n || 0);
 const fmtPct = (n, d = 0) => `%${Number.isFinite(Number(n)) ? Number(n).toFixed(d) : '0'}`;
+/** KPI tablosu: sayı ile birimi ayırır; % biriminde boşluksuz birleştirir */
+const fmtKpiValueWithUnit = (value, unit) => {
+    const u = (unit || '').trim();
+    if (value == null) return '—';
+    const n = fmtNum(value);
+    if (!u) return n;
+    if (u === '%' || u.startsWith('%')) return `${n}${u}`;
+    return `${n} ${u}`;
+};
 const trunc = (s, _len) => String(s ?? '');
 
 /* ═══ BİLEŞENLER ═══ */
@@ -886,7 +895,34 @@ const ExecutivePresentation = () => {
                     <VStack gap={22}>
                         <div>
                             <SL color={C.blue}>KPI hedef takibi</SL>
-                            <DT headers={['KPI','Gerçekleşen','Hedef','Durum']} rows={(governance?.kpiWatch||[]).map(item=>[<span style={{fontWeight:600}}>{trunc(item.name,36)}</span>,<span>{fmtNum(item.current)}{item.unit}</span>,<span>{fmtNum(item.target)}{item.unit}</span>,<span style={{fontWeight:700,color:item.status==='Alarm'?C.red:item.status==='Risk'?C.orange:C.green}}>{item.status}</span>])} fontSize={12}/>
+                            <DT headers={['KPI','Gerçekleşen','Hedef','Durum']} rows={(governance?.kpiWatch||[]).map(item=>{
+                                const st = item.status;
+                                const col = st === 'Alarm' ? C.red : st === 'Risk' ? C.orange : st === 'Hedefte' ? C.green : C.slate;
+                                return [<span style={{fontWeight:600}}>{trunc(item.name,36)}</span>,<span>{fmtKpiValueWithUnit(item.current, item.unit)}</span>,<span>{item.target != null ? fmtKpiValueWithUnit(item.target, item.unit) : '—'}</span>,<span style={{fontWeight:700,color:col}}>{st}</span>];
+                            })} fontSize={12}/>
+                        </div>
+                        {(governance?.qualityGoals?.length || 0) > 0 && (
+                            <div>
+                                <SL color={C.teal}>Yıllık kalite hedefleri</SL>
+                                <DT headers={['Hedef','Tip','Değer','Sorumlu']} rows={governance.qualityGoals.slice(0,14).map(g=>[<span style={{fontSize:11,fontWeight:600}}>{trunc(g.name,32)}</span>,<span style={{fontSize:11}}>{trunc(g.typeLabel,16)}</span>,<span style={{fontSize:11}}>{fmtNum(g.target)}{g.unit||''}</span>,<span style={{fontSize:11}}>{trunc(g.responsible,20)}</span>])} fontSize={12}/>
+                            </div>
+                        )}
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:14}}>
+                            <div>
+                                <SL color={C.indigo}>Dış dokümanlar</SL>
+                                <div style={{fontSize:11,color:C.slate,marginBottom:8}}>
+                                    Toplam {fmtNum(governance?.externalDocuments?.total||0)} · Dolan {fmtNum(governance?.externalDocuments?.expiredCount||0)} · 30g yaklaşan {fmtNum(governance?.externalDocuments?.expiringSoonCount||0)}
+                                </div>
+                                {(governance?.externalDocuments?.byCategory||[]).length>0&&<DT headers={['Kategori','Adet']} rows={governance.externalDocuments.byCategory.slice(0,8).map(c=>[<span style={{fontSize:11}}>{trunc(c.label,28)}</span>,<span style={{fontWeight:700,color:C.indigo}}>{fmtNum(c.value)}</span>])} fontSize={12}/>}
+                            </div>
+                            <div>
+                                <SL color={C.navy}>Proses muayene / Kontrol formları (dönem)</SL>
+                                <div style={{fontSize:11,color:C.slate,marginBottom:8}}>
+                                    Muayene {fmtNum(governance?.processQualityRecords?.inspections?.total||0)} · Form dolumu {fmtNum(governance?.processQualityRecords?.controlForms?.total||0)}
+                                </div>
+                                {(governance?.processQualityRecords?.inspections?.recent||[]).length>0&&<><div style={{fontSize:10,fontWeight:700,color:C.navy,marginBottom:4}}>Son proses muayeneleri</div><DT headers={['No','Parça','Karar']} rows={governance.processQualityRecords.inspections.recent.slice(0,6).map(r=>[<span style={{fontFamily:'monospace',fontSize:11}}>{trunc(r.recordNo,14)}</span>,<span style={{fontSize:11}}>{trunc(r.part,28)}</span>,<span style={{fontSize:11,color:RESULT_COLORS[r.decision]||C.slate}}>{trunc(r.decision,12)}</span>])} fontSize={11}/></>}
+                                {(governance?.processQualityRecords?.controlForms?.recent||[]).length>0&&<div style={{marginTop:10}}><div style={{fontSize:10,fontWeight:700,color:C.purple,marginBottom:4}}>Son kontrol formu yürütmeleri</div><DT headers={['Form','Seri','Sonuç']} rows={governance.processQualityRecords.controlForms.recent.slice(0,6).map(r=>[<span style={{fontSize:11}}>{trunc(r.templateName,26)}</span>,<span style={{fontSize:11}}>{trunc(r.serial,12)}</span>,<span style={{fontSize:11,fontWeight:700}}>{trunc(r.resultLabel,12)}</span>])} fontSize={11}/></div>}
+                            </div>
                         </div>
                         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
                             <KpiCard label="Süresi yaklaşan doküman" value={fmtNum(kpis.expiringDocCount)} color={kpis.expiringDocCount>0?C.orange:C.green}/>

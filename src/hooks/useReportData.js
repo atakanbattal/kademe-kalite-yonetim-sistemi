@@ -3,6 +3,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { subMonths, startOfYear, endOfYear, endOfMonth, format, differenceInDays, parseISO, isValid, addDays, startOfMonth } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { isNCOverdue } from '@/lib/statusUtils';
+import { getOverdueCalibrationsFromEquipments } from '@/lib/overdueCalibrationsHelpers';
 
 const useReportData = (period, options = {}) => {
     const { calendarYear, calendarMonth } = options;
@@ -339,18 +340,11 @@ const useReportData = (period, options = {}) => {
                         }
                     }
                 });
-                (eqRecords || []).forEach(eq => {
-                    (eq.equipment_calibrations || []).forEach(cal => {
-                        if (cal.next_calibration_date) {
-                            const dueDate = new Date(cal.next_calibration_date);
-                            if (dueDate <= today) {
-                                tasks.dueCalibrations.push({
-                                    equipment: eq.name,
-                                    dueDate: cal.next_calibration_date,
-                                    daysOverdue: differenceInDays(today, dueDate)
-                                });
-                            }
-                        }
+                getOverdueCalibrationsFromEquipments(eqRecords).forEach((row) => {
+                    tasks.dueCalibrations.push({
+                        equipment: row.cihaz,
+                        dueDate: row.tarih,
+                        daysOverdue: row.gecikme,
                     });
                 });
                 return tasks;
@@ -368,18 +362,11 @@ const useReportData = (period, options = {}) => {
                     nc_number: nc.nc_number || nc.id
                 })).sort((a, b) => b.daysOverdue - a.daysOverdue).slice(0, 10);
 
-                const overdueCalibrations = [];
-                (eqRecords || []).forEach(eq => {
-                    (eq.equipment_calibrations || []).forEach(cal => {
-                        if (cal.next_calibration_date && new Date() > parseISO(cal.next_calibration_date)) {
-                            overdueCalibrations.push({
-                                equipment: eq.name,
-                                dueDate: cal.next_calibration_date,
-                                daysOverdue: differenceInDays(new Date(), parseISO(cal.next_calibration_date))
-                            });
-                        }
-                    });
-                });
+                const overdueCalibrations = getOverdueCalibrationsFromEquipments(eqRecords).map((row) => ({
+                    equipment: row.cihaz,
+                    dueDate: row.tarih,
+                    daysOverdue: row.gecikme,
+                }));
 
                 const expiringDocs = (docRecords || [])
                     .filter(doc => {
@@ -431,7 +418,7 @@ const useReportData = (period, options = {}) => {
                 qualityCost: processQualityCosts(costRes.data),
                 quarantine: { inQuarantineCount: quarantineRes.data?.filter(r => r.status === 'Karantinada').length || 0 },
                 deviation: { openCount: deviationRes.data?.filter(r => r.status === 'Açık').length || 0 },
-                equipment: { overdueCalibrations: equipmentRes.data?.flatMap(e => e.equipment_calibrations).filter(c => c.next_calibration_date && new Date() > parseISO(c.next_calibration_date)).length || 0 },
+                equipment: { overdueCalibrations: getOverdueCalibrationsFromEquipments(equipmentRes.data || []).length },
                 document: { total: documentRes.data?.length || 0 },
                 complaints: processComplaints(complaintRes.data),
                 criticalNCs: processCriticalNCs(df8dRes.data, costRes.data),

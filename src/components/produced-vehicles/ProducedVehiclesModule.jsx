@@ -53,15 +53,31 @@ import { useSearchParams } from 'react-router-dom';
         const [searchParams, setSearchParams] = useSearchParams();
         const deepLinkHandledRef = useRef(null);
         
-        // selectedVehicle'ı producedVehicles güncellendiğinde senkronize tut
+        // Listeden gelen güncellemeyi seçili araçla hizala. JSON.stringify tüm ilişkili veriyi
+        // sürekli farklı sayıp setState tetikleyebiliyordu → modal titremesi / hata listesi kayması.
+        // Açık modallarda seçili referansı dondur; modal kendi verisini (ör. hatalar) zaten yeniliyor.
+        const freezeSelectedVehicleSync =
+            isFaultsModalOpen ||
+            isEditModalOpen ||
+            isDetailModalOpen ||
+            isTimeDetailModalOpen ||
+            isStatusDetailModalOpen;
+
         useEffect(() => {
-            if (selectedVehicle && producedVehicles.length > 0) {
-                const updatedVehicle = producedVehicles.find(v => v.id === selectedVehicle.id);
-                if (updatedVehicle && JSON.stringify(updatedVehicle) !== JSON.stringify(selectedVehicle)) {
-                    setSelectedVehicle(updatedVehicle);
-                }
+            if (freezeSelectedVehicleSync || !selectedVehicle || producedVehicles.length === 0) return;
+            const updatedVehicle = producedVehicles.find((v) => v.id === selectedVehicle.id);
+            if (!updatedVehicle) return;
+            const prev = selectedVehicle;
+            const listUpdatedAt = updatedVehicle.updated_at ?? updatedVehicle.created_at ?? null;
+            const prevUpdatedAt = prev.updated_at ?? prev.created_at ?? null;
+            if (
+                listUpdatedAt !== prevUpdatedAt ||
+                updatedVehicle.status !== prev.status ||
+                updatedVehicle.dmo_status !== prev.dmo_status
+            ) {
+                setSelectedVehicle(updatedVehicle);
             }
-        }, [producedVehicles, selectedVehicle]);
+        }, [producedVehicles, selectedVehicle, freezeSelectedVehicleSync]);
 
         const filteredVehicles = useMemo(() => {
             let sortedVehicles = [...producedVehicles];

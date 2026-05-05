@@ -37,6 +37,23 @@ function mergeById(rows) {
     return Array.from(byId.values());
 }
 
+/** Kalibrasyon KPI: sayfalı tam ekipman (icra supplement + A3 yedek çekim) */
+export async function fetchEquipmentsWithCalibrationsPaginated() {
+    try {
+        return await fetchPaginated(() =>
+            supabase
+                .from('equipments')
+                .select(
+                    'id, name, status, scrap_date, equipment_calibrations(id, calibration_date, next_calibration_date, is_active)'
+                )
+                .order('name', { ascending: true })
+        );
+    } catch (err) {
+        console.warn('fetchEquipmentsWithCalibrationsPaginated:', err?.message || err);
+        return null;
+    }
+}
+
 /**
  * DataContext’teki düşük limitler (ör. 250 araç, 500 girdi) nedeniyle eksik kalan
  * dönem verilerini icra sunumu için tamamlar.
@@ -162,6 +179,9 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
             .order('created_at', { ascending: false })
     );
 
+    /** İcra sunumu: DataContext tek sayfa limitine takılmadan tam ekipman + kalibrasyon özeti */
+    const equipmentsPromise = fetchEquipmentsWithCalibrationsPaginated();
+
     const processInspectionsPromise = (async () => {
         try {
             return await fetchPaginated(() =>
@@ -270,6 +290,7 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
         processInkrReports,
         leakTestRecords,
         fanBalanceRecords,
+        equipments,
     ] = await Promise.all([
         vehiclesPromise,
         ncRecordsPromise,
@@ -285,6 +306,7 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
         processInkrReportsPromise,
         leakTestRecordsPromise,
         fanBalanceRecordsPromise,
+        equipmentsPromise,
     ]);
 
     return {
@@ -302,5 +324,6 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
         processInkrReports,
         leakTestRecords,
         fanBalanceRecords,
+        equipments: equipments ?? undefined,
     };
 }

@@ -152,6 +152,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     const [isBackfilling, setIsBackfilling] = useState(false);
     const [selectedNcType, setSelectedNcType] = useState('DF');
     const [kpiLinkedNcs, setKpiLinkedNcs] = useState([]);
+    const [kpiCategory, setKpiCategory] = useState('quality');
 
     const displayMeta = useMemo(() => getAutoKpiDisplayMeta(kpi), [kpi]);
     const targetDir = displayMeta.target_direction ?? 'decrease';
@@ -233,6 +234,8 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         setAnnualTargetInput('');
         setSmartSuggestion(null);
         setTab('overview');
+        const m = getAutoKpiDisplayMeta(kpi);
+        setKpiCategory(m.category || kpi.category || 'quality');
         const init = async () => {
             if (kpi.is_auto) await runBackfillAndLoad();
             await fetchMonthlyData();
@@ -328,7 +331,12 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         const newTarget = targetValue === '' ? null : parseFloat(targetValue);
         const unitVal = (unit && unit !== '__none__') ? (unit.trim() || null) : null;
         const { error } = await supabase.from('kpis')
-            .update({ target_value: newTarget, responsible_unit: responsibleUnit || null, unit: unitVal }).eq('id', kpi.id);
+            .update({
+                target_value: newTarget,
+                responsible_unit: responsibleUnit || null,
+                unit: unitVal,
+                category: kpiCategory || null,
+            }).eq('id', kpi.id);
         if (error) toast({ variant: 'destructive', title: 'Hata', description: 'Hedef güncellenemedi.' });
         else { toast({ title: 'Kaydedildi!' }); refreshKpis(); }
         setIsSubmitting(false);
@@ -435,10 +443,18 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         ? ((relativeGapAbs ?? 0) > 20 ? '#ef4444' : '#f97316')
         : '#6366f1';
 
-    const displayCategory = displayMeta.category || kpi?.category;
+    const displayCategory = kpiCategory || displayMeta.category || kpi?.category;
     const catFromDef = KPI_CATEGORIES.find(c => c.id === displayCategory);
     const catMeta   = categoryMeta[displayCategory] || { color: '#6366f1', bg: '#eef2ff', label: catFromDef?.label || displayCategory || 'KPI' };
     const trendInfo = TREND_LABELS[smartSuggestion?.trend] || TREND_LABELS.unknown;
+
+    const kpiCategorySelectOptions = useMemo(() => {
+        const base = KPI_CATEGORIES.filter((c) => c.id !== 'all');
+        if (kpiCategory && !base.some((c) => c.id === kpiCategory)) {
+            return [...base, { id: kpiCategory, label: kpiCategory }];
+        }
+        return base;
+    }, [kpiCategory]);
 
     const pendingCount  = Object.keys(editingTargets).filter(k => editingTargets[k].trim() !== '').length;
     const hasActualData = monthlyData.some(d => d.actual != null);
@@ -763,7 +779,17 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                             </div>
                                             <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
                                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Kategori</p>
-                                                <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{catMeta.label}</p>
+                                                <Select value={kpiCategory} onValueChange={setKpiCategory}>
+                                                    <SelectTrigger className="h-8 mt-1 text-sm font-medium">
+                                                        <SelectValue placeholder="Kategori" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {kpiCategorySelectOptions.map((c) => (
+                                                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <p className="text-[10px] text-muted-foreground mt-1">Kaydet ile veritabanına yazılır.</p>
                                             </div>
                                         </div>
 
@@ -772,7 +798,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                             <p className="text-sm font-bold text-foreground flex items-center gap-2">
                                                 <Target className="w-4 h-4 text-primary" /> Hedef Güncelle
                                             </p>
-                                            <p className="text-[11px] text-muted-foreground -mt-2">Hedef değer, sorumlu birim ve birim değişiklikleri Kaydet ile uygulanır.</p>
+                                            <p className="text-[11px] text-muted-foreground -mt-2">Hedef, kategori, sorumlu birim ve birim değişiklikleri Kaydet ile uygulanır.</p>
                                             <div className="flex flex-wrap gap-3 items-end">
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs">Hedef Değer</Label>
