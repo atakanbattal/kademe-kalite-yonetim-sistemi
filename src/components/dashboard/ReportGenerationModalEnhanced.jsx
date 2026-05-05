@@ -219,7 +219,7 @@ const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
                                 <li>Girdi kalite kontrol özeti ve tedarikçi performansı</li>
                                 <li>DF/8D önerilen ve açılan maddeler (optimize edilmiş tablo)</li>
                                 <li>Fikstür takip özeti, kritik fikstür uyarıları</li>
-                                <li>Üretilen araç hata kategorileri, top 10 ve en problemli araçlar</li>
+                                <li>Üretilen araç hata kategorileri; kontrol / yeniden işlem süresi aylık trend grafiği (timeline); top 10 ve en problemli araçlar</li>
                                 <li>Müşteri şikayetleri, KPI alarm listesi ve kalite duvarı</li>
                                 <li>Geciken kayıtlar, doküman ve kalibrasyon uyarıları</li>
                             </ul>

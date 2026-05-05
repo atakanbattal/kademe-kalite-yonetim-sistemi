@@ -149,6 +149,18 @@ const ExecutivePresentation = () => {
         (kaizen?.byStatus || []).length > 0;
 
     const hasFinalFaultCostTrend = (vehicles.finalFaultCostMonthly || []).some((m) => (m.toplam ?? 0) > 0);
+    const vehicleTimelineTrendChart = (qualityActivities?.controlReworkMonthly || []).map((m) => ({
+        name: m.name,
+        avgControlHr: m.vehiclesWithControl > 0 ? m.avgControlHr : null,
+        avgReworkHr: m.vehiclesWithRework > 0 ? m.avgReworkHr : null,
+        avgControlMin: m.vehiclesWithControl > 0 ? m.avgControlMin : null,
+        avgReworkMin: m.vehiclesWithRework > 0 ? m.avgReworkMin : null,
+        vehiclesWithControl: m.vehiclesWithControl,
+        vehiclesWithRework: m.vehiclesWithRework,
+    }));
+    const hasVehicleTimelineTrendChart =
+        vehicleTimelineTrendChart.length > 0 &&
+        vehicleTimelineTrendChart.some((d) => d.avgControlHr != null || d.avgReworkHr != null);
 
     /** Orijinal şablondaki slayt no (2–22) → şikayet/kaizen çıkarıldıktan sonra footer’da gösterilecek sıra */
     const slideNo = (original) => {
@@ -469,21 +481,38 @@ const ExecutivePresentation = () => {
                         <KpiCard label="En İyi Ay (DPU)" value={vehicles.bestMonth?.name||'—'} color={C.green} sub={vehicles.bestMonth?`DPU ${vehicles.bestMonth.dpu} · %${vehicles.bestMonth.passRate} geçiş`:''}/>
                         <KpiCard label="En Kötü Ay (DPU)" value={vehicles.worstMonth?.name||'—'} color={C.red} sub={vehicles.worstMonth?`DPU ${vehicles.worstMonth.dpu} · %${vehicles.worstMonth.passRate} geçiş`:''}/>
                     </div>
-                    {qualityActivities?.controlReworkMonthly?.length > 0 ? (
+                    {hasVehicleTimelineTrendChart ? (
                         <div style={{ marginBottom: 20 }}>
                             <SL color={C.blue}>Kontrol ve yeniden işlem süresi — aylık ortalama (saat)</SL>
-                            <div style={{ fontSize: 11, color: C.slate, marginBottom: 8 }}>Son 12 ay (dönemden bağımsız): üretilen araç kayıt tarihine göre aylık gruplanır; yalnızca ilgili ayda timeline verisi olan araçlar ortalamaya girer.</div>
+                            <div style={{ fontSize: 11, color: C.slate, marginBottom: 8 }}>Son 12 ay: üretilen araç kayıt tarihine göre aylık gruplanır; süreler timeline olaylarından hesaplanır (KPI kartlarıyla aynı yöntem). İlgili ayda örnek yoksa çizgi kesilir.</div>
                             <ResponsiveContainer width="100%" height={280}>
-                                <ComposedChart data={qualityActivities.controlReworkMonthly} margin={{ top: 8, right: 24, left: 8, bottom: 28 }}>
+                                <ComposedChart data={vehicleTimelineTrendChart} margin={{ top: 8, right: 24, left: 8, bottom: 28 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                     <XAxis dataKey="name" fontSize={11} angle={-22} textAnchor="end" height={44} tick={{ fill: '#374151' }} />
                                     <YAxis fontSize={11} tick={{ fill: '#374151' }} label={{ value: 'Saat', angle: -90, position: 'insideLeft', fill: C.slate, fontSize: 11 }} />
-                                    <Tooltip formatter={(v, name) => [`${v} sa`, name]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                                    <Tooltip formatter={(v, name) => (v == null ? ['—', name] : [`${v} sa`, name])} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                                    <Line type="monotone" dataKey="avgControlHr" name="Ort. kontrol süresi" stroke={C.blue} strokeWidth={2.5} dot={{ r: 4 }} />
-                                    <Line type="monotone" dataKey="avgReworkHr" name="Ort. yeniden işlem süresi" stroke={C.orange} strokeWidth={2.5} dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="avgControlHr" name="Ort. kontrol süresi" stroke={C.blue} strokeWidth={2.5} dot={{ r: 4 }} connectNulls={false} />
+                                    <Line type="monotone" dataKey="avgReworkHr" name="Ort. yeniden işlem süresi" stroke={C.orange} strokeWidth={2.5} dot={{ r: 4 }} connectNulls={false} />
                                 </ComposedChart>
                             </ResponsiveContainer>
+                            <div style={{ marginTop: 16 }}>
+                                <SL color={C.slate}>Aylık değerler (tablo)</SL>
+                                <DT
+                                    headers={['Ay', 'Kontrol (dk)', 'Kontrol (sa)', 'Yen. işl. (dk)', 'Yen. işl. (sa)', 'Araç (ktrl.)', 'Araç (rework)']}
+                                    colWidths={['14%', '12%', '12%', '12%', '12%', '14%', '14%']}
+                                    rows={vehicleTimelineTrendChart.map((row) => [
+                                        <span style={{ fontWeight: 600 }}>{row.name}</span>,
+                                        row.avgControlMin != null ? <span style={{ fontWeight: 700 }}>{fmtNum(row.avgControlMin)}</span> : '—',
+                                        row.avgControlHr != null ? <span style={{ fontWeight: 700, color: C.blue }}>{row.avgControlHr}</span> : '—',
+                                        row.avgReworkMin != null ? <span style={{ fontWeight: 700 }}>{fmtNum(row.avgReworkMin)}</span> : '—',
+                                        row.avgReworkHr != null ? <span style={{ fontWeight: 700, color: C.orange }}>{row.avgReworkHr}</span> : '—',
+                                        fmtNum(row.vehiclesWithControl || 0),
+                                        fmtNum(row.vehiclesWithRework || 0),
+                                    ])}
+                                    fontSize={11}
+                                />
+                            </div>
                         </div>
                     ) : (
                         <div style={{ marginBottom: 16, fontSize: 12, color: C.slate }}>Son 12 ay için araç timeline üzerinden kontrol / yeniden işlem süresi hesaplanamadı.</div>

@@ -36,6 +36,12 @@ import {
 import { backfillProcessInspectionNonconformities } from '@/lib/processInspectionNonconformitySync';
 import { backfillLeakTestNonconformities } from '@/lib/leakTestNonconformitySync';
 import {
+  buildLeakDraftAnalysesForUyGroup,
+  buildLeakDraftAnalysesForUyRecord,
+  isLeakUyGroup,
+  isLeakUyRecord,
+} from '@/lib/leakUyToDf8dDraftAnalysis';
+import {
   buildNonconformityDisplayNumberMap,
   getNonconformityDisplayRecordNumber
 } from '@/lib/nonconformityRecordNumbers';
@@ -686,6 +692,10 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       priority: record.severity === 'Kritik' ? 'Kritik' : record.severity === 'Yüksek' ? 'Yüksek' : 'Orta',
     };
 
+    if (isLeakUyRecord(record)) {
+      Object.assign(ncFormData, buildLeakDraftAnalysesForUyRecord(record));
+    }
+
     // DF/8D formunu aç
     if (onOpenNCForm) {
       onOpenNCForm(ncFormData, async (savedNC) => {
@@ -851,6 +861,10 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       vehicle_type: mostCommonVehicle,
       priority: group.severities['Kritik'] ? 'Kritik' : group.severities['Yüksek'] ? 'Yüksek' : 'Orta',
     };
+
+    if (isLeakUyGroup(group)) {
+      Object.assign(ncFormData, buildLeakDraftAnalysesForUyGroup(group));
+    }
 
     setGroupConvertDialog({ open: false, group: null, selectedType: null });
 

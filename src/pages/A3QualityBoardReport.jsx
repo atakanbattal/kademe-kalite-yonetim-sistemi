@@ -439,7 +439,10 @@ const A3QualityBoardReport = () => {
         vehicles.monthly.length > 0 ||
         vehicles.topFaultyVehicles.length > 0 ||
         complaints.byStatus.length > 0 ||
-        complaints.monthly.length > 0
+        complaints.monthly.length > 0 ||
+        (qualityActivities?.controlReworkMonthly || []).some(
+            (m) => (m.vehiclesWithControl || 0) > 0 || (m.vehiclesWithRework || 0) > 0
+        )
     );
 
     const hasTopCostTrainingSection = (
@@ -475,6 +478,18 @@ const A3QualityBoardReport = () => {
     const vehicleTrendData = (vehicles?.monthly || []).slice(-3);
     const vehicleFaultCategoryChartHeight = Math.max(320, Math.min(560, (vehicles?.faultByCategory?.length || 0) * 28));
     const finalFaultCostTrendData = vehicles?.finalFaultCostMonthly || [];
+    const vehicleTimelineTrendData = (qualityActivities?.controlReworkMonthly || []).map((m) => ({
+        name: m.name,
+        avgControlHr: m.vehiclesWithControl > 0 ? m.avgControlHr : null,
+        avgReworkHr: m.vehiclesWithRework > 0 ? m.avgReworkHr : null,
+        avgControlMin: m.vehiclesWithControl > 0 ? m.avgControlMin : null,
+        avgReworkMin: m.vehiclesWithRework > 0 ? m.avgReworkMin : null,
+        vehiclesWithControl: m.vehiclesWithControl,
+        vehiclesWithRework: m.vehiclesWithRework,
+    }));
+    const hasVehicleTimelineTrendChart = vehicleTimelineTrendData.some(
+        (d) => d.avgControlHr != null || d.avgReworkHr != null
+    );
     const bestVehicleTrendMonth = [...vehicleTrendData]
         .filter(item => item.toplam > 0)
         .sort((a, b) => a.dpu - b.dpu || b.passRate - a.passRate)[0] || null;
@@ -1614,6 +1629,51 @@ const A3QualityBoardReport = () => {
                         }
                     </Panel>
                 </Row>
+
+                {hasVehicleTimelineTrendChart && (
+                <Row cols="1fr" gap={12} mb={14}>
+                    <Panel title="Kontrol ve yeniden işlem süresi — aylık trend (timeline)" color={C.blue}>
+                        <div style={{ fontSize: 10, color: C.slate, marginBottom: 8, lineHeight: 1.5 }}>
+                            Son 12 ay: kayıt tarihine göre üretilen araçlar aylık gruplanır. Süreler <strong>vehicle_timeline_events</strong> üzerinden hesaplanır
+                            (üstteki ortalama kontrol / yeniden işlem kutucuklarıyla aynı yöntem). İlgili ayda örnek yoksa çizgi kesilir.
+                        </div>
+                        <ResponsiveContainer width="100%" height={260}>
+                            <ComposedChart data={vehicleTimelineTrendData} margin={{ top: 4, right: 20, left: 4, bottom: 28 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                <XAxis dataKey="name" fontSize={10} angle={-20} textAnchor="end" height={36} tick={{ fill: '#374151' }} />
+                                <YAxis
+                                    fontSize={10}
+                                    tick={{ fill: '#374151' }}
+                                    label={{ value: 'Saat (araç ort.)', angle: -90, position: 'insideLeft', fill: C.slate, fontSize: 10 }}
+                                />
+                                <Tooltip
+                                    formatter={(v, name) => (v == null ? ['—', name] : [`${v} sa`, name])}
+                                    contentStyle={{ fontSize: 11 }}
+                                />
+                                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />
+                                <Line type="monotone" dataKey="avgControlHr" name="Ort. kontrol süresi" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                                <Line type="monotone" dataKey="avgReworkHr" name="Ort. yeniden işlem" stroke={C.teal} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                        <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: C.navy, marginBottom: 6 }}>Aylık değerler (sayısal)</div>
+                            <MiniTable
+                                headers={['Ay', 'Kontrol (dk)', 'Kontrol (sa)', 'Yen.işl (dk)', 'Yen.işl (sa)', 'Araç (ktrl.)', 'Araç (rework)']}
+                                rows={vehicleTimelineTrendData.map((item) => [
+                                    item.name,
+                                    item.avgControlMin != null ? <span style={{ fontWeight: 700 }}>{fmtNum(item.avgControlMin)}</span> : '—',
+                                    item.avgControlHr != null ? <span style={{ fontWeight: 700, color: C.blue }}>{item.avgControlHr}</span> : '—',
+                                    item.avgReworkMin != null ? <span style={{ fontWeight: 700 }}>{fmtNum(item.avgReworkMin)}</span> : '—',
+                                    item.avgReworkHr != null ? <span style={{ fontWeight: 700, color: C.teal }}>{item.avgReworkHr}</span> : '—',
+                                    fmtNum(item.vehiclesWithControl || 0),
+                                    fmtNum(item.vehiclesWithRework || 0),
+                                ])}
+                                fontSize={10}
+                            />
+                        </div>
+                    </Panel>
+                </Row>
+                )}
 
                 <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Proses Bazlı Hatalar" color={C.purple}>

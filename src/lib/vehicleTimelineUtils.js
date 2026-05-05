@@ -57,6 +57,12 @@ export const calculateVehicleTimelineStats = (timelineEvents = [], now = new Dat
             return !waitingForShippingStart || endTime < waitingForShippingStart;
         });
 
+        // Kontrol süresi: yalnızca control_end ile kapanmış döngüler (KPI ile uyumlu).
+        // Bitmemiş kontrolde bitiş olarak "şimdi" kullanılırsa ay/gün süren sahte süreler ortalamayı şişirir.
+        if (currentEvent.event_type === 'control_start' && !nextEnd) {
+            continue;
+        }
+
         const endTime = nextEnd
             ? parseISO(nextEnd.event_timestamp)
             : waitingForShippingStart || now;
@@ -126,6 +132,8 @@ export const calculateMonthlyAvgQualityAndRework = (vehicles = [], now = new Dat
                 if (!isValid(endT)) return false;
                 return !waitingForShippingStart || endT < waitingForShippingStart;
             });
+
+            if (currentEvent.event_type === 'control_start' && !nextEnd) continue;
 
             const endTime = nextEnd
                 ? parseISO(nextEnd.event_timestamp)
