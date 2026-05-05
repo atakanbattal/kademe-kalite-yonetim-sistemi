@@ -20,11 +20,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
 import { Building2, CheckSquare, FolderDown, Loader2, Square } from 'lucide-react';
 import { createPrintableReportPdfBuffer, sanitizeArchiveName } from '@/lib/qualityFolderDownloadUtils';
+import { canonicalizeNonConformityOrgFields } from '@/lib/departmentCanonicalization';
 
 const getDepartmentName = (record) => {
     const department = String(record?.department || '').trim();
     return department || 'Belirtilmemiş';
 };
+
+/** ZIP ve birim seçimleri için tek tip birim adı — ham DB yazımından bağımsız */
+const EMPTY_ORG_CTX = Object.freeze({ unitCostSettings: [], personnel: [] });
 
 const buildPdfBaseName = (record) => {
     const num = record.nc_number || record.mdi_no || String(record.id || '').slice(0, 8);
@@ -32,7 +36,7 @@ const buildPdfBaseName = (record) => {
     return sanitizeArchiveName(`${num}_${type}`, 'DF_Kayit');
 };
 
-const Df8dFolderDownloadModal = ({ isOpen, setIsOpen, records = [] }) => {
+const Df8dFolderDownloadModal = ({ isOpen, setIsOpen, records = [], departmentCanonCtx = EMPTY_ORG_CTX }) => {
     const { toast } = useToast();
     const [selectedDepartments, setSelectedDepartments] = useState([]);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -42,7 +46,8 @@ const Df8dFolderDownloadModal = ({ isOpen, setIsOpen, records = [] }) => {
         const statsMap = new Map();
 
         records.forEach((record) => {
-            const departmentName = getDepartmentName(record);
+            const rowCanon = canonicalizeNonConformityOrgFields({ ...record }, departmentCanonCtx);
+            const departmentName = getDepartmentName(rowCanon);
             const current = statsMap.get(departmentName) || {
                 name: departmentName,
                 count: 0,
@@ -60,7 +65,7 @@ const Df8dFolderDownloadModal = ({ isOpen, setIsOpen, records = [] }) => {
         });
 
         return Array.from(statsMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-    }, [records]);
+    }, [records, departmentCanonCtx]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -123,7 +128,9 @@ const Df8dFolderDownloadModal = ({ isOpen, setIsOpen, records = [] }) => {
         }
 
         const departmentSet = new Set(selectedDepartments);
-        const toExport = records.filter((r) => departmentSet.has(getDepartmentName(r)));
+        const toExport = records.filter((r) =>
+            departmentSet.has(getDepartmentName(canonicalizeNonConformityOrgFields({ ...r }, departmentCanonCtx)))
+        );
 
         if (toExport.length === 0) {
             toast({
@@ -140,6 +147,7 @@ const Df8dFolderDownloadModal = ({ isOpen, setIsOpen, records = [] }) => {
         try {
             const zip = new JSZip();
             let pdfCount = 0;
+            const pdfRelPathsUsed = new Set();
 
             for (let i = 0; i < toExport.length; i++) {
                 const row = toExport[i];
@@ -149,19 +157,27 @@ const Df8dFolderDownloadModal = ({ isOpen, setIsOpen, records = [] }) => {
                     label: `PDF: ${row.nc_number || row.mdi_no || row.id} (${i + 1}/${toExport.length})`,
                 });
 
-                const full = (await fetchFullRecord(row.id)) || row;
+                const fetched = (await fetchFullRecord(row.id)) || row;
+                const full = canonicalizeNonConformityOrgFields({ ...fetched }, departmentCanonCtx);
                 const deptFolder = sanitizeArchiveName(getDepartmentName(full), 'Birim');
                 const baseName = buildPdfBaseName(full);
                 const recordFolder = `${deptFolder}/${baseName}`;
+                let relPdfPath = `${recordFolder}_rapor.pdf`;
+                if (pdfRelPathsUsed.has(relPdfPath)) {
+                    const idFrag = sanitizeArchiveName(String(full.id || '').replace(/-/g, '').slice(0, 8), 'Kayit');
+                    relPdfPath = `${deptFolder}/${baseName}_${idFrag}_rapor.pdf`;
+                }
+                pdfRelPathsUsed.add(relPdfPath);
 
                 try {
                     const pdfBuffer = await createPrintableReportPdfBuffer(full, 'nonconformity');
-                    zip.file(`${recordFolder}_rapor.pdf`, pdfBuffer);
+                    zip.file(relPdfPath, pdfBuffer);
                     pdfCount += 1;
                 } catch (e) {
                     console.warn('DF/8D PDF oluşturulamadı:', full.id, e);
+                    const errId = sanitizeArchiveName(String(full.id || '').replace(/-/g, '').slice(0, 12), 'Kayit');
                     zip.file(
-                        `${recordFolder}_HATA.txt`,
+                        `${deptFolder}/${baseName}_${errId}_HATA.txt`,
                         `PDF üretilemedi: ${e?.message || String(e)}\nKayıt: ${full.nc_number || full.id}`
                     );
                 }

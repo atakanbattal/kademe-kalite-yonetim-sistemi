@@ -602,6 +602,7 @@ const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
                     isOpen={isFolderDownloadOpen}
                     setIsOpen={setFolderDownloadOpen}
                     records={reportableRecords}
+                    departmentCanonCtx={departmentCanonCtx}
                 />
 
                 {actionModals.reject.isOpen && (
