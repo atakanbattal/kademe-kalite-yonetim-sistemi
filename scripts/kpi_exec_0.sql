@@ -1,0 +1,1 @@
+CREATE TEMP TABLE IF NOT EXISTS _kpi_b64_acc (id int primary key, part text); TRUNCATE _kpi_b64_acc;

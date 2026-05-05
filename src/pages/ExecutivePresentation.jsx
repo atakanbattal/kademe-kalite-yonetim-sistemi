@@ -11,6 +11,7 @@ import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import useA3ReportData from '@/hooks/useA3ReportData';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { formatDecimalHoursAsHm } from '@/components/kpi/kpi-definitions';
 
 /* ─── Renkler ───────────────────────────────────────────────────────────────── */
 const C = {
@@ -27,9 +28,10 @@ const fmtCurrency = (n) => new Intl.NumberFormat('tr-TR', { style: 'currency', c
 const fmtNum = (n) => new Intl.NumberFormat('tr-TR').format(n || 0);
 const fmtPct = (n, d = 0) => `%${Number.isFinite(Number(n)) ? Number(n).toFixed(d) : '0'}`;
 /** KPI tablosu: sayı ile birimi ayırır; % biriminde boşluksuz birleştirir */
-const fmtKpiValueWithUnit = (value, unit) => {
+const fmtKpiValueWithUnit = (value, unit, autoKpiId) => {
     const u = (unit || '').trim();
     if (value == null) return '—';
+    if (autoKpiId === 'avg_quality_process_time') return formatDecimalHoursAsHm(value);
     const n = fmtNum(value);
     if (!u) return n;
     if (u === '%' || u.startsWith('%')) return `${n}${u}`;
@@ -898,7 +900,7 @@ const ExecutivePresentation = () => {
                             <DT headers={['KPI','Gerçekleşen','Hedef','Durum']} rows={(governance?.kpiWatch||[]).map(item=>{
                                 const st = item.status;
                                 const col = st === 'Alarm' ? C.red : st === 'Risk' ? C.orange : st === 'Hedefte' ? C.green : C.slate;
-                                return [<span style={{fontWeight:600}}>{trunc(item.name,36)}</span>,<span>{fmtKpiValueWithUnit(item.current, item.unit)}</span>,<span>{item.target != null ? fmtKpiValueWithUnit(item.target, item.unit) : '—'}</span>,<span style={{fontWeight:700,color:col}}>{st}</span>];
+                                return [<span style={{fontWeight:600}}>{trunc(item.name,36)}</span>,<span>{fmtKpiValueWithUnit(item.current, item.unit, item.auto_kpi_id)}</span>,<span>{item.target != null ? fmtKpiValueWithUnit(item.target, item.unit, item.auto_kpi_id) : '—'}</span>,<span style={{fontWeight:700,color:col}}>{st}</span>];
                             })} fontSize={12}/>
                         </div>
                         {(governance?.qualityGoals?.length || 0) > 0 && (

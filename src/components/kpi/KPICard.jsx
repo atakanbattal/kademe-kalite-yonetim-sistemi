@@ -5,7 +5,7 @@ import {
     Users, FileText, Wrench, GraduationCap, BarChart3, Target,
     AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
-import { KPI_CATEGORIES, getAutoKpiDisplayMeta } from './kpi-definitions';
+import { KPI_CATEGORIES, getAutoKpiDisplayMeta, formatDecimalHoursAsHm, isAvgQualityProcessTimeKpi } from './kpi-definitions';
 
 const CATEGORY_ICONS = {
     quality: ShieldAlert,
@@ -32,8 +32,9 @@ const CATEGORY_STYLES = {
     default:    { border: 'border-l-gray-400',   badge: 'bg-gray-50 text-gray-700 border-gray-200',  icon: 'text-gray-500',   progress: 'bg-gray-400' },
 };
 
-const formatValue = (value, unit) => {
+const formatValue = (value, unit, kpiRow) => {
     if (value === null || value === undefined) return '—';
+    if (kpiRow && isAvgQualityProcessTimeKpi(kpiRow)) return formatDecimalHoursAsHm(value);
     const num = parseFloat(value);
     if (isNaN(num)) return '—';
     // Büyük sayılar için kısaltma
@@ -157,11 +158,11 @@ const KPICard = ({ kpi, onCardClick }) => {
                 <div className="flex items-end justify-between">
                     <div>
                         <span className="text-2xl font-bold text-foreground tabular-nums">
-                            {hasData ? formatValue(current, kpi.unit) : '—'}
+                            {hasData ? formatValue(current, kpi.unit, kpi) : '—'}
                         </span>
                         {hasTarget && (
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Hedef: <span className="font-medium text-foreground">{formatValue(target, kpi.unit)}</span>
+                                Hedef: <span className="font-medium text-foreground">{formatValue(target, kpi.unit, kpi)}</span>
                             </p>
                         )}
                     </div>

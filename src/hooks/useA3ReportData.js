@@ -35,8 +35,8 @@ const CONTROL_FORM_RESULT_LABEL = {
     RET: 'Ret',
 };
 
-/** KPI izleme: Kalite & Uygunsuzluk kategorisi her zaman dahil; kalan kotayı diğerleri doldurur */
-const buildKpiWatchList = (latestKpiMap, limit) => {
+/** KPI izleme: modüldeki tüm KPI satırları; önce Kalite & Uygunsuzluk, sonra diğerleri (alarm önceliği) */
+const buildKpiWatchList = (latestKpiMap) => {
     const toEntry = (kpi) => {
         const meta = getAutoKpiDisplayMeta(kpi);
         const category = meta.category || kpi.category || '';
@@ -45,12 +45,12 @@ const buildKpiWatchList = (latestKpiMap, limit) => {
         const direction = meta.target_direction ?? kpi.direction ?? kpi.trend_direction ?? 'decrease';
         const isIncrease = direction === 'increase';
         if (target <= 0) {
-            if (category !== 'quality') return null;
             return {
                 name: kpi.name || kpi.metric_name || kpi.title || 'KPI',
                 current,
                 target: null,
                 unit: (kpi.unit || '').trim(),
+                auto_kpi_id: kpi.auto_kpi_id || null,
                 status: 'Hedef yok',
                 achieved: null,
                 category,
@@ -66,6 +66,7 @@ const buildKpiWatchList = (latestKpiMap, limit) => {
             current,
             target,
             unit: (kpi.unit || '').trim(),
+            auto_kpi_id: kpi.auto_kpi_id || null,
             status,
             achieved,
             category,
@@ -83,8 +84,7 @@ const buildKpiWatchList = (latestKpiMap, limit) => {
     };
     const quality = all.filter((e) => e.category === 'quality').sort(sortFn);
     const others = all.filter((e) => e.category !== 'quality').sort(sortFn);
-    const rest = Math.max(0, limit - quality.length);
-    return [...quality, ...others.slice(0, rest)];
+    return [...quality, ...others];
 };
 
 const inDateRange = (dateStr, startDate, endDate) => {
@@ -936,9 +936,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
             const activeKaizen    = kaizenData.filter(k => k.status === 'Devam Ediyor' || k.status === 'Devam ediyor').length;
             const kaizenSavings   = kaizenData.reduce((s, k) => s + (k.total_yearly_gain || 0), 0);
 
-            const openDeviations = deviationData.filter(d =>
-                d.status !== 'Kapandı' && d.status !== 'Reddedildi' && d.status !== 'Kapatıldı'
-            ).length;
+            const openDeviations = deviationData.filter(d => d.status === 'Açık').length;
 
             const completedAudits = auditData.filter(a => a.status === 'Tamamlandı').length;
             const auditIdsInRange = new Set(auditData.map(a => a.id));
@@ -1966,16 +1964,11 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
             const personnelByDeptArr = Object.entries(personnelByDept).map(([name, value]) => ({ name: name.slice(0, 20), value })).sort((a, b) => b.value - a.value).slice(0, XL);
 
             const latestKpiMap = new Map();
-            [...kpiRecordData]
-                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-                .forEach(kpi => {
-                    const key = kpi.auto_kpi_id || kpi.metric_name || kpi.name || kpi.title || kpi.id;
-                    if (!latestKpiMap.has(key)) {
-                        latestKpiMap.set(key, kpi);
-                    }
-                });
+            (kpiRecordData || []).forEach((kpi) => {
+                if (kpi?.id) latestKpiMap.set(kpi.id, kpi);
+            });
 
-            const kpiWatchList = buildKpiWatchList(latestKpiMap, XL);
+            const kpiWatchList = buildKpiWatchList(latestKpiMap);
 
             // Kalitenin yaptıkları metrikleri
             const incomingPlans = raw.incomingControlPlans || [];

@@ -11,6 +11,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import useA3ReportData from '@/hooks/useA3ReportData';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { formatDecimalHoursAsHm } from '@/components/kpi/kpi-definitions';
 
 // ── Renk Paleti ───────────────────────────────────────────────────────────────
 const C = {
@@ -40,9 +41,10 @@ const fmtNum      = (n) => new Intl.NumberFormat('tr-TR').format(n || 0);
 const fmtPct      = (n, digits = 0) => `%${Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : Number(0).toFixed(digits)}`;
 const safeText = (s) => (s && typeof s === 'string' ? s.normalize('NFC') : s) || '-';
 /** KPI tablosu: sayı ile birimi ayırır; % biriminde boşluksuz birleştirir */
-const fmtKpiValueWithUnit = (value, unit) => {
+const fmtKpiValueWithUnit = (value, unit, autoKpiId) => {
     const u = (unit || '').trim();
     if (value == null) return '—';
+    if (autoKpiId === 'avg_quality_process_time') return formatDecimalHoursAsHm(value);
     const n = fmtNum(value);
     if (!u) return n;
     if (u === '%' || u.startsWith('%')) return `${n}${u}`;
@@ -2075,8 +2077,8 @@ const A3QualityBoardReport = () => {
                                 const statusColor = st === 'Alarm' ? C.red : st === 'Risk' ? C.orange : st === 'Hedefte' ? C.green : C.slate;
                                 return [
                                     <span style={{ fontSize: 10, fontWeight: 600 }}>{trunc(safeText(item.name), 26)}</span>,
-                                    <span style={{ fontSize: 10 }}>{fmtKpiValueWithUnit(item.current, item.unit)}</span>,
-                                    <span style={{ fontSize: 10 }}>{item.target != null ? fmtKpiValueWithUnit(item.target, item.unit) : '—'}</span>,
+                                    <span style={{ fontSize: 10 }}>{fmtKpiValueWithUnit(item.current, item.unit, item.auto_kpi_id)}</span>,
+                                    <span style={{ fontSize: 10 }}>{item.target != null ? fmtKpiValueWithUnit(item.target, item.unit, item.auto_kpi_id) : '—'}</span>,
                                     <span style={{ fontWeight: 700, color: statusColor }}>{st}</span>,
                                 ];
                             })}

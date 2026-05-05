@@ -140,16 +140,16 @@ export const predefinedKpis = [
     {
         id: 'avg_quality_process_time',
         name: 'Ortalama Araç Kalite Süresi',
-        description: 'Kaliteye giren araçların ortalama onaylanma süresi.',
-        unit: ' gün', target_direction: 'decrease',
+        description: 'Kaliteye girişten onaya ortalama süre (saat); kart ve raporlarda saat/dakika olarak gösterilir.',
+        unit: ' saat', target_direction: 'decrease',
         data_source: 'Kaliteye Verilen Araçlar', rpc_name: 'get_avg_quality_process_time',
         category: 'production',
     },
     {
         id: 'avg_quality_inspection_time',
         name: 'Ortalama Muayene Süresi',
-        description: 'Kalite kontrol işleminin ortalama süresi.',
-        unit: ' gün', target_direction: 'decrease',
+        description: 'Kalite kontrol işleminin ortalama süresi (timeline control_start→control_end, saat).',
+        unit: ' saat', target_direction: 'decrease',
         data_source: 'Kaliteye Verilen Araçlar', rpc_name: 'get_avg_quality_inspection_time',
         category: 'production',
     },
@@ -566,4 +566,24 @@ export function getAutoKpiDisplayMeta(kpi) {
         category: dbCat ?? def.category ?? kpi.category,
         target_direction: def.target_direction ?? fallbackDir,
     };
+}
+
+/** Ondalık saat (ör. 1.25) → "1 sa 15 dk" */
+export function formatDecimalHoursAsHm(value) {
+    if (value == null || value === '') return '—';
+    const n = typeof value === 'number' ? value : parseFloat(String(value).replace(/\s/g, '').replace(',', '.'));
+    if (!Number.isFinite(n)) return '—';
+    const totalMin = Math.round(n * 60);
+    const hours = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
+    if (hours === 0 && mins === 0) return '0 dk';
+    if (hours === 0) return `${mins} dk`;
+    if (mins === 0) return `${hours} sa`;
+    return `${hours} sa ${mins} dk`;
+}
+
+export function isAvgQualityProcessTimeKpi(kpi) {
+    if (!kpi?.is_auto || !kpi?.auto_kpi_id) return false;
+    const tid = LEGACY_AUTO_KPI_ID_MAP[kpi.auto_kpi_id] ?? kpi.auto_kpi_id;
+    return tid === 'avg_quality_process_time';
 }

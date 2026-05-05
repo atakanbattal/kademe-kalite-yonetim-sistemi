@@ -22,7 +22,7 @@ import {
 import { format, subMonths } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KPI_CATEGORIES, KPI_UNIT_OPTIONS, getAutoKpiDisplayMeta } from './kpi-definitions';
+import { KPI_CATEGORIES, KPI_UNIT_OPTIONS, getAutoKpiDisplayMeta, formatDecimalHoursAsHm, isAvgQualityProcessTimeKpi } from './kpi-definitions';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (v, decimals = 2) =>
@@ -61,7 +61,7 @@ const TREND_LABELS = {
 };
 
 // ─── Custom tooltip ──────────────────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label, unit }) => {
+const CustomTooltip = ({ active, payload, label, unit, durationHm }) => {
     if (!active || !payload?.length) return null;
     return (
         <div className="bg-white border border-border rounded-lg shadow-xl p-3 text-xs min-w-[150px]">
@@ -73,7 +73,7 @@ const CustomTooltip = ({ active, payload, label, unit }) => {
                         <span className="text-muted-foreground">{p.name}</span>
                     </span>
                     <span className="font-bold" style={{ color: p.color }}>
-                        {p.value != null ? `${fmt(p.value)}${unit || ''}` : '—'}
+                        {p.value != null ? (durationHm ? formatDecimalHoursAsHm(p.value) : `${fmt(p.value)}${unit || ''}`) : '—'}
                     </span>
                 </div>
             ))}
@@ -156,6 +156,12 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
 
     const displayMeta = useMemo(() => getAutoKpiDisplayMeta(kpi), [kpi]);
     const targetDir = displayMeta.target_direction ?? 'decrease';
+
+    const useHmDuration = useMemo(() => isAvgQualityProcessTimeKpi(kpi), [kpi]);
+    const kpiFmt = useCallback((v, decimals = 2) => {
+        if (useHmDuration) return formatDecimalHoursAsHm(v);
+        return `${fmt(v, decimals)}${kpi?.unit || ''}`;
+    }, [useHmDuration, kpi?.unit]);
 
     const kpiId = kpi?.id;
 
@@ -423,12 +429,11 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     /** Üst kartta +% sapmanın nasıl üretildiğini gösterir (↓: (H−M)/H) */
     const sapmaFormulaHint = useMemo(() => {
         if (!hasData || !hasTarget || deviationPercent == null || kpiTarget === 0) return null;
-        const u = kpi.unit || '';
         if (targetDir === 'decrease') {
-            return `(Hedef − Mevcut) ÷ Hedef = (${fmt(kpiTarget)}${u} − ${fmt(kpiCurrent)}${u}) ÷ ${fmt(Math.abs(kpiTarget))}${u}`;
+            return `(Hedef − Mevcut) ÷ Hedef = (${kpiFmt(kpiTarget)} − ${kpiFmt(kpiCurrent)}) ÷ ${kpiFmt(Math.abs(kpiTarget))}`;
         }
-        return `(Mevcut − Hedef) ÷ Hedef = (${fmt(kpiCurrent)}${u} − ${fmt(kpiTarget)}${u}) ÷ ${fmt(Math.abs(kpiTarget))}${u}`;
-    }, [hasData, hasTarget, deviationPercent, kpiTarget, kpiCurrent, targetDir, kpi.unit]);
+        return `(Mevcut − Hedef) ÷ Hedef = (${kpiFmt(kpiCurrent)} − ${kpiFmt(kpiTarget)}) ÷ ${kpiFmt(Math.abs(kpiTarget))}`;
+    }, [hasData, hasTarget, deviationPercent, kpiTarget, kpiCurrent, targetDir, kpi.unit, kpiFmt]);
 
     const statusConfig = useMemo(() => {
         if (!hasData) return { color: '#9ca3af', bg: '#f9fafb', label: 'Veri Yok', Icon: Activity };
@@ -478,8 +483,8 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                 `Kaynak: KPI Yönetimi`,
                 `KPI Adı: ${displayMeta.name}`,
                 `Kategori: ${catMeta.label}`,
-                `Mevcut Değer: ${fmt(kpiCurrent)}${kpi.unit || ''}`,
-                `Hedef Değer: ${hasTarget ? `${fmt(kpiTarget)}${kpi.unit || ''}` : 'Belirsiz'}`,
+                `Mevcut Değer: ${kpiFmt(kpiCurrent)}`,
+                `Hedef Değer: ${hasTarget ? kpiFmt(kpiTarget) : 'Belirsiz'}`,
                 sapmaLineForNc,
                 `Hedef Yönü: ${targetDir === 'decrease' ? 'Düşük daha iyi' : 'Yüksek daha iyi'}`,
                 displayMeta.description ? `\nKPI Açıklaması: ${displayMeta.description}` : '',
@@ -561,12 +566,12 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                         {[
                             {
                                 label: 'Mevcut Değer',
-                                value: hasData ? `${fmt(kpiCurrent)}${kpi.unit || ''}` : '—',
+                                value: hasData ? kpiFmt(kpiCurrent) : '—',
                                 sub: displayMeta.data_source,
                             },
                             {
                                 label: 'Hedef Değer',
-                                value: hasTarget ? `${fmt(kpiTarget)}${kpi.unit || ''}` : 'Belirsiz',
+                                value: hasTarget ? kpiFmt(kpiTarget) : 'Belirsiz',
                                 sub: targetDir === 'decrease' ? '↓ Düşük daha iyi' : '↑ Yüksek daha iyi',
                             },
                             {
@@ -634,10 +639,10 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                         </span>
                                                     </div>
                                                     <p className="text-3xl font-black text-foreground leading-none mb-1">
-                                                        {hasData ? `${fmt(kpiCurrent)}${kpi.unit || ''}` : '—'}
+                                                        {hasData ? kpiFmt(kpiCurrent) : '—'}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {hasTarget ? `Hedef: ${fmt(kpiTarget)}${kpi.unit || ''}` : 'Henüz hedef belirlenmemiş'}
+                                                        {hasTarget ? `Hedef: ${kpiFmt(kpiTarget)}` : 'Henüz hedef belirlenmemiş'}
                                                     </p>
                                                     {deviationPercent != null && (
                                                         <div className="mt-1.5 flex items-center gap-1">
@@ -669,7 +674,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                             </defs>
                                                             <XAxis dataKey="month" hide />
                                                             <YAxis hide />
-                                                            <Tooltip content={<CustomTooltip unit={kpi.unit} />} />
+                                                            <Tooltip content={<CustomTooltip unit={kpi.unit} durationHm={useHmDuration} />} />
                                                             <Area type="monotone" name="Gerçekleşen" dataKey="actual" stroke={catMeta.color}
                                                                 fill={`url(#${chartSvgId}-mini)`} strokeWidth={2.5} dot={false}
                                                                 connectNulls isAnimationActive={false} />
@@ -873,13 +878,13 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                         <div>
                                                             <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Önerilen Hedef</p>
                                                             <p className="text-3xl font-black text-primary leading-none">
-                                                                {fmt(smartSuggestion.suggested_value)}{kpi.unit || ''}
+                                                                {kpiFmt(smartSuggestion.suggested_value)}
                                                             </p>
                                                         </div>
                                                         {smartSuggestion.recent_avg != null && (
                                                             <div className="flex justify-between text-xs">
                                                                 <span className="text-muted-foreground">Son {smartSuggestion.months_analyzed} ay ort.</span>
-                                                                <span className="font-semibold">{fmt(smartSuggestion.recent_avg)}{kpi.unit || ''}</span>
+                                                                <span className="font-semibold">{kpiFmt(smartSuggestion.recent_avg)}</span>
                                                             </div>
                                                         )}
                                                         {smartSuggestion.trend && (
@@ -953,7 +958,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                                                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                                                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                                                <Tooltip content={<CustomTooltip unit={kpi.unit} />} />
+                                                <Tooltip content={<CustomTooltip unit={kpi.unit} durationHm={useHmDuration} />} />
                                                 {showTargetSeries && (
                                                     <Area type="monotone" name="Hedef" dataKey="target" stroke="#9ca3af"
                                                         fill={`url(#${chartSvgId}-target)`} strokeWidth={1.5} strokeDasharray="5 3"
@@ -978,9 +983,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                         return (
                                             <div className="grid grid-cols-3 gap-4">
                                                 {[
-                                                    { label: 'Ortalama',   value: `${fmt(avg)}${kpi.unit || ''}`,   color: catMeta.color },
-                                                    { label: 'En İyi Ay',  value: `${fmt(best)}${kpi.unit || ''}`,  color: '#10b981' },
-                                                    { label: 'En Kötü Ay', value: `${fmt(worst)}${kpi.unit || ''}`, color: '#ef4444' },
+                                                    { label: 'Ortalama',   value: kpiFmt(avg),   color: catMeta.color },
+                                                    { label: 'En İyi Ay',  value: kpiFmt(best),  color: '#10b981' },
+                                                    { label: 'En Kötü Ay', value: kpiFmt(worst), color: '#ef4444' },
                                                 ].map((s, i) => (
                                                     <div key={i} className="rounded-2xl border bg-muted/20 px-5 py-4 text-center">
                                                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.label}</p>
@@ -1090,7 +1095,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                                 </td>
                                                                 <td className="px-5 py-3 text-right">
                                                                     <span className={aNum != null ? 'font-semibold' : 'text-muted-foreground'}>
-                                                                        {aNum != null ? `${fmt(aNum)}${kpi.unit || ''}` : '—'}
+                                                                        {aNum != null ? kpiFmt(aNum) : '—'}
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-5 py-3">
