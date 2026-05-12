@@ -120,14 +120,14 @@ const DurationTooltip = ({ active, payload, label }) => {
         </Card>
     );
 
-    const VehicleFaultAnalytics = ({ refreshTrigger }) => {
+    const VehicleFaultAnalytics = ({ refreshTrigger, externalFilters, externalSearch }) => {
         const { toast } = useToast();
         const { producedVehicles } = useData();
         const [faults, setFaults] = useState([]);
         const [vehicles, setVehicles] = useState([]);
         const [timelineEvents, setTimelineEvents] = useState([]);
         const [loading, setLoading] = useState(true);
-        const [period, setPeriod] = useState('all'); // 'all' or 'YYYY-MM'
+        const [period, setPeriod] = useState('all'); // ay seçici; üst filtre 'dateRange' verirse o öncelikli olur
         const [isDetailModalOpen, setDetailModalOpen] = useState(false);
         const [detailModalData, setDetailModalData] = useState({ title: '', faults: [] });
         const [allDepartments, setAllDepartments] = useState([]);
@@ -193,46 +193,70 @@ const DurationTooltip = ({ active, payload, label }) => {
             }
         }, [refreshTrigger, producedVehicles?.length, fetchAnalyticsData]);
 
-        const filteredData = useMemo(() => {
-            if (period === 'all') {
-                return { faults, vehicles, timelineEvents };
+        // Üst filtreden gelen tarih aralığı varsa onu öncelikli kullan; yoksa ay seçicisini kullan.
+        // Önemli: hata oranı 100'ü aşmasın diye hatalar, "dönemdeki araçlara ait" olanlarla sınırlandırılır.
+        const effectiveRange = useMemo(() => {
+            if (externalFilters?.dateRange?.from && externalFilters?.dateRange?.to) {
+                return { startDate: externalFilters.dateRange.from, endDate: externalFilters.dateRange.to, inclusive: true };
             }
-            const [year, month] = period.split('-').map(Number);
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 1);
+            if (period !== 'all') {
+                const [year, month] = period.split('-').map(Number);
+                return { startDate: new Date(year, month - 1, 1), endDate: new Date(year, month, 1), inclusive: false };
+            }
+            return null;
+        }, [externalFilters?.dateRange, period]);
 
+        const filteredData = useMemo(() => {
+            // 1) Araçları önce dış filtre (durum / araç tipi / arama) ile süz
+            let periodVehicles = vehicles;
+            if (externalFilters?.vehicle_type?.length) {
+                periodVehicles = periodVehicles.filter(v => externalFilters.vehicle_type.includes(v.vehicle_type));
+            }
+            if (externalFilters?.status?.length) {
+                periodVehicles = periodVehicles.filter(v => externalFilters.status.includes(v.status));
+            }
+
+            // 2) Tarih aralığı uygula
+            if (effectiveRange) {
+                const { startDate, endDate, inclusive } = effectiveRange;
+                periodVehicles = periodVehicles.filter(v => {
+                    const vehicleDate = parseISO(v.created_at);
+                    if (!isValid(vehicleDate)) return false;
+                    return vehicleDate >= startDate && (inclusive ? vehicleDate <= endDate : vehicleDate < endDate);
+                });
+            }
+
+            // 3) Bu araçlara ait hata ve timeline kayıtlarını seç
+            const periodVehicleIds = new Set(periodVehicles.map(v => v.id));
             const periodFaults = faults.filter(f => {
-                // fault_date yoksa created_at kullan veya tüm zamanlar için dahil et
-                const dateToCheck = f.fault_date || f.created_at;
-                if (!dateToCheck) return true; // Tarih yoksa dahil et
-                const faultDate = parseISO(dateToCheck);
-                if (!isValid(faultDate)) return true; // Geçersiz tarihse dahil et
-                return faultDate >= startDate && faultDate < endDate;
+                if (!f.inspection?.id) return false;
+                return periodVehicleIds.has(f.inspection.id);
             });
-            const periodVehicles = vehicles.filter(v => {
-                const vehicleDate = parseISO(v.created_at);
-                return isValid(vehicleDate) && vehicleDate >= startDate && vehicleDate < endDate;
-            });
-            const periodTimelineEvents = timelineEvents.filter(e => {
-                const eventDate = parseISO(e.event_timestamp);
-                return isValid(eventDate) && eventDate >= startDate && eventDate < endDate;
-            });
+            const periodTimelineEvents = timelineEvents.filter(e => periodVehicleIds.has(e.inspection_id));
 
             return { faults: periodFaults, vehicles: periodVehicles, timelineEvents: periodTimelineEvents };
-        }, [period, faults, vehicles, timelineEvents]);
+        }, [faults, vehicles, timelineEvents, effectiveRange, externalFilters?.status, externalFilters?.vehicle_type]);
 
-        // Marka, Müşteri, Marka-Kategori analizi (producedVehicles'dan, dönem filtresiyle)
+        // Marka, Müşteri, Marka-Kategori analizi (producedVehicles'dan, dönem & dış filtreyle)
         const brandCustomerData = useMemo(() => {
             if (!producedVehicles || producedVehicles.length === 0) return { brands: [], customers: [], brandCategory: [] };
 
             let filteredVehicles = producedVehicles;
-            if (period !== 'all') {
-                const [year, month] = period.split('-').map(Number);
-                const startDate = new Date(year, month - 1, 1);
-                const endDate = new Date(year, month, 1);
-                filteredVehicles = producedVehicles.filter(v => {
+            if (externalFilters?.vehicle_type?.length) {
+                filteredVehicles = filteredVehicles.filter(v => externalFilters.vehicle_type.includes(v.vehicle_type));
+            }
+            if (externalFilters?.status?.length) {
+                filteredVehicles = filteredVehicles.filter(v => externalFilters.status.includes(v.status));
+            }
+            if (externalFilters?.priorityOnly) {
+                filteredVehicles = filteredVehicles.filter(v => v.is_sale_priority);
+            }
+            if (effectiveRange) {
+                const { startDate, endDate, inclusive } = effectiveRange;
+                filteredVehicles = filteredVehicles.filter(v => {
                     const d = v.created_at ? parseISO(v.created_at) : null;
-                    return d && isValid(d) && d >= startDate && d < endDate;
+                    if (!d || !isValid(d)) return false;
+                    return d >= startDate && (inclusive ? d <= endDate : d < endDate);
                 });
             }
 
@@ -292,7 +316,7 @@ const DurationTooltip = ({ active, payload, label }) => {
             }).sort((a, b) => b.totalFaults - a.totalFaults);
 
             return { brands: brandTableData, customers: customerTableData, brandCategory: brandCategoryTableData };
-        }, [producedVehicles, period]);
+        }, [producedVehicles, effectiveRange, externalFilters?.status, externalFilters?.vehicle_type, externalFilters?.priorityOnly]);
 
         const analyticsData = useMemo(() => {
             const { faults: currentFaults, vehicles: currentVehicles, timelineEvents: currentTimelineEvents } = filteredData;
@@ -444,7 +468,9 @@ const DurationTooltip = ({ active, payload, label }) => {
             }).sort((a, b) => a.sortKey - b.sortKey);
             
             const faultyVehicleCount = faultyVehiclesWithAnyFault.size;
-            const faultyVehicleRate = totalVehiclesInPeriod > 0 ? ((faultyVehicleCount / totalVehiclesInPeriod) * 100).toFixed(1) : 0;
+            // Üst sınırı [0,100]: hata kayıtları artık sadece dönemdeki araçlara aitti — güvenlik için clamp.
+            const rawRate = totalVehiclesInPeriod > 0 ? (faultyVehicleCount / totalVehiclesInPeriod) * 100 : 0;
+            const faultyVehicleRate = Math.max(0, Math.min(100, rawRate)).toFixed(1);
             const avgFaultsPerFaultyVehicle = faultyVehicleCount > 0 ? (totalFaults / faultyVehicleCount).toFixed(2) : 0;
             
             const processChartData = (data, topN = 10) => {
@@ -533,7 +559,7 @@ const DurationTooltip = ({ active, payload, label }) => {
         }, [faults]);
 
         const renderHorizontalChart = (data, title, dataKey, type) => (
-          <Card className="col-span-1 lg:col-span-2">
+          <Card>
               <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
               <CardContent>
                   {loading ? <Skeleton className="h-[400px] w-full" /> : data.length > 0 ? (
@@ -559,14 +585,28 @@ const DurationTooltip = ({ active, payload, label }) => {
             return baseHeight + analyticsData.byDepartment.length * heightPerItem;
         }, [analyticsData.byDepartment]);
 
+        const usingExternalRange = Boolean(externalFilters?.dateRange?.from && externalFilters?.dateRange?.to);
+
         return (
             <div className="space-y-6">
                 <DepartmentFaultDetailModal isOpen={isDetailModalOpen} setIsOpen={setDetailModalOpen} departmentName={detailModalData.title} faults={detailModalData.faults} />
-                <div className="flex items-center gap-4">
-                     <Select value={period} onValueChange={setPeriod}>
-                        <SelectTrigger className="w-[220px]"><SelectValue placeholder="Dönem Seçin" /></SelectTrigger>
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/70 bg-card/40 px-4 py-3">
+                     <Select value={period} onValueChange={setPeriod} disabled={usingExternalRange}>
+                        <SelectTrigger className="w-[220px]">
+                            <SelectValue placeholder="Dönem Seçin" />
+                        </SelectTrigger>
                         <SelectContent>{periodOptions.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                     </Select>
+                    {usingExternalRange && (
+                        <span className="text-xs text-muted-foreground">
+                            Üst filtre çubuğundaki tarih aralığı kullanılıyor — ay seçici devre dışı.
+                        </span>
+                    )}
+                    {!usingExternalRange && (externalFilters?.status?.length > 0 || externalFilters?.vehicle_type?.length > 0) && (
+                        <span className="text-xs text-muted-foreground">
+                            Durum / araç tipi filtreleri uygulanmış.
+                        </span>
+                    )}
                 </div>
                 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -627,8 +667,8 @@ const DurationTooltip = ({ active, payload, label }) => {
                 </div>
 
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="col-span-1 lg:col-span-2">
+                <div className="flex flex-col gap-8 lg:gap-10">
+                    <Card>
                         <CardHeader><CardTitle>Birim Performans Karnesi</CardTitle></CardHeader>
                         <CardContent>
                             {loading ? <Skeleton className="h-[400px] w-full" /> : analyticsData.byDepartment.length > 0 ? (
@@ -655,7 +695,7 @@ const DurationTooltip = ({ active, payload, label }) => {
                 </div>
 
                 {/* Marka Bazlı Hata Analizi - Grafikte sadece Üretim Adedi ve Hata Adedi, Hata Oranı % çizgisi yok */}
-                <Card className="col-span-1 lg:col-span-2">
+                <Card>
                     <CardHeader>
                         <CardTitle>Marka Bazlı Hata Analizi</CardTitle>
                         <CardDescription>Markalara göre üretim adedi ve hata adedi karşılaştırması</CardDescription>
@@ -710,7 +750,7 @@ const DurationTooltip = ({ active, payload, label }) => {
                 </Card>
 
                 {/* Müşteri Bazlı Hata Analizi ve Marka Bazlı Hata Kategorisi Dağılımı - Alt alta tam genişlik */}
-                <div className="space-y-6 col-span-1 lg:col-span-2">
+                <div className="space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Müşteri Bazlı Hata Analizi</CardTitle>

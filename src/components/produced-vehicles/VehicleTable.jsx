@@ -2,7 +2,7 @@ import React from 'react';
     import { motion } from 'framer-motion';
     import { Badge } from '@/components/ui/badge';
     import { Button } from '@/components/ui/button';
-    import { MoreVertical, Edit, Eye, Trash2, Clock, Play, CheckCircle, Truck, AlertTriangle, Wrench, RefreshCw, Timer, FlaskConical, Star } from 'lucide-react';
+    import { MoreVertical, Edit, Eye, Trash2, Clock, Play, CheckCircle, Truck, AlertTriangle, Wrench, RefreshCw, Timer, FlaskConical, Star, LogIn } from 'lucide-react';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -12,6 +12,7 @@ import React from 'react';
     import { formatDuration } from '@/lib/formatDuration.js';
 import { cn } from '@/lib/utils';
 import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
+import { getFirstQualityEntryDate, getReworkCount } from '@/lib/vehicleQualityMetrics';
 
     const FaultStatusIndicator = ({ faults, onClick }) => {
         const list = faults || [];
@@ -341,6 +342,36 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
                                         </div>
                                     </th>
                                     <th>DMO Durumu</th>
+                                    <th>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="flex items-center gap-1">
+                                                        <LogIn className="w-3 h-3" />
+                                                        İlk Kaliteye
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Aracın kaliteye ilk girdiği tarih</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </th>
+                                    <th>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="flex items-center gap-1">
+                                                        <RefreshCw className="w-3 h-3" />
+                                                        Yen. İşlem
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Aracın hayatı boyunca kaç kez yeniden işleme alındığı</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </th>
                                     <th>Durumda Geçen Süre</th>
                                     <th>Termin / Kalan</th>
                                 </>
@@ -354,6 +385,8 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
                             <th>Müşteri</th>
                             <th>Kalite Durumu</th>
                             <th>DMO Durumu</th>
+                            <th>İlk Kaliteye</th>
+                            <th>Yen. İşlem</th>
                             <th>Durumda Geçen Süre</th>
                             <th>Termin / Kalan</th>
                                 </>
@@ -400,6 +433,58 @@ import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
                                     <td>{vehicle.customer_name || '-'}</td>
                                     <td><Badge variant={statusInfo.variant} className="flex items-center w-fit">{statusInfo.icon}{statusInfo.text}</Badge></td>
                                     <td>{dmoStatusInfo ? <Badge variant={dmoStatusInfo.variant}>{dmoStatusInfo.text}</Badge> : <Badge variant="secondary">-</Badge>}</td>
+                                    <td>
+                                        {(() => {
+                                            const firstEntry = getFirstQualityEntryDate(vehicle);
+                                            if (!firstEntry) return <span className="text-muted-foreground text-xs">-</span>;
+                                            const today = startOfDay(new Date());
+                                            const daysAgo = differenceInDays(today, startOfDay(firstEntry));
+                                            return (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex flex-col gap-0.5 cursor-help">
+                                                                <span className="text-xs whitespace-nowrap">
+                                                                    {format(firstEntry, 'dd.MM.yyyy', { locale: tr })}
+                                                                </span>
+                                                                <span className="text-[10px] text-muted-foreground">
+                                                                    {daysAgo === 0 ? 'Bugün' : `${daysAgo} gün önce`}
+                                                                </span>
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Aracın kaliteye ilk giriş tarihi</p>
+                                                            <p className="text-xs">{format(firstEntry, 'd MMMM yyyy HH:mm', { locale: tr })}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            );
+                                        })()}
+                                    </td>
+                                    <td>
+                                        {(() => {
+                                            const rw = getReworkCount(vehicle);
+                                            if (rw === 0) {
+                                                return <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">0</Badge>;
+                                            }
+                                            const variant = rw >= 3 ? 'destructive' : rw >= 2 ? 'warning' : 'default';
+                                            return (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Badge variant={variant} className="cursor-help">
+                                                                <RefreshCw className="w-3 h-3 mr-1" />
+                                                                {rw}x
+                                                            </Badge>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Bu araç {rw} kez yeniden işleme alınmış.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            );
+                                        })()}
+                                    </td>
                                     <td>{formatElapsedTime(vehicle)}</td>
                                     <td>
                                         {vehicle.delivery_due_date ? (() => {

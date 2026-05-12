@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
     import { motion } from 'framer-motion';
-    import { Plus, SlidersHorizontal, Search, BarChart2, List, ArrowUpDown, ArrowUp, ArrowDown, FileText, BarChart3 } from 'lucide-react';
+    import { Plus, SlidersHorizontal, Search, BarChart2, List, ArrowUpDown, ArrowUp, ArrowDown, FileText, BarChart3, X } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
+    import { Badge } from '@/components/ui/badge';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
     import { normalizeTurkishForSearch } from '@/lib/utils';
@@ -15,6 +16,7 @@ import { useSearchParams } from 'react-router-dom';
     import { openPrintableReport } from '@/lib/reportUtils';
     import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
     import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
+    import { getFirstQualityEntryDate } from '@/lib/vehicleQualityMetrics';
 
     import VehicleDashboard from '@/components/produced-vehicles/VehicleDashboard';
     import VehicleTable from '@/components/produced-vehicles/VehicleTable';
@@ -79,6 +81,8 @@ import { useSearchParams } from 'react-router-dom';
             }
         }, [producedVehicles, selectedVehicle, freezeSelectedVehicleSync]);
 
+        // Merkezi filtreleme: durum/araç tipi/tarih aralığı/öncelik/arama hepsi tek noktada uygulanır.
+        // Sonuç hem tabloya hem alt sayfa analizlerine (hata + kalite) tutarlı şekilde verilir.
         const filteredVehicles = useMemo(() => {
             let sortedVehicles = [...producedVehicles];
             
@@ -89,9 +93,12 @@ import { useSearchParams } from 'react-router-dom';
                 sortedVehicles = sortedVehicles.filter(v => filters.vehicle_type.includes(v.vehicle_type));
             }
             if (filters.dateRange?.from && filters.dateRange?.to) {
+                // Üretim/oluşturma tarihi yerine "kaliteye ilk giriş" tarihine göre filtrele:
+                // analizler "kaliteye verilen araçlar" perspektifinden yapılır.
                 sortedVehicles = sortedVehicles.filter(v => {
-                    const createdAt = new Date(v.created_at);
-                    return createdAt >= filters.dateRange.from && createdAt <= filters.dateRange.to;
+                    const entry = getFirstQualityEntryDate(v) || new Date(v.created_at);
+                    if (!entry) return false;
+                    return entry >= filters.dateRange.from && entry <= filters.dateRange.to;
                 });
             }
             if (filters.priorityOnly) {
@@ -104,7 +111,8 @@ import { useSearchParams } from 'react-router-dom';
                     normalizeTurkishForSearch(v.chassis_no || '').includes(normalizedSearchTerm) ||
                     normalizeTurkishForSearch(v.serial_no || '').includes(normalizedSearchTerm) ||
                     normalizeTurkishForSearch(v.vehicle_type || '').includes(normalizedSearchTerm) ||
-                    normalizeTurkishForSearch(v.customer_name || '').includes(normalizedSearchTerm)
+                    normalizeTurkishForSearch(v.customer_name || '').includes(normalizedSearchTerm) ||
+                    normalizeTurkishForSearch(v.vehicle_brand || '').includes(normalizedSearchTerm)
                 );
             }
 
@@ -248,6 +256,16 @@ import { useSearchParams } from 'react-router-dom';
         };
 
         const memoizedVehicles = useMemo(() => filteredVehicles, [filteredVehicles]);
+
+        // Filtre rozet/sayaç gösterimi için kaç filtre aktif?
+        const activeFilterCount = useMemo(() => {
+            let c = 0;
+            if (filters.status?.length) c += filters.status.length;
+            if (filters.vehicle_type?.length) c += filters.vehicle_type.length;
+            if (filters.dateRange?.from && filters.dateRange?.to) c += 1;
+            if (filters.priorityOnly) c += 1;
+            return c;
+        }, [filters]);
 
         const handleSort = (key) => {
             setSortConfig(prev => ({
@@ -576,8 +594,99 @@ import { useSearchParams } from 'react-router-dom';
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                     <div className="min-w-0">
-                        <p className="text-xs sm:text-sm text-muted-foreground">Üretimden kalite sürecine giren araçları yönetin.</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Üretimden kalite sürecine giren araçları yönetin. Filtreler tüm sekmeler için geçerlidir.</p>
                     </div>
+                </div>
+
+                {/* Merkezi filtre / arama / rapor barı — tüm sekmeler için ortak çalışır. */}
+                <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card/60 p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        <div className="search-box flex-grow">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <input
+                                type="text"
+                                placeholder="Şasi No, Seri No, Tip, Marka veya Müşteri Ara..."
+                                className="search-input"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                autoCapitalize="off"
+                            />
+                        </div>
+                        <Button variant="outline" onClick={() => setFilterModalOpen(true)} className="shrink-0">
+                            <SlidersHorizontal className="w-4 h-4 mr-2" /> Filtrele
+                            {activeFilterCount > 0 && (
+                                <Badge variant="default" className="ml-2 h-5 min-w-[20px] px-1.5 text-[10px]">{activeFilterCount}</Badge>
+                            )}
+                        </Button>
+                        <Button onClick={handleOpenReportModal} variant="outline" className="shrink-0">
+                            <FileText className="w-4 h-4 mr-2" /> Rapor Al
+                        </Button>
+                        <Button onClick={() => handleOpenModal(setAddModalOpen, null)} className="shrink-0">
+                            <Plus className="w-4 h-4 mr-2" /> Yeni Araç Ekle
+                        </Button>
+                    </div>
+                    {/* Aktif filtre rozetleri */}
+                    {(activeFilterCount > 0 || searchTerm) && (
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="text-muted-foreground">Aktif filtreler:</span>
+                            {searchTerm && (
+                                <Badge variant="secondary" className="gap-1">
+                                    Arama: "{searchTerm}"
+                                    <button onClick={() => setSearchTerm('')} className="ml-1 hover:text-destructive">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </Badge>
+                            )}
+                            {filters.dateRange?.from && filters.dateRange?.to && (
+                                <Badge variant="secondary" className="gap-1">
+                                    {format(filters.dateRange.from, 'd MMM', { locale: tr })} - {format(filters.dateRange.to, 'd MMM yyyy', { locale: tr })}
+                                    <button onClick={() => setFilters(prev => ({ ...prev, dateRange: null }))} className="ml-1 hover:text-destructive">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </Badge>
+                            )}
+                            {filters.status.map(s => (
+                                <Badge key={`s-${s}`} variant="secondary" className="gap-1">
+                                    Durum: {s}
+                                    <button onClick={() => setFilters(prev => ({ ...prev, status: prev.status.filter(x => x !== s) }))} className="ml-1 hover:text-destructive">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </Badge>
+                            ))}
+                            {filters.vehicle_type.map(t => (
+                                <Badge key={`t-${t}`} variant="secondary" className="gap-1">
+                                    Tip: {t}
+                                    <button onClick={() => setFilters(prev => ({ ...prev, vehicle_type: prev.vehicle_type.filter(x => x !== t) }))} className="ml-1 hover:text-destructive">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </Badge>
+                            ))}
+                            {filters.priorityOnly && (
+                                <Badge variant="secondary" className="gap-1">
+                                    Satış Öncelikli
+                                    <button onClick={() => setFilters(prev => ({ ...prev, priorityOnly: false }))} className="ml-1 hover:text-destructive">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </Badge>
+                            )}
+                            {(activeFilterCount > 0 || searchTerm) && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => {
+                                        setFilters({ status: [], vehicle_type: [], dateRange: null, priorityOnly: false });
+                                        setSearchTerm('');
+                                    }}
+                                >
+                                    Tümünü Temizle
+                                </Button>
+                            )}
+                            <span className="ml-auto text-muted-foreground">
+                                Eşleşen kayıt: <span className="font-semibold text-foreground">{memoizedVehicles.length}</span> / {producedVehicles.length}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0">
@@ -599,11 +708,6 @@ import { useSearchParams } from 'react-router-dom';
                                 <span className="xs:hidden">Kalite</span>
                             </TabsTrigger>
                         </TabsList>
-                        {activeTab === 'operations' && (
-                            <Button onClick={() => handleOpenModal(setAddModalOpen, null)} className="w-full sm:w-auto">
-                                <Plus className="w-4 h-4 mr-2" /> Yeni Araç Ekle
-                            </Button>
-                        )}
                     </div>
 
                     <TabsContent value="operations" className="mt-6">
@@ -619,25 +723,6 @@ import { useSearchParams } from 'react-router-dom';
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
                         >
-                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
-                                <div className="search-box flex-grow">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                                    <input
-                                        type="text"
-                                        placeholder="Şasi No, Seri No, Tip veya Müşteri Ara..."
-                                        className="search-input"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        autoCapitalize="off"
-                                    />
-                                </div>
-                                <Button variant="outline" onClick={() => setFilterModalOpen(true)} className="shrink-0">
-                                    <SlidersHorizontal className="w-4 h-4 mr-2" /> Filtrele
-                                </Button>
-                                <Button onClick={handleOpenReportModal} variant="outline" size="sm" className="shrink-0">
-                                    <FileText className="w-4 h-4 mr-2" /> Rapor Al
-                                </Button>
-                            </div>
                              {loading ? (
                                 <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>
                             ) : (
@@ -657,10 +742,17 @@ import { useSearchParams } from 'react-router-dom';
                         </motion.div>
                     </TabsContent>
                     <TabsContent value="analytics" className="mt-6">
-                        <VehicleFaultAnalytics refreshTrigger={refreshProducedVehicles} />
+                        <VehicleFaultAnalytics
+                            refreshTrigger={refreshProducedVehicles}
+                            externalFilters={filters}
+                            externalSearch={searchTerm}
+                        />
                     </TabsContent>
                     <TabsContent value="quality" className="mt-6">
-                        <VehicleQualityAnalytics />
+                        <VehicleQualityAnalytics
+                            vehicles={memoizedVehicles}
+                            dateRange={filters.dateRange}
+                        />
                     </TabsContent>
                 </Tabs>
 
