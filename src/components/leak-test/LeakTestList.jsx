@@ -6,6 +6,7 @@ import {
     Eye,
     MoreVertical,
     Search,
+    ShieldCheck,
     Trash2,
 } from 'lucide-react';
 
@@ -92,6 +93,7 @@ const LeakTestList = ({
     onView,
     onEdit,
     onDelete,
+    onResolve,
 }) => {
     const { toast } = useToast();
     const { user } = useAuth();
@@ -335,6 +337,15 @@ const LeakTestList = ({
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end" className="w-48">
+                                                            {record.test_result === 'Kaçak Var' && (
+                                                                <DropdownMenuItem
+                                                                    className="text-sm font-medium text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50"
+                                                                    onClick={() => onResolve?.(record)}
+                                                                >
+                                                                    <ShieldCheck className="mr-2 h-4 w-4 shrink-0" />
+                                                                    Çözümle
+                                                                </DropdownMenuItem>
+                                                            )}
                                                             <DropdownMenuItem className="text-sm" onClick={() => onEdit?.(record)}>
                                                                 <Edit className="mr-2 h-4 w-4 shrink-0" />
                                                                 Düzenle

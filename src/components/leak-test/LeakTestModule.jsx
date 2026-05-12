@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LeakTestDashboard from './LeakTestDashboard';
 import LeakTestFormModal from './LeakTestFormModal';
 import LeakTestList from './LeakTestList';
+import LeakTestResolutionModal from './LeakTestResolutionModal';
 
 const isMissingLeakTestTableError = (error) => {
     if (!error) return false;
@@ -32,6 +33,8 @@ const LeakTestModule = () => {
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [activeTab, setActiveTab] = useState('list');
+    const [resolutionRecord, setResolutionRecord] = useState(null);
+    const [isResolutionModalOpen, setResolutionModalOpen] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -115,6 +118,11 @@ const LeakTestModule = () => {
         setIsViewMode(false);
         fetchData();
     }, [fetchData]);
+
+    const handleResolve = useCallback((record) => {
+        setResolutionRecord(record);
+        setResolutionModalOpen(true);
+    }, []);
 
     const handleLeakTestListReport = useCallback(() => {
         if (!records.length) {
@@ -214,6 +222,7 @@ const LeakTestModule = () => {
                                 onView={handleView}
                                 onEdit={handleEdit}
                                 onDelete={fetchData}
+                                onResolve={handleResolve}
                             />
                         </motion.div>
                     </TabsContent>
@@ -231,6 +240,17 @@ const LeakTestModule = () => {
                     record={selectedRecord}
                     isViewMode={isViewMode}
                     onSuccess={handleFormClose}
+                />
+
+                <LeakTestResolutionModal
+                    isOpen={isResolutionModalOpen}
+                    setIsOpen={setResolutionModalOpen}
+                    record={resolutionRecord}
+                    onResolved={() => {
+                        setResolutionModalOpen(false);
+                        setResolutionRecord(null);
+                        fetchData();
+                    }}
                 />
             </div>
         </>
