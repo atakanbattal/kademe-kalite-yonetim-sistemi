@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+    import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
     import { motion } from 'framer-motion';
-    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, PackageX } from 'lucide-react';
+    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, PackageX, FileWarning, Upload } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -185,6 +185,28 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         setIsFormOpen(true);
       };
       
+      // Bekleyen hurda tutanakları (decision=Hurda, deviation_approval_url=null, quality_cost_id=null)
+      const [pendingHurdaRecordIds, setPendingHurdaRecordIds] = useState([]);
+
+      useEffect(() => {
+        if (!quarantineRecords.length) {
+          setPendingHurdaRecordIds([]);
+          return;
+        }
+        supabase
+          .from('quarantine_history')
+          .select('quarantine_record_id')
+          .eq('decision', 'Hurda')
+          .is('deviation_approval_url', null)
+          .is('quality_cost_id', null)
+          .then(({ data }) => {
+            if (data) {
+              const ids = [...new Set(data.map((r) => r.quarantine_record_id))];
+              setPendingHurdaRecordIds(ids);
+            }
+          });
+      }, [quarantineRecords]);
+
       const handleOpenDecision = (record) => {
         setSelectedRecord(record);
         setDecisionRestoreDraft(null);
@@ -412,6 +434,32 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             </div>
           </div>
           
+          {pendingHurdaRecordIds.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 px-5 py-4">
+              <FileWarning className="h-5 w-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {pendingHurdaRecordIds.length} kayıt için hurda tutanağı bekleniyor
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  İmzalı PDF yüklemek için kaydı açın ve <strong>İşlem Geçmişi</strong> sekmesine gidin.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 h-8 border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 text-xs"
+                onClick={() => {
+                  const firstRecord = records.find((r) => pendingHurdaRecordIds.includes(r.id));
+                  if (firstRecord) handleOpenView(firstRecord);
+                }}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                İlk kaydı aç
+              </Button>
+            </div>
+          )}
+
           <Tabs defaultValue="list" className="w-full space-y-6">
             <TabsList className="grid w-full max-w-xl grid-cols-2 h-11 items-center rounded-xl bg-muted/60 p-1 text-muted-foreground shadow-inner">
               <TabsTrigger
@@ -599,15 +647,23 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                           <span className="line-clamp-2 text-muted-foreground">{item.supplier_name || '—'}</span>
                         </td>
                         <td className="px-3 py-3 align-middle sm:px-4">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'max-w-[11rem] whitespace-normal px-2.5 py-1 text-left text-xs font-medium leading-snug',
-                              getStatusBadgeClass(item.status)
+                          <div className="flex flex-col gap-1">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'max-w-[11rem] whitespace-normal px-2.5 py-1 text-left text-xs font-medium leading-snug',
+                                getStatusBadgeClass(item.status)
+                              )}
+                            >
+                              {item.status}
+                            </Badge>
+                            {pendingHurdaRecordIds.includes(item.id) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                                <FileWarning className="h-3 w-3 shrink-0" />
+                                Tutanak bekliyor
+                              </span>
                             )}
-                          >
-                            {item.status}
-                          </Badge>
+                          </div>
                         </td>
                         <td className="max-w-[140px] px-3 py-3 align-middle sm:px-4">
                           {item.non_conformity_id && item.nc_number ? (

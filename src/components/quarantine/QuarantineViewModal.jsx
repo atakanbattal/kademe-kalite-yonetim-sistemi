@@ -9,7 +9,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink, ClipboardSignature, Upload, GitBranch } from 'lucide-react';
+import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink, ClipboardSignature, Upload, GitBranch, FileWarning, CheckCircle2, AlertCircle } from 'lucide-react';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeQuarantineAttachments } from '@/lib/quarantineAttachments';
 import { QUARANTINE_DECISION_TYPES } from '@/lib/quarantineDecisionCertificate';
@@ -42,6 +42,10 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
     const [certHistoryId, setCertHistoryId] = useState('');
     const [certUploading, setCertUploading] = useState(false);
     const certFileRef = useRef(null);
+
+    // Inline hurda tutanağı yükleme (geçmiş sekmesindeki bekleyen girişler için)
+    const [hurdaUploadingId, setHurdaUploadingId] = useState(null);
+    const hurdaFileRefs = useRef({});
 
     const fetchHistory = useCallback(async () => {
         if (!record?.id) return;
@@ -283,6 +287,46 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
         }
     };
 
+    const handleHurdaTutanakUpload = async (historyEntry, file) => {
+        if (!file || !record?.id || !historyEntry?.id) return;
+        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+        if (!isPdf) {
+            toast({ variant: 'destructive', title: 'Geçersiz dosya', description: 'Yalnızca PDF yükleyin.' });
+            return;
+        }
+        setHurdaUploadingId(historyEntry.id);
+        try {
+            const safeName = sanitizeFileName(file.name || 'hurda-tutanagi.pdf');
+            const filePath = `record_attachments/${record.id}/hurda-${uuidv4()}-${safeName}`;
+            const { error: upErr } = await supabase.storage
+                .from('quarantine_documents')
+                .upload(filePath, file, { contentType: file.type || 'application/pdf', upsert: false });
+            if (upErr) throw new Error(upErr.message);
+
+            const { data: pub } = supabase.storage.from('quarantine_documents').getPublicUrl(filePath);
+            const publicUrl = pub?.publicUrl || '';
+            if (!publicUrl) throw new Error('Dosya adresi alınamadı.');
+
+            const { error: hErr } = await supabase
+                .from('quarantine_history')
+                .update({ deviation_approval_url: publicUrl })
+                .eq('id', historyEntry.id);
+            if (hErr) throw new Error(hErr.message);
+
+            await fetchHistory();
+            toast({ title: 'Tutanak yüklendi', description: 'İmzalı hurda tutanağı bu işlem satırına bağlandı.' });
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Yükleme başarısız', description: err?.message || 'Dosya kaydedilemedi.' });
+        } finally {
+            setHurdaUploadingId(null);
+        }
+    };
+
+    const pendingHurdaCount = useMemo(
+        () => history.filter((h) => h.decision === 'Hurda' && !h.deviation_approval_url && !h.quality_cost_id).length,
+        [history]
+    );
+
     const handleDownloadPDF = (e) => {
         if (e) {
             e.preventDefault();
@@ -335,9 +379,14 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                                 <Paperclip className="w-4 h-4 mr-2" />
                                 Detaylar
                             </TabsTrigger>
-                            <TabsTrigger value="history">
+                            <TabsTrigger value="history" className="relative">
                                 <History className="w-4 h-4 mr-2" />
                                 İşlem Geçmişi
+                                {pendingHurdaCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
+                                        {pendingHurdaCount}
+                                    </span>
+                                )}
                             </TabsTrigger>
                             <TabsTrigger value="certificate">
                                 <ClipboardSignature className="w-4 h-4 mr-2" />
@@ -551,6 +600,19 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                                     <p className="text-muted-foreground">Yükleniyor...</p>
                                 ) : history.length > 0 ? (
                                     <div className="space-y-4">
+                                        {pendingHurdaCount > 0 && (
+                                            <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 px-4 py-3">
+                                                <FileWarning className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                                <div>
+                                                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                                                        {pendingHurdaCount} hurda kararı için tutanak bekleniyor
+                                                    </p>
+                                                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                                                        Aşağıda sarı işaretli satırlara imzalı PDF yükleyin.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="relative">
                                             {history.map((h, index) => {
                                                 const isLast = index === history.length - 1;
@@ -659,10 +721,46 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                                                                         Bu işlem Kalite Maliyeti (hurda tutanağı) ile tamamlandı.
                                                                     </p>
                                                                 )}
-                                                                {h.decision === 'Hurda' && !h.quality_cost_id && (
-                                                                    <p className="mt-2 text-xs text-muted-foreground">
-                                                                        Bu işlem karantina hurda tutanağı ile tamamlandı.
+                                                                {h.decision === 'Hurda' && !h.quality_cost_id && h.deviation_approval_url && (
+                                                                    <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                                                                        <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                                                        İmzalı hurda tutanağı mevcut.
                                                                     </p>
+                                                                )}
+                                                                {h.decision === 'Hurda' && !h.quality_cost_id && !h.deviation_approval_url && (
+                                                                    <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 p-3 space-y-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <FileWarning className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                                                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                                                                                Hurda tutanağı bekleniyor
+                                                                            </p>
+                                                                        </div>
+                                                                        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                                                                            Bu işlem için imzalı PDF henüz yüklenmedi.
+                                                                        </p>
+                                                                        <input
+                                                                            ref={(el) => { hurdaFileRefs.current[h.id] = el; }}
+                                                                            type="file"
+                                                                            accept="application/pdf,.pdf"
+                                                                            className="hidden"
+                                                                            onChange={(e) => {
+                                                                                const f = e.target.files?.[0];
+                                                                                if (f) handleHurdaTutanakUpload(h, f);
+                                                                                e.target.value = '';
+                                                                            }}
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="h-7 text-xs border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300"
+                                                                            disabled={hurdaUploadingId === h.id}
+                                                                            onClick={() => hurdaFileRefs.current[h.id]?.click()}
+                                                                        >
+                                                                            <Upload className="h-3 w-3 mr-1.5" />
+                                                                            {hurdaUploadingId === h.id ? 'Yükleniyor…' : 'İmzalı tutanağı yükle'}
+                                                                        </Button>
+                                                                    </div>
                                                                 )}
                                                                 {h.deviation_approval_url && (
                                                                     <div className="mt-2">
