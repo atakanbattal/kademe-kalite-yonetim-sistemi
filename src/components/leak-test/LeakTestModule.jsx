@@ -40,7 +40,7 @@ const LeakTestModule = () => {
             const allRows = [];
             let from = 0;
             for (;;) {
-                const { data, error } = await supabase
+                    const { data, error } = await supabase
                     .from('leak_test_records')
                     .select(`
                         id, record_number, test_date, test_start_time, test_duration_minutes,
@@ -49,6 +49,8 @@ const LeakTestModule = () => {
                         tested_by_personnel_id, tested_by_name,
                         welded_by_personnel_id, welded_by_name,
                         supplier_id, supplier_name, welding_at_supplier,
+                        resolution_status, resolution_type, resolution_notes,
+                        resolution_date, resolved_by_personnel_id, resolved_by_name, resolved_at,
                         created_at, created_by, updated_at,
                         vehicle_type:vehicle_type_id(id, product_code, product_name),
                         tested_by:tested_by_personnel_id(id, full_name, department),

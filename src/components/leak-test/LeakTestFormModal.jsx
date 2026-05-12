@@ -38,6 +38,9 @@ import {
     LEGACY_TANK_TYPE_OPTIONS,
     TEST_RESULT_OPTIONS,
     TANK_TYPE_OPTIONS,
+    LEAK_RESOLUTION_STATUS,
+    LEAK_RESOLUTION_STATUS_OPTIONS,
+    LEAK_RESOLUTION_TYPE_OPTIONS,
     buildVehicleTypeLabel,
     calculateEndTime,
     formatDuration,
@@ -102,6 +105,12 @@ const createDefaultFormData = () => {
         supplier_id: '',
         supplier_name: '',
         notes: '',
+        resolution_status: '',
+        resolution_type: '',
+        resolution_notes: '',
+        resolution_date: '',
+        resolved_by_personnel_id: '',
+        resolved_by_name: '',
     };
 };
 
@@ -301,6 +310,12 @@ const LeakTestFormModal = ({
         supplier_id: sourceRecord?.supplier_id || '',
         supplier_name: sourceRecord?.supplier_name || '',
         notes: sourceRecord?.notes || '',
+        resolution_status: sourceRecord?.resolution_status || '',
+        resolution_type: sourceRecord?.resolution_type || '',
+        resolution_notes: sourceRecord?.resolution_notes || '',
+        resolution_date: sourceRecord?.resolution_date || '',
+        resolved_by_personnel_id: sourceRecord?.resolved_by_personnel_id || '',
+        resolved_by_name: sourceRecord?.resolved_by_name || '',
     }), []);
 
     const fetchNextRecordNumberForDate = useCallback(async (testDate) => {
@@ -745,6 +760,19 @@ const LeakTestFormModal = ({
         try {
             const atSupplier = !!formData.welding_at_supplier;
 
+            const hasResolution = !isBatchMode && formData.test_result === 'Kaçak Var' && formData.resolution_status;
+            const resolutionPayload = hasResolution ? {
+                resolution_status: formData.resolution_status || null,
+                resolution_type: formData.resolution_type || null,
+                resolution_notes: formData.resolution_notes?.trim() || null,
+                resolution_date: formData.resolution_date || null,
+                resolved_by_personnel_id: formData.resolved_by_personnel_id || null,
+                resolved_by_name: formData.resolved_by_name?.trim() || null,
+                resolved_at: formData.resolution_status === LEAK_RESOLUTION_STATUS.RESOLVED
+                    ? (formData.resolution_date || new Date().toISOString())
+                    : null,
+            } : {};
+
             const commonPayload = {
                 test_date: formData.test_date,
                 test_start_time: formData.test_start_time,
@@ -758,6 +786,7 @@ const LeakTestFormModal = ({
                 supplier_name: atSupplier ? (String(formData.supplier_name || '').trim() || null) : null,
                 notes: formData.notes?.trim() || null,
                 updated_at: new Date().toISOString(),
+                ...resolutionPayload,
             };
 
             if (isBatchMode) {
@@ -990,6 +1019,26 @@ const LeakTestFormModal = ({
                 <div className="rounded-lg border bg-background p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Notlar</p>
                     <p className="mt-1 text-xs leading-relaxed text-foreground">{formData.notes}</p>
+                </div>
+            )}
+
+            {!isBatchMode && formData.test_result === 'Kaçak Var' && formData.resolution_status && (
+                <div className={`rounded-lg border p-3 ${
+                    formData.resolution_status === 'Çözüldü'
+                        ? 'border-emerald-200 bg-emerald-50'
+                        : formData.resolution_status === 'Çözümleniyor'
+                            ? 'border-amber-200 bg-amber-50'
+                            : 'border-red-200 bg-red-50'
+                }`}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Çözüm Durumu</p>
+                    <p className={`text-sm font-semibold mt-0.5 ${
+                        formData.resolution_status === 'Çözüldü' ? 'text-emerald-700'
+                            : formData.resolution_status === 'Çözümleniyor' ? 'text-amber-700'
+                                : 'text-red-700'
+                    }`}>{formData.resolution_status}</p>
+                    {formData.resolution_type && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{formData.resolution_type}</p>
+                    )}
                 </div>
             )}
         </div>
@@ -1316,6 +1365,102 @@ const LeakTestFormModal = ({
                         />
                     </ModalField>
                 </section>
+
+                {/* Kaçak çözüm takibi — sadece tek kayıt modunda ve kaçak varsa */}
+                {!isBatchMode && formData.test_result === 'Kaçak Var' && (
+                    <section>
+                        <ModalSectionHeader>Kaçak Çözüm Takibi</ModalSectionHeader>
+                        <div className="rounded-xl border border-red-200 bg-red-50/40 p-4 space-y-4">
+                            <p className="text-xs text-red-700">
+                                Bu kayıt kaçak içeriyor. Çözüm durumunu ve aksiyon tipini belirterek takip edebilirsiniz.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <ModalField label="Çözüm Durumu">
+                                    <Select
+                                        value={formData.resolution_status || ''}
+                                        onValueChange={(value) => handleInputChange('resolution_status', value)}
+                                        disabled={isViewMode}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Durum seçin..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {LEAK_RESOLUTION_STATUS_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{opt.label}</p>
+                                                        <p className="text-xs text-muted-foreground">{opt.description}</p>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </ModalField>
+
+                                <ModalField label="Aksiyon Tipi">
+                                    <Select
+                                        value={formData.resolution_type || ''}
+                                        onValueChange={(value) => handleInputChange('resolution_type', value)}
+                                        disabled={isViewMode}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Aksiyon seçin..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {LEAK_RESOLUTION_TYPE_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{opt.label}</p>
+                                                        <p className="text-xs text-muted-foreground">{opt.description}</p>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </ModalField>
+
+                                <ModalField label="Çözüm Tarihi">
+                                    <Input
+                                        type="date"
+                                        value={formData.resolution_date || ''}
+                                        onChange={(event) => handleInputChange('resolution_date', event.target.value)}
+                                        disabled={isViewMode}
+                                    />
+                                </ModalField>
+
+                                <ModalField label="Çözümleyen Personel">
+                                    {isViewMode ? (
+                                        <Input value={formData.resolved_by_name || '-'} readOnly className="bg-muted/30" />
+                                    ) : (
+                                        <SearchableSelectDialog
+                                            options={personnelOptions}
+                                            value={formData.resolved_by_personnel_id}
+                                            onChange={(value) => {
+                                                const person = personnel.find((p) => p.id === value);
+                                                handleInputChange('resolved_by_personnel_id', value);
+                                                handleInputChange('resolved_by_name', person?.full_name || '');
+                                            }}
+                                            triggerPlaceholder="Personel seçin..."
+                                            dialogTitle="Çözümleyen Personeli Seç"
+                                            searchPlaceholder="Personel ara..."
+                                            notFoundText="Personel bulunamadı."
+                                        />
+                                    )}
+                                </ModalField>
+                            </div>
+
+                            <ModalField label="Çözüm Notu">
+                                <Textarea
+                                    value={formData.resolution_notes || ''}
+                                    onChange={(event) => handleInputChange('resolution_notes', event.target.value)}
+                                    disabled={isViewMode}
+                                    rows={2}
+                                    placeholder="Yapılan işlem, gözlem ve sonuç hakkında kısa not..."
+                                />
+                            </ModalField>
+                        </div>
+                    </section>
+                )}
 
                 {isBatchMode && isLegacyTankTypeMode && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

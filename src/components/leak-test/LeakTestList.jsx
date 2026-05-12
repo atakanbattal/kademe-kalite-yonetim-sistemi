@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import {
     TANK_TYPE_OPTIONS,
+    LEAK_RESOLUTION_STATUS,
     formatDuration,
     formatTestDateTime,
     getPersonnelName,
@@ -46,16 +47,39 @@ import {
     getWelderOrSupplierLine,
 } from './utils';
 
-const RESULT_FILTER_OPTIONS = ['all', 'Kabul', 'Kaçak Var'];
+const RESULT_FILTER_OPTIONS = [
+    { value: 'all', label: 'Tüm sonuçlar' },
+    { value: 'Kabul', label: 'Kabul' },
+    { value: 'Kaçak Var', label: 'Kaçak Var' },
+    { value: 'Kaçak Var:Açık', label: 'Kaçak — Açık' },
+    { value: 'Kaçak Var:Çözümleniyor', label: 'Kaçak — Çözümleniyor' },
+    { value: 'Kaçak Var:Çözüldü', label: 'Kaçak — Çözüldü' },
+];
 
 const LEADING_ICON_INPUT_PADDING = '2.75rem';
 
-const getResultBadge = (result, leakCount) => {
+const getResultBadge = (result, leakCount, resolutionStatus) => {
     if (result === 'Kabul') {
         return <Badge variant="success">Kabul</Badge>;
     }
 
     if (result === 'Kaçak Var') {
+        if (resolutionStatus === LEAK_RESOLUTION_STATUS.RESOLVED) {
+            return (
+                <div className="flex flex-col gap-0.5">
+                    <Badge variant="destructive">{leakCount || 0} Kaçak</Badge>
+                    <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-[10px]">Çözüldü</Badge>
+                </div>
+            );
+        }
+        if (resolutionStatus === LEAK_RESOLUTION_STATUS.IN_PROGRESS) {
+            return (
+                <div className="flex flex-col gap-0.5">
+                    <Badge variant="destructive">{leakCount || 0} Kaçak</Badge>
+                    <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px]">Çözümleniyor</Badge>
+                </div>
+            );
+        }
         return <Badge variant="destructive">{leakCount || 0} Kaçak</Badge>;
     }
 
@@ -91,11 +115,22 @@ const LeakTestList = ({
                 getWelderOrSupplierLine(record),
                 record.supplier_name,
                 record.notes,
+                record.resolution_status,
+                record.resolution_type,
             ].filter(Boolean).join(' '));
 
             const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
             const matchesTankType = selectedTankType === 'all' || record.tank_type === selectedTankType;
-            const matchesResult = selectedResult === 'all' || record.test_result === selectedResult;
+
+            let matchesResult = true;
+            if (selectedResult !== 'all') {
+                if (selectedResult.includes(':')) {
+                    const [result, resStatus] = selectedResult.split(':');
+                    matchesResult = record.test_result === result && (record.resolution_status || 'Açık') === resStatus;
+                } else {
+                    matchesResult = record.test_result === selectedResult;
+                }
+            }
 
             return matchesSearch && matchesTankType && matchesResult;
         });
@@ -195,13 +230,13 @@ const LeakTestList = ({
                     </Select>
 
                     <Select value={selectedResult} onValueChange={setSelectedResult}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[200px]">
                             <SelectValue placeholder="Test sonucu" />
                         </SelectTrigger>
                         <SelectContent>
                             {RESULT_FILTER_OPTIONS.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                    {option === 'all' ? 'Tüm sonuçlar' : option}
+                                <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -273,7 +308,7 @@ const LeakTestList = ({
                                             <td className="font-mono text-xs">{record.part_code?.trim() || '-'}</td>
                                             <td>{record.tank_type || '-'}</td>
                                             <td>{formatDuration(record.test_duration_minutes)}</td>
-                                            <td>{getResultBadge(record.test_result, record.leak_count)}</td>
+                                            <td>{getResultBadge(record.test_result, record.leak_count, record.resolution_status)}</td>
                                             <td>{getPersonnelName(record, 'tested_by', 'tested_by_name')}</td>
                                             <td>
                                                 <div className="max-w-[200px] whitespace-normal">

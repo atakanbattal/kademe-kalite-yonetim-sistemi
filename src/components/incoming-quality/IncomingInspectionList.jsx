@@ -218,7 +218,7 @@ const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, o
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="Parça, tedarikçi veya kayıt no ara..."
+                            placeholder="Parça, tedarikçi, kayıt no veya irsaliye no ara..."
                             className="search-input"
                             value={filters.searchTerm}
                             onChange={(e) => setFilters(prev => ({...prev, searchTerm: e.target.value}))}
@@ -245,6 +245,7 @@ const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, o
                             <TableRow>
                                 <TableHead>Kayıt No</TableHead>
                                 <TableHead>Tarih</TableHead>
+                                <TableHead>İrsaliye No</TableHead>
                                 <TableHead>Tedarikçi</TableHead>
                                 <TableHead>Parça</TableHead>
                                 <TableHead>Miktar</TableHead>
@@ -256,13 +257,14 @@ const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, o
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan="8" className="text-center py-8">Yükleniyor...</TableCell>
+                                    <TableCell colSpan="9" className="text-center py-8">Yükleniyor...</TableCell>
                                 </TableRow>
                             ) : inspections && inspections.length > 0 ? (
                                 inspections.map(inspection => (
                                     <TableRow key={inspection.id} onClick={() => handleViewDetail(inspection)} className="cursor-pointer hover:bg-muted/50">
                                         <TableCell>{inspection.record_no || '-'}</TableCell>
                                         <TableCell>{format(new Date(inspection.inspection_date), 'dd.MM.yyyy')}</TableCell>
+                                        <TableCell className="font-mono text-xs">{inspection.delivery_note_number || <span className="text-muted-foreground">-</span>}</TableCell>
                                         <TableCell>{inspection.supplier_name || '-'}</TableCell>
                                         <TableCell>{inspection.part_name || '-'}</TableCell>
                                         <TableCell>{inspection.quantity_received} {inspection.unit}</TableCell>
@@ -314,7 +316,7 @@ const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, o
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan="8" className="text-center py-8">Muayene kaydı bulunamadı</TableCell>
+                                    <TableCell colSpan="9" className="text-center py-8">Muayene kaydı bulunamadı</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

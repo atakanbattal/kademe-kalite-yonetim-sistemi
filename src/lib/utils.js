@@ -294,12 +294,13 @@ export function toCamelCase(text) {
 }
 
 /**
- * Metin alanlarını otomatik olarak camelCase formatına çevirir
- * Input onChange handler'larında kullanılabilir (kısa alanlar için)
+ * Metin alanlarını yalnızca boşluk normalizasyonu ile formatlar.
+ * Büyük/küçük harf dönüşümü YAPILMAZ — kontrol formu maddeleri ve teknik alanlar
+ * için doğru davranış budur.
  */
 export function formatTextInput(value) {
     if (!value || typeof value !== 'string') return value;
-    return toCamelCase(value);
+    return value.trim().replace(/\s{2,}/g, ' ');
 }
 
 /**

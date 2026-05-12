@@ -19,6 +19,28 @@ export const TANK_TYPE_OPTIONS = [
 
 export const TEST_RESULT_OPTIONS = ['Kabul', 'Kaçak Var'];
 
+export const LEAK_RESOLUTION_STATUS = {
+    OPEN: 'Açık',
+    IN_PROGRESS: 'Çözümleniyor',
+    RESOLVED: 'Çözüldü',
+};
+
+export const LEAK_RESOLUTION_STATUS_OPTIONS = [
+    { value: LEAK_RESOLUTION_STATUS.OPEN, label: 'Açık', description: 'Henüz aksiyon alınmadı' },
+    { value: LEAK_RESOLUTION_STATUS.IN_PROGRESS, label: 'Çözümleniyor', description: 'Aksiyon başlatıldı, kapatılmadı' },
+    { value: LEAK_RESOLUTION_STATUS.RESOLVED, label: 'Çözüldü', description: 'Kaçak giderildi veya parça işleme alındı' },
+];
+
+export const LEAK_RESOLUTION_TYPE_OPTIONS = [
+    { value: 'Yeniden Kaynak', label: 'Yeniden Kaynak', description: 'Kaçak noktası yeniden kaynak yapıldı' },
+    { value: 'Parça Değişimi', label: 'Parça Değişimi', description: 'Hatalı parça değiştirildi' },
+    { value: 'Sapma ile Kabul', label: 'Sapma ile Kabul', description: 'Sapma onayı ile kullanıma alındı' },
+    { value: 'Hurda', label: 'Hurda', description: 'Parça hurdaya ayrıldı' },
+    { value: 'Tedarikçiye İade', label: 'Tedarikçiye İade', description: 'Hatalı parça tedarikçiye geri gönderildi' },
+    { value: 'Sıkıştırma / Doldurma', label: 'Sıkıştırma / Doldurma', description: 'Bağlantı sıkıştırıldı veya dolgu malzemesi kullanıldı' },
+    { value: 'Diğer', label: 'Diğer', description: 'Serbest açıklama ile belirtilen aksiyon' },
+];
+
 export const buildVehicleTypeLabel = (product) => {
     if (!product) return '-';
     const name = product.product_name?.trim();
