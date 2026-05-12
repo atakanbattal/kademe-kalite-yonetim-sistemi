@@ -13,19 +13,23 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 /* ────────────────────────────────────────────────────────
    Diff hesaplama: iki revizyon snapshot'ı karşılaştırır
 ──────────────────────────────────────────────────────── */
+/* Snapshot yapısı: { sections: [ { section: { name, id, ... }, items: [...] } ] } */
+const getSectionName = (s) => s?.section?.name ?? s?.name ?? '(isimsiz bölüm)';
+const getSectionItems = (s) => s?.items || [];
+
 function buildDiff(prevSnapshot, currSnapshot) {
     const prevSections = prevSnapshot?.sections || [];
     const currSections = currSnapshot?.sections || [];
 
     const changes = [];
 
-    // Mevcut bölümler + maddeler
-    const prevSectionMap = new Map(prevSections.map((s) => [s.name, s]));
-    const currSectionMap = new Map(currSections.map((s) => [s.name, s]));
+    const prevSectionMap = new Map(prevSections.map((s) => [getSectionName(s), s]));
+    const currSectionMap = new Map(currSections.map((s) => [getSectionName(s), s]));
 
     // Yeni eklenen bölümler
     for (const [name, sec] of currSectionMap.entries()) {
@@ -33,7 +37,7 @@ function buildDiff(prevSnapshot, currSnapshot) {
             changes.push({
                 type: 'section_added',
                 sectionName: name,
-                items: sec.items || [],
+                items: getSectionItems(sec),
             });
         }
     }
@@ -44,7 +48,7 @@ function buildDiff(prevSnapshot, currSnapshot) {
             changes.push({
                 type: 'section_removed',
                 sectionName: name,
-                items: sec.items || [],
+                items: getSectionItems(sec),
             });
         }
     }
@@ -54,8 +58,8 @@ function buildDiff(prevSnapshot, currSnapshot) {
         const prevSec = prevSectionMap.get(name);
         if (!prevSec) continue;
 
-        const prevItems = new Set((prevSec.items || []).map((i) => i.text));
-        const currItems = new Set((currSec.items || []).map((i) => i.text));
+        const prevItems = new Set(getSectionItems(prevSec).map((i) => i.text));
+        const currItems = new Set(getSectionItems(currSec).map((i) => i.text));
 
         const addedItems = [...currItems].filter((t) => !prevItems.has(t));
         const removedItems = [...prevItems].filter((t) => !currItems.has(t));
@@ -86,63 +90,74 @@ const RevisionCard = ({ revision, prevSnapshot, isFirst }) => {
 
     const totalSections = revision.snapshot?.sections?.length || 0;
     const totalItems = (revision.snapshot?.sections || []).reduce(
-        (acc, s) => acc + (s.items?.length || 0),
+        (acc, s) => acc + getSectionItems(s).length,
         0
     );
 
     const hasChanges = diff.length > 0;
 
+    const addedCount = diff.reduce(
+        (a, c) => a + (c.addedItems?.length || 0) + (c.type === 'section_added' ? (c.items?.length || 0) : 0),
+        0
+    );
+    const removedCount = diff.reduce(
+        (a, c) => a + (c.removedItems?.length || 0) + (c.type === 'section_removed' ? (c.items?.length || 0) : 0),
+        0
+    );
+
     return (
         <div className="border rounded-lg overflow-hidden bg-card">
-            {/* Başlık satırı */}
+            {/* Üst: rev + tarih + rozetler; özet metni ayrı satırda (dar modalda taşma olmasın) */}
             <div
-                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/40 select-none"
+                className="flex flex-col gap-2 p-3 cursor-pointer hover:bg-muted/40 select-none"
                 onClick={() => setExpanded((v) => !v)}
             >
-                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" tabIndex={-1}>
-                    {expanded ? (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                    ) : (
-                        <ChevronRight className="w-3.5 h-3.5" />
-                    )}
-                </Button>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="flex min-w-0 shrink-0 items-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" tabIndex={-1}>
+                            {expanded ? (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                            ) : (
+                                <ChevronRight className="w-3.5 h-3.5" />
+                            )}
+                        </Button>
+                        <Badge variant="default" className="shrink-0 text-xs">
+                            Rev {String(revision.revision_no).padStart(2, '0')}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground shrink-0 whitespace-nowrap">
+                            {format(new Date(revision.revision_date || revision.created_at), 'dd.MM.yyyy', { locale: tr })}
+                        </span>
+                    </div>
 
-                <Badge variant="default" className="shrink-0">
-                    Rev {String(revision.revision_no).padStart(2, '0')}
-                </Badge>
-
-                <span className="text-sm text-muted-foreground shrink-0">
-                    {format(new Date(revision.revision_date || revision.created_at), 'dd.MM.yyyy', { locale: tr })}
-                </span>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:ml-auto">
+                        {!isFirst && hasChanges && (
+                            <>
+                                {addedCount > 0 && (
+                                    <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-xs">
+                                        +{addedCount} madde
+                                    </Badge>
+                                )}
+                                {removedCount > 0 && (
+                                    <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 text-xs">
+                                        -{removedCount} madde
+                                    </Badge>
+                                )}
+                            </>
+                        )}
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {totalSections} bölüm · {totalItems} madde
+                        </span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(revision.created_at), 'HH:mm', { locale: tr })}
+                        </span>
+                    </div>
+                </div>
 
                 {revision.changes_summary && (
-                    <span className="text-sm text-foreground flex-1 truncate">
+                    <p className="min-w-0 pl-8 text-sm leading-snug text-foreground sm:pl-10 break-words">
                         {revision.changes_summary}
-                    </span>
+                    </p>
                 )}
-
-                <div className="flex items-center gap-2 ml-auto shrink-0">
-                    {!isFirst && hasChanges && (
-                        <>
-                            {diff.reduce((a, c) => a + (c.addedItems?.length || 0) + (c.type === 'section_added' ? (c.items?.length || 0) : 0), 0) > 0 && (
-                                <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-[10px]">
-                                    +{diff.reduce((a, c) => a + (c.addedItems?.length || 0) + (c.type === 'section_added' ? (c.items?.length || 0) : 0), 0)} madde
-                                </Badge>
-                            )}
-                            {diff.reduce((a, c) => a + (c.removedItems?.length || 0) + (c.type === 'section_removed' ? (c.items?.length || 0) : 0), 0) > 0 && (
-                                <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 text-[10px]">
-                                    -{diff.reduce((a, c) => a + (c.removedItems?.length || 0) + (c.type === 'section_removed' ? (c.items?.length || 0) : 0), 0)} madde
-                                </Badge>
-                            )}
-                        </>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                        {totalSections} bölüm · {totalItems} madde
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(revision.created_at), 'HH:mm', { locale: tr })}
-                    </span>
-                </div>
             </div>
 
             {/* Detay */}
@@ -190,28 +205,32 @@ const SnapshotView = ({ snapshot, isInitial, noChanges }) => {
                     İlk revizyon — şablonun tüm içeriği:
                 </p>
             )}
-            {sections.map((sec, idx) => (
-                <div key={idx} className="rounded-md border overflow-hidden">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 border-b">
-                        <Layers className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-xs font-semibold">{sec.name}</span>
-                        <span className="text-[10px] text-muted-foreground ml-auto">{sec.items?.length || 0} madde</span>
+            {sections.map((sec, idx) => {
+                const name = getSectionName(sec);
+                const items = getSectionItems(sec);
+                return (
+                    <div key={idx} className="rounded-md border overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 border-b">
+                            <Layers className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-xs font-semibold">{name}</span>
+                            <span className="text-[10px] text-muted-foreground ml-auto">{items.length} madde</span>
+                        </div>
+                        {items.length > 0 && (
+                            <ul className="divide-y">
+                                {items.map((item, iIdx) => (
+                                    <li key={iIdx} className="flex items-start gap-2 px-3 py-1.5 text-xs">
+                                        <span className="text-muted-foreground w-4 text-right shrink-0 pt-0.5">{iIdx + 1}.</span>
+                                        <span className="flex-1">{item.text}</span>
+                                        {item.item_type === 'measurement' && (
+                                            <Badge variant="outline" className="text-[9px] shrink-0">Ölçüm</Badge>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
-                    {(sec.items || []).length > 0 && (
-                        <ul className="divide-y">
-                            {sec.items.map((item, iIdx) => (
-                                <li key={iIdx} className="flex items-start gap-2 px-3 py-1.5 text-xs">
-                                    <span className="text-muted-foreground w-4 text-right shrink-0 pt-0.5">{iIdx + 1}.</span>
-                                    <span className="flex-1">{item.text}</span>
-                                    {item.item_type === 'measurement' && (
-                                        <Badge variant="outline" className="text-[9px] shrink-0">Ölçüm</Badge>
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
@@ -359,8 +378,15 @@ const RevisionHistoryModal = ({ open, setOpen, templateId }) => {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
-                <DialogHeader>
+            <DialogContent
+                className={cn(
+                    'gap-0 p-4 sm:p-6',
+                    /* dialog.jsx varsayılanı sm:max-w-lg — burada sm: ile ezilmeli */
+                    'flex max-h-[min(92vh,calc(100vh-1rem))] min-h-0 w-[calc(100%-1rem)] max-w-none flex-col overflow-hidden',
+                    'sm:w-[min(96vw,90rem)] sm:max-w-[min(96vw,90rem)]'
+                )}
+            >
+                <DialogHeader className="shrink-0 space-y-1">
                     <DialogTitle className="flex items-center gap-2">
                         <History className="w-5 h-5 text-primary" />
                         Revizyon Geçmişi
@@ -370,7 +396,7 @@ const RevisionHistoryModal = ({ open, setOpen, templateId }) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto pr-1">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 pt-1">
                     {loading ? (
                         <p className="text-center py-8 text-muted-foreground">Yükleniyor...</p>
                     ) : revisionsWithPrev.length === 0 ? (
