@@ -41,8 +41,8 @@ import {
     formatVehicleMetricValue,
     getVehicleMetricContribution,
     getVehicleMetricDefinition,
-    getVehicleMetricRecords,
 } from '@/components/quality-cost/vehicleMetricConfig';
+import { buildVehicleMetricRecordRows } from '@/lib/vehicleMetricRanking';
 
 const formatCurrency = (value) =>
     (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
@@ -51,6 +51,26 @@ const formatNumber = (value) =>
     (value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const buildMonthKey = (dateValue) => format(new Date(dateValue), 'yyyy-MM');
+
+/** Hedef çizgisi etiketi — sol üstte, çizginin üstünde; X ekseni ay etiketleriyle çakışmaz */
+const TargetReferenceLabel = ({ viewBox, labelText }) => {
+    if (!viewBox || !labelText) return null;
+
+    const { x = 0, y = 0 } = viewBox;
+
+    return (
+        <text
+            x={x + 10}
+            y={y - 10}
+            fill="#71717a"
+            fontSize={10}
+            fontWeight={600}
+            textAnchor="start"
+        >
+            {labelText}
+        </text>
+    );
+};
 
 const CustomTooltip = ({ active, payload, label, unit, isCurrency }) => {
     if (!active || !payload || !payload.length) return null;
@@ -71,13 +91,28 @@ const CustomTooltip = ({ active, payload, label, unit, isCurrency }) => {
 };
 
 const PerformanceChart = memo(function PerformanceChart({ data, metric }) {
+    const targetLabelText = metric.targetValue > 0
+        ? (metric.definition.isCurrency
+            ? `Hedef: ${formatCurrency(metric.targetValue)}`
+            : `Hedef: ${formatNumber(metric.targetValue)} ${metric.definition.unit}`)
+        : '';
+
     return (
-        <ResponsiveContainer width="100%" height={280} debounce={50}>
-            <LineChart data={data} margin={{ top: 12, right: 24, left: 12, bottom: 8 }}>
+        <ResponsiveContainer width="100%" height={300} debounce={50}>
+            <LineChart data={data} margin={{ top: 28, right: 16, left: 4, bottom: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                <XAxis dataKey="name" fontSize={11} />
+                <XAxis
+                    dataKey="name"
+                    fontSize={10}
+                    interval="preserveStartEnd"
+                    angle={data.length > 6 ? -35 : 0}
+                    textAnchor={data.length > 6 ? 'end' : 'middle'}
+                    height={data.length > 6 ? 56 : 32}
+                    tickMargin={data.length > 6 ? 8 : 4}
+                />
                 <YAxis
                     fontSize={11}
+                    width={56}
                     tickFormatter={(value) => (metric.definition.isCurrency ? value.toLocaleString('tr-TR') : value)}
                     domain={[0, 'auto']}
                 />
@@ -89,7 +124,11 @@ const PerformanceChart = memo(function PerformanceChart({ data, metric }) {
                         />
                     )}
                 />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Legend
+                    wrapperStyle={{ fontSize: 11, paddingBottom: 4 }}
+                    verticalAlign="top"
+                    align="center"
+                />
                 <Line
                     type="monotone"
                     dataKey={metric.definition.chartKey}
@@ -103,13 +142,7 @@ const PerformanceChart = memo(function PerformanceChart({ data, metric }) {
                 {metric.targetValue > 0 && (
                     <ReferenceLine
                         y={metric.targetValue}
-                        label={{
-                            value: metric.definition.isCurrency
-                                ? `Hedef: ${formatCurrency(metric.targetValue)}`
-                                : `Hedef: ${formatNumber(metric.targetValue)} ${metric.definition.unit}`,
-                            position: 'insideTopRight',
-                            fill: '#71717a',
-                        }}
+                        label={<TargetReferenceLabel labelText={targetLabelText} />}
                         stroke="#71717a"
                         strokeDasharray="4 4"
                     />
@@ -585,18 +618,7 @@ const VehiclePerformancePanel = ({
     const metricAnalyses = useMemo(() => (
         VEHICLE_METRIC_ORDER.map((metricKey) => {
             const definition = getVehicleMetricDefinition(metricKey);
-            const records = getVehicleMetricRecords(costs || [], metricKey)
-                .map((record) => ({
-                    ...record,
-                    contribution: getVehicleMetricContribution(record, metricKey),
-                    linkedNCs: relatedNCMap[record.id] || [],
-                }))
-                .sort((left, right) => {
-                    if (right.contribution !== left.contribution) {
-                        return right.contribution - left.contribution;
-                    }
-                    return new Date(right.cost_date || 0) - new Date(left.cost_date || 0);
-                });
+            const records = buildVehicleMetricRecordRows(costs || [], metricKey, { relatedNCMap });
 
             const totalContribution = records.reduce((sum, record) => sum + record.contribution, 0);
             const targetValue = Number(targets[metricKey]?.value) || 0;
@@ -740,6 +762,11 @@ const VehiclePerformancePanel = ({
                                 <p className="text-[10px] text-muted-foreground mt-1 truncate">
                                     {metric.records.length} kayıt · {metric.uniqueLinkedNCCount} aksiyon
                                 </p>
+                                {metric.records[0] ? (
+                                    <p className="text-[10px] text-primary/80 mt-0.5 truncate font-medium">
+                                        #1 {formatVehicleMetricDelta(metric.records[0].contribution, metric.key)}
+                                    </p>
+                                ) : null}
                             </button>
                         );
                     })}
@@ -838,7 +865,7 @@ const VehiclePerformancePanel = ({
                                     <div>
                                         <CardTitle className="text-sm">{activeMetric.definition.label} — Kaynak kayıtlar</CardTitle>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            Öneri sütunu eşik ayarlarınıza göre hesaplanır; vurgulu düğme önerilen türdür.
+                                            Kayıtlar seçili metriğe göre katkıya göre sıralanır (#1 en yüksek). Öneri sütunu eşik ayarlarınıza göre hesaplanır.
                                         </p>
                                     </div>
                                     <Badge variant="outline" className="w-fit gap-1 text-[10px]">
@@ -854,15 +881,16 @@ const VehiclePerformancePanel = ({
                                     </div>
                                 ) : (
                                     <div className="border rounded-xl overflow-auto max-h-[min(420px,50vh)]">
-                                        <table className="w-full text-xs min-w-[1180px]">
+                                        <table className="w-full text-xs min-w-[1240px]">
                                             <thead className="bg-muted/50 sticky top-0 z-[1]">
                                                 <tr className="border-b">
+                                                    <th className="text-center px-2 py-2 font-semibold w-10">#</th>
                                                     <th className="text-left px-2 py-2 font-semibold">Tarih</th>
                                                     <th className="text-left px-2 py-2 font-semibold">Tür</th>
                                                     <th className="text-left px-2 py-2 font-semibold">Birim</th>
                                                     <th className="text-left px-2 py-2 font-semibold">Parça</th>
-                                                    <th className="text-right px-2 py-2 font-semibold">Tutar</th>
                                                     <th className="text-right px-2 py-2 font-semibold">Katkı</th>
+                                                    <th className="text-right px-2 py-2 font-semibold">Pay %</th>
                                                     <th className="text-left px-2 py-2 font-semibold">Bağlı DF/8D/MDI</th>
                                                     <th className="text-center px-2 py-2 font-semibold w-[100px]">Öneri</th>
                                                     <th className="text-right px-2 py-2 font-semibold">İşlem</th>
@@ -871,9 +899,22 @@ const VehiclePerformancePanel = ({
                                             <tbody>
                                                 {activeMetric.records.map((record) => {
                                                     const sug = costSuggestionById.get(record.id) ?? null;
-                                                    const recurrence = getPartRecurrenceCount(record, costs);
+                                                    const recurrence = getPartRecurrenceCount(
+                                                        { ...record, part_code: record.displayPart, part_name: record.displayPart },
+                                                        costs
+                                                    );
+                                                    const isTopDriver = record.rank <= 3;
                                                     return (
-                                                    <tr key={`${activeMetric.key}-${record.id}`} className="border-b last:border-b-0 hover:bg-muted/20">
+                                                    <tr
+                                                        key={`${activeMetric.key}-${record._rowKey}`}
+                                                        className={cn(
+                                                            'border-b last:border-b-0 hover:bg-muted/20',
+                                                            isTopDriver && 'bg-amber-500/5'
+                                                        )}
+                                                    >
+                                                        <td className="px-2 py-2 text-center tabular-nums font-semibold text-muted-foreground">
+                                                            {record.rank}
+                                                        </td>
                                                         <td className="px-2 py-2 whitespace-nowrap tabular-nums">
                                                             {record.cost_date
                                                                 ? new Date(record.cost_date).toLocaleDateString('tr-TR')
@@ -888,13 +929,20 @@ const VehiclePerformancePanel = ({
                                                                     : '-'}
                                                         </td>
                                                         <td className="px-2 py-2 max-w-[200px]">
-                                                            <span className="font-medium">{record.part_code || record.part_name || '-'}</span>
+                                                            <span className="font-medium">{record.displayPart || '-'}</span>
                                                         </td>
-                                                        <td className="px-2 py-2 text-right font-medium tabular-nums">
-                                                            {formatCurrency(record.amount || 0)}
-                                                        </td>
-                                                        <td className="px-2 py-2 text-right font-medium tabular-nums">
+                                                        <td className="px-2 py-2 text-right font-semibold tabular-nums text-primary">
                                                             {formatVehicleMetricDelta(record.contribution, activeMetric.key)}
+                                                            {activeMetric.definition.isCurrency
+                                                                && Math.abs((record.displayAmount || 0) - (record.contribution || 0)) > 0.01
+                                                                && (
+                                                                    <p className="text-[10px] font-normal text-muted-foreground">
+                                                                        Kayıt: {formatCurrency(record.displayAmount || 0)}
+                                                                    </p>
+                                                                )}
+                                                        </td>
+                                                        <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                                                            %{formatNumber(record.contributionShare || 0)}
                                                         </td>
                                                         <td className="px-2 py-2">
                                                             {record.linkedNCs.length > 0 ? (

@@ -420,9 +420,18 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
                         <div className="h-[350px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 {trendChartType === 'bar' ? (
-                                    <BarChart data={analyticsData.monthlyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <BarChart data={analyticsData.monthlyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 8 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                        <XAxis
+                                            dataKey="name"
+                                            fontSize={11}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            angle={analyticsData.monthlyTrend.length > 6 ? -35 : 0}
+                                            textAnchor={analyticsData.monthlyTrend.length > 6 ? 'end' : 'middle'}
+                                            height={analyticsData.monthlyTrend.length > 6 ? 52 : 30}
+                                            tickMargin={6}
+                                        />
                                         <YAxis tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`} fontSize={12} tickLine={false} axisLine={false} />
                                         <Tooltip content={<CustomTooltip />} />
                                         <Legend verticalAlign="top" />
@@ -431,9 +440,18 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
                                         <Brush dataKey="name" height={30} stroke="#8884d8" />
                                     </BarChart>
                                 ) : trendChartType === 'line' ? (
-                                    <LineChart data={analyticsData.monthlyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <LineChart data={analyticsData.monthlyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 8 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                        <XAxis
+                                            dataKey="name"
+                                            fontSize={11}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            angle={analyticsData.monthlyTrend.length > 6 ? -35 : 0}
+                                            textAnchor={analyticsData.monthlyTrend.length > 6 ? 'end' : 'middle'}
+                                            height={analyticsData.monthlyTrend.length > 6 ? 52 : 30}
+                                            tickMargin={6}
+                                        />
                                         <YAxis tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`} fontSize={12} tickLine={false} axisLine={false} />
                                         <Tooltip content={<CustomTooltip />} />
                                         <Legend verticalAlign="top" />
@@ -441,7 +459,7 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
                                         <Brush dataKey="name" height={30} stroke="#8884d8" />
                                     </LineChart>
                                 ) : (
-                                    <AreaChart data={analyticsData.monthlyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <AreaChart data={analyticsData.monthlyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 8 }}>
                                         <defs>
                                             <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
@@ -449,7 +467,16 @@ const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyI
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                        <XAxis
+                                            dataKey="name"
+                                            fontSize={11}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            angle={analyticsData.monthlyTrend.length > 6 ? -35 : 0}
+                                            textAnchor={analyticsData.monthlyTrend.length > 6 ? 'end' : 'middle'}
+                                            height={analyticsData.monthlyTrend.length > 6 ? 52 : 30}
+                                            tickMargin={6}
+                                        />
                                         <YAxis tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`} fontSize={12} tickLine={false} axisLine={false} />
                                         <Tooltip content={<CustomTooltip />} />
                                         <Legend verticalAlign="top" />

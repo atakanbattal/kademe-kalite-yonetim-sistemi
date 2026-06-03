@@ -21,18 +21,37 @@ export function aggregateQuarantineHistoryByRecord(historyRows = []) {
 }
 
 export function enrichQuarantineRecordForReport(record, historyStats = {}) {
-    const currentQty = Number(record.quantity ?? 0);
-    const hurda = historyStats.hurda || 0;
-    const iade = historyStats.iade || 0;
-    const totalProcessed = historyStats.totalProcessed || 0;
-    const initialQty = currentQty + totalProcessed;
+    const summary = getQuarantineQuantitySummary(record, historyStats);
 
     return {
         ...record,
-        quantity_current: currentQty,
-        quantity_initial: initialQty,
-        hurda_processed_total: hurda,
-        iade_processed_total: iade,
-        total_processed: totalProcessed,
+        quantity_current: summary.remainingQty,
+        quantity_initial: summary.initialQty,
+        hurda_processed_total: historyStats.hurda || 0,
+        iade_processed_total: historyStats.iade || 0,
+        total_processed: summary.processedQty,
+    };
+}
+
+/** Liste ve raporlar için başlangıç / işlenen / kalan özeti */
+export function getQuarantineQuantitySummary(record, historyStats = {}) {
+    const currentQty = Number(record?.quantity ?? 0);
+    const totalFromHistory = Number(historyStats?.totalProcessed ?? 0);
+    const initialFromField = Number(record?.initial_quantity ?? 0);
+
+    let initialQty = initialFromField > 0 ? initialFromField : currentQty + totalFromHistory;
+    let processedQty = totalFromHistory > 0
+        ? totalFromHistory
+        : Math.max(0, initialQty - currentQty);
+
+    if (initialQty <= 0 && currentQty > 0) {
+        initialQty = currentQty;
+        processedQty = 0;
+    }
+
+    return {
+        initialQty,
+        processedQty,
+        remainingQty: currentQty,
     };
 }

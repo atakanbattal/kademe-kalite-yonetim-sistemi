@@ -149,14 +149,18 @@ const CostForecaster = ({ costs, copqYearTotals }) => {
             <CardContent>
                 <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={predictionData.chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <LineChart data={predictionData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 8 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                             <XAxis
                                 dataKey="label"
                                 stroke="#888888"
-                                fontSize={12}
+                                fontSize={11}
                                 tickLine={false}
                                 axisLine={false}
+                                angle={predictionData.chartData.length > 6 ? -35 : 0}
+                                textAnchor={predictionData.chartData.length > 6 ? 'end' : 'middle'}
+                                height={predictionData.chartData.length > 6 ? 52 : 30}
+                                tickMargin={6}
                             />
                             <YAxis
                                 stroke="#888888"
@@ -169,8 +173,19 @@ const CostForecaster = ({ costs, copqYearTotals }) => {
                                 formatter={(value) => value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             />
-                            <Legend />
-                            <ReferenceLine x={predictionData.chartData[5].label} stroke="red" strokeDasharray="3 3" label="Bugün" />
+                            <Legend verticalAlign="top" wrapperStyle={{ fontSize: 11 }} />
+                            <ReferenceLine
+                                x={predictionData.chartData[5].label}
+                                stroke="red"
+                                strokeDasharray="3 3"
+                                label={{
+                                    value: 'Bugün',
+                                    position: 'top',
+                                    fill: '#ef4444',
+                                    fontSize: 10,
+                                    dy: -6,
+                                }}
+                            />
                             <Line
                                 type="monotone"
                                 dataKey="actual"

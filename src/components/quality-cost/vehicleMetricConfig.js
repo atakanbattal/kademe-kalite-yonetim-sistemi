@@ -70,7 +70,8 @@ export const VEHICLE_METRIC_DEFINITIONS = {
         color: '#f97316',
         isCurrency: false,
         costTypes: ['Fire Maliyeti'],
-        valueAccessor: (cost) => parseFloat(cost.scrap_weight) || 0,
+        valueAccessor: (cost) =>
+            parseFloat(cost.scrap_weight) || parseFloat(cost.quantity) || 0,
     },
     rejection_count_per_vehicle: {
         key: 'rejection_count_per_vehicle',

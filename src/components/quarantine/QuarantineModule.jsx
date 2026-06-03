@@ -22,7 +22,11 @@
     import DeviationFormModal from '@/components/deviation/DeviationFormModal';
     import { useData } from '@/contexts/DataContext';
     import { openPrintableReport } from '@/lib/reportUtils';
-    import { aggregateQuarantineHistoryByRecord, enrichQuarantineRecordForReport } from '@/lib/quarantineReportStats';
+    import {
+      aggregateQuarantineHistoryByRecord,
+      enrichQuarantineRecordForReport,
+      getQuarantineQuantitySummary,
+    } from '@/lib/quarantineReportStats';
     import { cn } from '@/lib/utils';
 
     const QUARANTINE_STATUSES = [
@@ -83,6 +87,38 @@
         setDepartmentFilter('all');
       };
 
+      const [pendingHurdaRecordIds, setPendingHurdaRecordIds] = useState([]);
+      const [historyByRecordId, setHistoryByRecordId] = useState({});
+
+      useEffect(() => {
+        if (!quarantineRecords.length) {
+          setPendingHurdaRecordIds([]);
+          setHistoryByRecordId({});
+          return;
+        }
+        const ids = quarantineRecords.map((r) => r.id);
+
+        supabase
+          .from('quarantine_history')
+          .select('quarantine_record_id, decision, processed_quantity, deviation_approval_url, quality_cost_id')
+          .in('quarantine_record_id', ids)
+          .then(({ data: historyRows }) => {
+            const rows = historyRows || [];
+            setHistoryByRecordId(aggregateQuarantineHistoryByRecord(rows));
+            const pendingIds = [...new Set(
+              rows
+                .filter((r) => r.decision === 'Hurda' && !r.deviation_approval_url && !r.quality_cost_id)
+                .map((r) => r.quarantine_record_id)
+            )];
+            setPendingHurdaRecordIds(pendingIds);
+          });
+      }, [quarantineRecords]);
+
+      const getItemQuantitySummary = useCallback(
+        (item) => getQuarantineQuantitySummary(item, historyByRecordId[item.id] || {}),
+        [historyByRecordId]
+      );
+
       useEffect(() => {
         let filtered = [...quarantineRecords];
         
@@ -137,6 +173,20 @@
                     aVal = parseFloat(a.quantity) || 0;
                     bVal = parseFloat(b.quantity) || 0;
                     break;
+                case 'initial_quantity': {
+                    const aSummary = getQuarantineQuantitySummary(a, historyByRecordId[a.id] || {});
+                    const bSummary = getQuarantineQuantitySummary(b, historyByRecordId[b.id] || {});
+                    aVal = aSummary.initialQty;
+                    bVal = bSummary.initialQty;
+                    break;
+                }
+                case 'processed_quantity': {
+                    const aSummary = getQuarantineQuantitySummary(a, historyByRecordId[a.id] || {});
+                    const bSummary = getQuarantineQuantitySummary(b, historyByRecordId[b.id] || {});
+                    aVal = aSummary.processedQty;
+                    bVal = bSummary.processedQty;
+                    break;
+                }
                 case 'source_department':
                     aVal = (a.source_department || '').toLowerCase();
                     bVal = (b.source_department || '').toLowerCase();
@@ -157,7 +207,7 @@
         });
 
         setRecords(filtered);
-      }, [searchTerm, quarantineRecords, sortConfig, statusFilter, dateRange, departmentFilter]);
+      }, [searchTerm, quarantineRecords, sortConfig, statusFilter, dateRange, departmentFilter, historyByRecordId]);
       
       const handleDeleteRecord = async (recordId) => {
         const { error } = await supabase.from('quarantine_records').delete().eq('id', recordId);
@@ -185,28 +235,6 @@
         setFormMode('new');
         setIsFormOpen(true);
       };
-      
-      // Bekleyen hurda tutanakları (decision=Hurda, deviation_approval_url=null, quality_cost_id=null)
-      const [pendingHurdaRecordIds, setPendingHurdaRecordIds] = useState([]);
-
-      useEffect(() => {
-        if (!quarantineRecords.length) {
-          setPendingHurdaRecordIds([]);
-          return;
-        }
-        supabase
-          .from('quarantine_history')
-          .select('quarantine_record_id')
-          .eq('decision', 'Hurda')
-          .is('deviation_approval_url', null)
-          .is('quality_cost_id', null)
-          .then(({ data }) => {
-            if (data) {
-              const ids = [...new Set(data.map((r) => r.quarantine_record_id))];
-              setPendingHurdaRecordIds(ids);
-            }
-          });
-      }, [quarantineRecords]);
 
       const handleOpenDecision = (record) => {
         setSelectedRecord(record);
@@ -580,7 +608,7 @@
                 </div>
             </div>
             <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
-              <table className="w-full min-w-[880px] border-collapse text-sm">
+              <table className="w-full min-w-[1040px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th 
@@ -601,12 +629,30 @@
                         {getSortIcon('part_name')}
                       </div>
                     </th>
-                    <th 
-                      className="cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4"
+                    <th
+                      className="cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4"
+                      onClick={() => handleSort('initial_quantity')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Başlangıç
+                        {getSortIcon('initial_quantity')}
+                      </div>
+                    </th>
+                    <th
+                      className="cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4"
+                      onClick={() => handleSort('processed_quantity')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        İşlenen
+                        {getSortIcon('processed_quantity')}
+                      </div>
+                    </th>
+                    <th
+                      className="cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 sm:px-4"
                       onClick={() => handleSort('quantity')}
                     >
-                      <div className="flex items-center gap-1">
-                        Miktar
+                      <div className="flex items-center justify-end gap-1">
+                        Kalan
                         {getSortIcon('quantity')}
                       </div>
                     </th>
@@ -635,9 +681,9 @@
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="8" className="border-b border-border/50 p-10 text-center text-muted-foreground">Yükleniyor...</td></tr>
+                    <tr><td colSpan="10" className="border-b border-border/50 p-10 text-center text-muted-foreground">Yükleniyor...</td></tr>
                   ) : records.length === 0 ? (
-                    <tr><td colSpan="8" className="border-b border-border/50 p-10 text-center text-muted-foreground">Kayıt bulunamadı.</td></tr>
+                    <tr><td colSpan="10" className="border-b border-border/50 p-10 text-center text-muted-foreground">Kayıt bulunamadı.</td></tr>
                   ) : (
                     records.map((item, rowIndex) => (
                       <motion.tr 
@@ -657,16 +703,35 @@
                               {item.lot_no && <span>· {item.lot_no}</span>}
                             </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 align-middle tabular-nums text-foreground sm:px-4">
-                            {item.status === 'Tamamlandı' && item.initial_quantity ? (
-                                <span className="line-through text-muted-foreground">{item.initial_quantity}</span>
-                            ) : (
-                                item.quantity
-                            )} {item.unit}
-                            {item.status === 'Tamamlandı' && item.initial_quantity && (
-                                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">Başlangıç: {item.initial_quantity} {item.unit}</span>
-                            )}
-                        </td>
+                        {(() => {
+                          const { initialQty, processedQty, remainingQty } = getItemQuantitySummary(item);
+                          const unit = item.unit || 'Adet';
+                          return (
+                            <>
+                              <td className="whitespace-nowrap px-3 py-3 text-right align-middle tabular-nums sm:px-4">
+                                <span className="font-semibold text-foreground">{initialQty}</span>
+                                <span className="ml-1 text-xs text-muted-foreground">{unit}</span>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 text-right align-middle tabular-nums sm:px-4">
+                                <span className="font-semibold text-amber-800 dark:text-amber-300">{processedQty}</span>
+                                <span className="ml-1 text-xs text-muted-foreground">{unit}</span>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 text-right align-middle tabular-nums sm:px-4">
+                                <span
+                                  className={cn(
+                                    'font-semibold',
+                                    remainingQty > 0
+                                      ? 'text-red-800 dark:text-red-300'
+                                      : 'text-emerald-800 dark:text-emerald-300'
+                                  )}
+                                >
+                                  {remainingQty}
+                                </span>
+                                <span className="ml-1 text-xs text-muted-foreground">{unit}</span>
+                              </td>
+                            </>
+                          );
+                        })()}
                         <td className="max-w-[220px] px-3 py-3 align-middle text-foreground sm:px-4">
                           <span className="line-clamp-2 text-sm leading-snug">{item.source_department || 'Belirtilmemiş'}</span>
                         </td>

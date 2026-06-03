@@ -695,8 +695,17 @@ const CostDrillDownModal = ({
                                 </div>
                                 <div className="h-[280px] w-full px-2 pb-3">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={monthlyBars} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                                            <XAxis dataKey="label" fontSize={11} tickLine={false} axisLine={false} />
+                                        <BarChart data={monthlyBars} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+                                            <XAxis
+                                                dataKey="label"
+                                                fontSize={10}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                angle={monthlyBars.length > 6 ? -35 : 0}
+                                                textAnchor={monthlyBars.length > 6 ? 'end' : 'middle'}
+                                                height={monthlyBars.length > 6 ? 52 : 30}
+                                                tickMargin={6}
+                                            />
                                             <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                                             <Tooltip formatter={(v) => formatCurrency(v)} labelFormatter={(_, p) => p?.[0]?.payload?.label}
                                                 contentStyle={{ borderRadius: '0.75rem', border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', fontSize: 12 }} />
