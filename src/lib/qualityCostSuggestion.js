@@ -24,6 +24,17 @@ const int = (v, fallback) => {
     return Number.isFinite(n) ? n : fallback;
 };
 
+/** Geçersiz parça kodu/adı (-, boş vb.) tekrar sayımında kullanılmaz */
+const INVALID_PART_KEYS = new Set(['-', '—', '–', 'yok', 'n/a', 'na', 'null', 'undefined']);
+
+export function resolveQualityCostPartKey(cost) {
+    const code = (cost?.part_code || '').trim();
+    const name = (cost?.part_name || '').trim();
+    if (code && !INVALID_PART_KEYS.has(code.toLowerCase())) return code;
+    if (name && !INVALID_PART_KEYS.has(name.toLowerCase())) return name;
+    return '';
+}
+
 export function normalizeQualityCostSuggestionSettings(row) {
     if (!row || typeof row !== 'object') {
         return { ...DEFAULT_QUALITY_COST_SUGGESTION_SETTINGS };
@@ -42,29 +53,50 @@ export function normalizeQualityCostSuggestionSettings(row) {
     };
 }
 
+/** Tek geçişte parça tekrar sayıları — O(n²) filter yerine O(n) */
+export function buildQualityCostPartRecurrenceIndex(allCosts) {
+    const index = new Map();
+    const list = Array.isArray(allCosts) ? allCosts : [];
+    for (const c of list) {
+        const key = resolveQualityCostPartKey(c);
+        if (!key) continue;
+        index.set(key, (index.get(key) || 0) + 1);
+    }
+    return index;
+}
+
+const resolveSameCount = (cost, allCosts, recurrenceIndex) => {
+    const key = resolveQualityCostPartKey(cost);
+    if (!key) return 0;
+    if (recurrenceIndex instanceof Map) return recurrenceIndex.get(key) || 0;
+    const list = Array.isArray(allCosts) ? allCosts : [];
+    return list.filter((c) => resolveQualityCostPartKey(c) === key).length;
+};
+
 /**
  * @param {object} cost — kalite maliyeti satırı
  * @param {object[]} allCosts — aynı bağlamdaki tüm satırlar (ör. aynı araç + dönem)
  * @param {object} settings — quality_cost_suggestion_settings satırı veya normalize edilmiş obje
+ * @param {Map<string, number>} [recurrenceIndex] — buildQualityCostPartRecurrenceIndex çıktısı (performans)
  * @returns {'DF'|'8D'|'MDI'|null}
  */
-export function getCostNcSuggestion(cost, allCosts, settings) {
+export function getCostNcSuggestion(cost, allCosts, settings, recurrenceIndex = null) {
     const s = normalizeQualityCostSuggestionSettings(settings);
     if (!s.auto_suggest) return null;
 
-    const list = Array.isArray(allCosts) ? allCosts : [];
     const amt = parseFloat(cost?.amount) || 0;
-    const key = (cost?.part_code || cost?.part_name || '').trim();
-    const sameCount = key
-        ? list.filter((c) => (c.part_code || c.part_name || '').trim() === key).length
-        : 0;
+    const sameCount = resolveSameCount(cost, allCosts, recurrenceIndex);
 
-    // 1) Tek kayıt tutarı (önce 8D, sonra DF)
+    // 1) Tek kayıt tutarı — 8D
     if (amt >= s.eight_d_cost_threshold_try) return '8D';
+
+    // 2) Tekrar + minimum tutar — 8D (düşük tutarlı tekrarlar yalnızca DF önerir)
+    if (sameCount >= s.eight_d_recurrence_threshold && amt >= s.df_cost_threshold_try) return '8D';
+
+    // 3) Tek kayıt tutarı — DF
     if (amt >= s.df_cost_threshold_try) return 'DF';
 
-    // 2) Aynı parça kodunda tekrar (seçili kayıt kümesinde)
-    if (sameCount >= s.eight_d_recurrence_threshold) return '8D';
+    // 4) Tekrar — DF
     if (sameCount >= s.df_recurrence_threshold) return 'DF';
 
     // 3) MDI (düşük maliyetli tekrar / izleme)
@@ -74,9 +106,6 @@ export function getCostNcSuggestion(cost, allCosts, settings) {
 }
 
 /** Aynı parça kodu / adı ile seçili dönemdeki kayıt sayısı (tekrar). */
-export function getPartRecurrenceCount(cost, allCosts) {
-    const key = (cost?.part_code || cost?.part_name || '').trim();
-    if (!key) return 0;
-    const list = Array.isArray(allCosts) ? allCosts : [];
-    return list.filter((c) => (c.part_code || c.part_name || '').trim() === key).length;
+export function getPartRecurrenceCount(cost, allCosts, recurrenceIndex = null) {
+    return resolveSameCount(cost, allCosts, recurrenceIndex);
 }

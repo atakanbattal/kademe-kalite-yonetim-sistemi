@@ -188,8 +188,9 @@ export const DataProvider = ({ children }) => {
                         hasMore = false;
                     }
                 }
-                
-                console.log('✅ Quality costs fetched with pagination:', allCosts.length, 'records');
+                if (import.meta.env.DEV) {
+                    console.log('Quality costs loaded:', allCosts.length);
+                }
                 return { data: allCosts, error: null };
             })(),
             kpis: supabase.from('kpis').select('*'),

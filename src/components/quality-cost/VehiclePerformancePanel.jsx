@@ -26,15 +26,19 @@ import {
     CheckCircle2,
     Eye,
     Link2,
+    Loader2,
     Save,
     Settings2,
+    Sparkles,
     Target,
 } from 'lucide-react';
 import {
     getCostNcSuggestion,
+    buildQualityCostPartRecurrenceIndex,
     getPartRecurrenceCount,
     normalizeQualityCostSuggestionSettings,
 } from '@/lib/qualityCostSuggestion';
+import { buildQualityCostNcRecord, buildQualityCostNcAnalysisPatch } from '@/lib/qualityCostNcRecordBuilder';
 import {
     VEHICLE_METRIC_ORDER,
     formatVehicleMetricDelta,
@@ -410,7 +414,15 @@ const VehiclePerformancePanel = ({
     const [suggestionSettings, setSuggestionSettings] = useState(() => normalizeQualityCostSuggestionSettings(null));
     const [suggestionSettingsOpen, setSuggestionSettingsOpen] = useState(false);
     const [savingSuggestionSettings, setSavingSuggestionSettings] = useState(false);
-    const { nonConformities, unitCostSettings, personnel } = useData();
+    const [bulkNcRunning, setBulkNcRunning] = useState(false);
+    const [linkedNCByCostId, setLinkedNCByCostId] = useState({});
+    const { nonConformities, qualityCosts, unitCostSettings, personnel, refreshData } = useData();
+
+    /** Tekrar sayımı backfill ile aynı havuzda — tüm kalite maliyetleri (yalnızca araç filtresi değil). */
+    const suggestionCostPool = useMemo(() => {
+        if (Array.isArray(qualityCosts) && qualityCosts.length > 0) return qualityCosts;
+        return Array.isArray(costs) ? costs : [];
+    }, [qualityCosts, costs]);
     const canonicalUnitCtx = useMemo(
         () => ({ unitCostSettings: unitCostSettings || [], personnel: personnel || [] }),
         [unitCostSettings, personnel]
@@ -468,15 +480,61 @@ const VehiclePerformancePanel = ({
         [toast]
     );
 
+    const partRecurrenceIndex = useMemo(
+        () => buildQualityCostPartRecurrenceIndex(suggestionCostPool),
+        [suggestionCostPool]
+    );
+
     const costSuggestionById = useMemo(() => {
         const m = new Map();
         const list = Array.isArray(costs) ? costs : [];
         for (const c of list) {
             if (!c?.id) continue;
-            m.set(c.id, getCostNcSuggestion(c, list, suggestionSettings));
+            m.set(c.id, getCostNcSuggestion(c, suggestionCostPool, suggestionSettings, partRecurrenceIndex));
         }
         return m;
-    }, [costs, suggestionSettings]);
+    }, [costs, suggestionCostPool, suggestionSettings, partRecurrenceIndex]);
+
+    /** Modal açıldığında güncel bağlı DF/8D — DataContext önbelleği eski kalabiliyor. */
+    useEffect(() => {
+        const costIds = (costs || []).map((c) => c.id).filter(Boolean);
+        if (!costIds.length) {
+            setLinkedNCByCostId({});
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            const rows = [];
+            const chunkSize = 150;
+            for (let i = 0; i < costIds.length; i += chunkSize) {
+                const slice = costIds.slice(i, i + chunkSize);
+                const { data, error } = await supabase
+                    .from('non_conformities')
+                    .select('id, nc_number, type, status, source_cost_id, mdi_no')
+                    .in('source_cost_id', slice);
+                if (error) {
+                    console.warn('Bağlı DF/8D yüklenemedi:', error.message);
+                    break;
+                }
+                rows.push(...(data || []));
+            }
+            if (cancelled) return;
+
+            const map = {};
+            rows.forEach((record) => {
+                if (!record.source_cost_id) return;
+                if (!map[record.source_cost_id]) map[record.source_cost_id] = [];
+                map[record.source_cost_id].push(record);
+            });
+            setLinkedNCByCostId(map);
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [costs]);
 
     const fetchTargets = useCallback(async () => {
         const { data, error } = await supabase.from('quality_cost_targets').select('*');
@@ -515,16 +573,19 @@ const VehiclePerformancePanel = ({
     }, [vehicleType, fetchTargets]);
 
     const relatedNCMap = useMemo(() => {
-        const map = {};
+        const map = { ...linkedNCByCostId };
+        const costIdSet = new Set((costs || []).map((c) => c.id).filter(Boolean));
+        if (!costIdSet.size) return map;
         (nonConformities || []).forEach((record) => {
-            if (!record.source_cost_id) return;
-            if (!map[record.source_cost_id]) {
-                map[record.source_cost_id] = [];
+            if (!record.source_cost_id || !costIdSet.has(record.source_cost_id)) return;
+            const bucket = map[record.source_cost_id] ? [...map[record.source_cost_id]] : [];
+            if (!bucket.some((r) => r.id === record.id)) {
+                bucket.push(record);
             }
-            map[record.source_cost_id].push(record);
+            map[record.source_cost_id] = bucket;
         });
         return map;
-    }, [nonConformities]);
+    }, [nonConformities, linkedNCByCostId, costs]);
 
     const monthlyData = useMemo(() => {
         if (!costs?.length && !producedVehicles?.length) {
@@ -669,6 +730,124 @@ const VehiclePerformancePanel = ({
             dateRangeLabel: dateRange?.label || 'Tüm Zamanlar',
         });
     };
+
+    const buildMetricAnalysisContext = useCallback(
+        () => ({
+            vehicleType,
+            metricKey: activeMetric?.key,
+            metricLabel: activeMetric?.definition?.label,
+            actualValue: activeMetric?.currentValue,
+            targetValue: activeMetric?.targetValue,
+            totalContribution: activeMetric?.totalContribution,
+            totalVehicles: monthlyData.totalVehicles,
+            dateRangeLabel: dateRange?.label || 'Tüm Zamanlar',
+        }),
+        [activeMetric, vehicleType, monthlyData.totalVehicles, dateRange?.label]
+    );
+
+    const suggestedRecordsForBulk = useMemo(() => {
+        if (!activeMetric?.records?.length) return [];
+        return activeMetric.records.filter((record) => {
+            const sug = costSuggestionById.get(record.id);
+            if (!sug || sug === 'MDI') return false;
+            if (record.linkedNCs?.length > 0) return false;
+            return true;
+        });
+    }, [activeMetric, costSuggestionById]);
+
+    const handleBulkCreateAndCloseNC = useCallback(async () => {
+        if (!hasNCAccess || !activeMetric || suggestedRecordsForBulk.length === 0) return;
+
+        setBulkNcRunning(true);
+        const ctx = buildMetricAnalysisContext();
+        let created = 0;
+        let updated = 0;
+        let failed = 0;
+
+        try {
+            for (const record of suggestedRecordsForBulk) {
+                const sug = costSuggestionById.get(record.id);
+                const sourceCost = costs.find((c) => c.id === record.id) || record;
+                const payload = buildQualityCostNcRecord(sourceCost, {
+                    ncType: sug,
+                    analysisContext: ctx,
+                    suggestionSettings,
+                    allCosts: suggestionCostPool,
+                    autoComplete: true,
+                });
+
+                if (!payload) {
+                    failed += 1;
+                    continue;
+                }
+
+                const { data: ncNumber, error: rpcError } = await supabase.rpc('generate_nc_number', {
+                    nc_type: payload.type,
+                });
+                if (rpcError) {
+                    failed += 1;
+                    continue;
+                }
+
+                const { error: insertError } = await supabase.from('non_conformities').insert({
+                    ...payload,
+                    nc_number: ncNumber,
+                });
+
+                if (insertError) {
+                    failed += 1;
+                } else {
+                    created += 1;
+                }
+            }
+
+            // Mevcut açık bağlı kayıtları analiz + kapat
+            const openLinked = (nonConformities || []).filter(
+                (nc) =>
+                    nc.source_cost_id &&
+                    nc.status !== 'Kapatıldı' &&
+                    nc.status !== 'Reddedildi' &&
+                    costs.some((c) => c.id === nc.source_cost_id)
+            );
+
+            for (const nc of openLinked) {
+                const sourceCost = costs.find((c) => c.id === nc.source_cost_id);
+                if (!sourceCost) continue;
+                const patch = buildQualityCostNcAnalysisPatch(sourceCost, nc, ctx, { autoComplete: true });
+                const { error } = await supabase.from('non_conformities').update(patch).eq('id', nc.id);
+                if (error) failed += 1;
+                else updated += 1;
+            }
+
+            await refreshData?.();
+
+            toast({
+                title: 'DF / 8D işlemi tamamlandı',
+                description: `${activeMetric.definition.label}: ${created} yeni kayıt oluşturuldu ve kapatıldı, ${updated} mevcut kayıt güncellendi/kapatıldı.${failed ? ` ${failed} hata.` : ''}`,
+                duration: 8000,
+            });
+        } catch (e) {
+            toast({
+                variant: 'destructive',
+                title: 'Toplu işlem hatası',
+                description: e?.message || 'Bilinmeyen hata',
+            });
+        } finally {
+            setBulkNcRunning(false);
+        }
+    }, [
+        hasNCAccess,
+        activeMetric,
+        suggestedRecordsForBulk,
+        buildMetricAnalysisContext,
+        costSuggestionById,
+        costs,
+        suggestionCostPool,
+        suggestionSettings,
+        nonConformities,
+        refreshData,
+        toast,
+    ]);
 
     return (
         <>
@@ -868,10 +1047,29 @@ const VehiclePerformancePanel = ({
                                             Kayıtlar seçili metriğe göre katkıya göre sıralanır (#1 en yüksek). Öneri sütunu eşik ayarlarınıza göre hesaplanır.
                                         </p>
                                     </div>
-                                    <Badge variant="outline" className="w-fit gap-1 text-[10px]">
-                                        <Link2 className="h-3 w-3" />
-                                        {activeMetric.uniqueLinkedNCCount} bağlı
-                                    </Badge>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {hasNCAccess && suggestedRecordsForBulk.length > 0 && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="default"
+                                                className="h-8 text-xs gap-1"
+                                                disabled={bulkNcRunning}
+                                                onClick={handleBulkCreateAndCloseNC}
+                                            >
+                                                {bulkNcRunning ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <Sparkles className="h-3 w-3" />
+                                                )}
+                                                Önerilenleri Oluştur ve Kapat ({suggestedRecordsForBulk.length})
+                                            </Button>
+                                        )}
+                                        <Badge variant="outline" className="w-fit gap-1 text-[10px]">
+                                            <Link2 className="h-3 w-3" />
+                                            {activeMetric.uniqueLinkedNCCount} bağlı
+                                        </Badge>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -901,7 +1099,8 @@ const VehiclePerformancePanel = ({
                                                     const sug = costSuggestionById.get(record.id) ?? null;
                                                     const recurrence = getPartRecurrenceCount(
                                                         { ...record, part_code: record.displayPart, part_name: record.displayPart },
-                                                        costs
+                                                        suggestionCostPool,
+                                                        partRecurrenceIndex
                                                     );
                                                     const isTopDriver = record.rank <= 3;
                                                     return (
@@ -985,6 +1184,17 @@ const VehiclePerformancePanel = ({
                                                         <td className="px-2 py-2 text-right">
                                                             {hasNCAccess ? (
                                                                 <div className="flex justify-end gap-1 flex-wrap">
+                                                                    {sug && sug !== 'MDI' && record.linkedNCs.length === 0 && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant={sug === '8D' ? 'destructive' : 'default'}
+                                                                            size="sm"
+                                                                            className="h-7 text-[10px] px-2 font-semibold"
+                                                                            onClick={() => handleCreateNC(record, sug)}
+                                                                        >
+                                                                            {sug} Aç
+                                                                        </Button>
+                                                                    )}
                                                                     <Button
                                                                         type="button"
                                                                         variant={sug === 'DF' ? 'default' : 'outline'}

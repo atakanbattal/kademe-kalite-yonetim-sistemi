@@ -6,6 +6,7 @@ import { AlertTriangle, Bell, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { getCanonicalUnitLabel } from '@/lib/qualityCostUnitGroups';
@@ -17,7 +18,9 @@ const formatCurrency = (value) => {
 
 const CostAnomalyDetector = ({ costs, onAnomalyClick, canonicalUnitCtx = {} }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     const [dismissedAnomalies, setDismissedAnomalies] = useState([]);
+    const [notifiedAnomalyIds, setNotifiedAnomalyIds] = useState([]);
 
     const anomalies = useMemo(() => {
         if (!costs || costs.length === 0) return [];
@@ -33,27 +36,33 @@ const CostAnomalyDetector = ({ costs, onAnomalyClick, canonicalUnitCtx = {} }) =
         const twoMonthsAgo = new Date(currentMonth);
         twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
 
-        // Bu ayın maliyetleri
-        const thisMonthCosts = costs.filter(cost => {
-            const costDate = new Date(cost.cost_date);
-            return costDate >= currentMonth;
-        });
+        let thisMonthTotal = 0;
+        let lastMonthTotal = 0;
+        let last3MonthsTotal = 0;
+        const unitCosts = {};
+        const currentMonthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
+        const lastMonthKey = `${lastMonth.getFullYear()}-${lastMonth.getMonth()}`;
 
-        // Geçen ayın maliyetleri
-        const lastMonthCosts = costs.filter(cost => {
+        for (const cost of costs) {
+            const amt = parseFloat(cost.amount) || 0;
             const costDate = new Date(cost.cost_date);
-            return costDate >= lastMonth && costDate < currentMonth;
-        });
+            if (Number.isNaN(costDate.getTime())) continue;
 
-        // Son 3 ayın ortalaması
-        const last3MonthsCosts = costs.filter(cost => {
-            const costDate = new Date(cost.cost_date);
-            return costDate >= twoMonthsAgo && costDate < currentMonth;
-        });
+            if (costDate >= currentMonth) thisMonthTotal += amt;
+            else if (costDate >= lastMonth) lastMonthTotal += amt;
 
-        const thisMonthTotal = thisMonthCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
-        const lastMonthTotal = lastMonthCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
-        const avg3Months = last3MonthsCosts.reduce((sum, c) => sum + (c.amount || 0), 0) / 3;
+            if (costDate >= twoMonthsAgo && costDate < currentMonth) {
+                last3MonthsTotal += amt;
+            }
+
+            const raw = (cost.unit || '').trim();
+            const unit = raw ? getCanonicalUnitLabel(raw, canonicalUnitCtx) : 'Bilinmeyen';
+            const monthKey = `${costDate.getFullYear()}-${costDate.getMonth()}`;
+            if (!unitCosts[unit]) unitCosts[unit] = {};
+            unitCosts[unit][monthKey] = (unitCosts[unit][monthKey] || 0) + amt;
+        }
+
+        const avg3Months = last3MonthsTotal / 3;
 
         // Genel maliyet anomalisi
         if (lastMonthTotal > 0) {
@@ -94,28 +103,9 @@ const CostAnomalyDetector = ({ costs, onAnomalyClick, canonicalUnitCtx = {} }) =
         }
 
         // Birim bazında anomali tespiti
-        const unitCosts = {};
-        costs.forEach(cost => {
-            const raw = (cost.unit || '').trim();
-            const unit = raw ? getCanonicalUnitLabel(raw, canonicalUnitCtx) : 'Bilinmeyen';
-            const costDate = new Date(cost.cost_date);
-            const monthKey = `${costDate.getFullYear()}-${costDate.getMonth()}`;
-            
-            if (!unitCosts[unit]) {
-                unitCosts[unit] = {};
-            }
-            if (!unitCosts[unit][monthKey]) {
-                unitCosts[unit][monthKey] = 0;
-            }
-            unitCosts[unit][monthKey] += cost.amount || 0;
-        });
-
         Object.entries(unitCosts).forEach(([unit, monthlyData]) => {
             const months = Object.keys(monthlyData).sort();
             if (months.length >= 2) {
-                const currentMonthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
-                const lastMonthKey = `${lastMonth.getFullYear()}-${lastMonth.getMonth()}`;
-                
                 const currentValue = monthlyData[currentMonthKey] || 0;
                 const lastValue = monthlyData[lastMonthKey] || 0;
                 
@@ -152,24 +142,35 @@ const CostAnomalyDetector = ({ costs, onAnomalyClick, canonicalUnitCtx = {} }) =
         }
     };
 
-    // Bildirim oluşturma (ilk yüklemede)
+    // Bildirim oluşturma (oturum açık kullanıcı için, her anomali bir kez)
     useEffect(() => {
-        if (anomalies.length > 0) {
-            anomalies.forEach(async (anomaly) => {
-                try {
-                    await supabase.rpc('create_notification', {
-                        p_notification_type: 'COST_ANOMALY',
-                        p_title: anomaly.title,
-                        p_message: anomaly.message,
-                        p_related_module: 'quality-cost',
-                        p_priority: anomaly.severity === 'high' ? 'HIGH' : 'NORMAL'
-                    });
-                } catch (error) {
-                    console.error('Bildirim oluşturulamadı:', error);
-                }
-            });
-        }
-    }, [anomalies.length]); // Sadece yeni anomali sayısı değiştiğinde
+        if (!user?.id || anomalies.length === 0) return;
+
+        const pending = anomalies.filter(
+            (a) => !notifiedAnomalyIds.includes(a.id) && !dismissedAnomalies.includes(a.id)
+        );
+        if (!pending.length) return;
+
+        (async () => {
+            const created = [];
+            for (const anomaly of pending) {
+                const { error } = await supabase.rpc('create_notification', {
+                    p_user_id: user.id,
+                    p_notification_type: 'COST_ANOMALY',
+                    p_title: anomaly.title,
+                    p_message: anomaly.message,
+                    p_related_module: 'quality-cost',
+                    p_related_id: null,
+                    p_priority: anomaly.severity === 'high' ? 'HIGH' : 'NORMAL',
+                    p_action_url: '/quality-cost',
+                });
+                if (!error) created.push(anomaly.id);
+            }
+            if (created.length) {
+                setNotifiedAnomalyIds((prev) => [...prev, ...created]);
+            }
+        })();
+    }, [anomalies, user?.id, dismissedAnomalies, notifiedAnomalyIds]);
 
     if (anomalies.length === 0) {
         return (

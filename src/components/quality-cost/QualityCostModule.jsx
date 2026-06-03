@@ -22,6 +22,7 @@ import CostTrendAnalysis from '@/components/quality-cost/CostTrendAnalysis';
 import UnitCostDistribution from '@/components/quality-cost/UnitCostDistribution';
 import UnitReportModal from '@/components/quality-cost/UnitReportModal';
 import { formatVehicleMetricValue } from '@/components/quality-cost/vehicleMetricConfig';
+import { buildQualityCostDraftAnalyses } from '@/lib/qualityCostNcDraftAnalysis';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useData } from '@/contexts/DataContext';
@@ -335,6 +336,9 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const copqYearTotals = useMemo(() => {
         const cy = new Date().getFullYear();
         const py = cy - 1;
+        if (qualityCostTab !== 'overview' && qualityCostTab !== 'forecast' && qualityCostTab !== 'copq') {
+            return { currentYear: cy, previousYear: py, totalCurrent: 0, totalPrevious: 0 };
+        }
         let totalCurrent = 0;
         let totalPrevious = 0;
         const list = filteredCosts || [];
@@ -346,9 +350,19 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             if (y === py) totalPrevious += amt;
         }
         return { currentYear: cy, previousYear: py, totalCurrent, totalPrevious };
-    }, [filteredCosts]);
+    }, [filteredCosts, qualityCostTab]);
 
     const copqYearlyInsight = useMemo(() => {
+        if (qualityCostTab !== 'overview') {
+            const cy = new Date().getFullYear();
+            return {
+                currentYear: cy,
+                previousYear: cy - 1,
+                current: { total: 0, internal: 0, external: 0 },
+                previous: { total: 0, internal: 0, external: 0 },
+                previousMonthlyAvg: 0,
+            };
+        }
         const cy = new Date().getFullYear();
         const py = cy - 1;
         const costs = filteredCosts || [];
@@ -361,7 +375,12 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             previous: sPrevious,
             previousMonthlyAvg: sPrevious.total / 12,
         };
-    }, [filteredCosts]);
+    }, [filteredCosts, qualityCostTab]);
+
+    const filteredCostsTotalAmount = useMemo(
+        () => filteredCosts.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0),
+        [filteredCosts]
+    );
 
     /** Toplam kalem satırı sayısı — yalnızca Kayıtlar sekmesi açıkken (boşta tüm listeyi taramayı atla) */
     const expandedLineCountTotal = useMemo(() => {
@@ -476,7 +495,13 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         return lines.join('\n');
     }, []);
 
-    const buildNCRecordFromCost = useCallback((cost, ncType, context = null) => ({
+    const buildNCRecordFromCost = useCallback((cost, ncType, context = null) => {
+        const type = ncType || 'DF';
+        const analyses = buildQualityCostDraftAnalyses(cost, context || {}, {
+            ncType: type,
+            autoComplete: false,
+        });
+        return {
         id: cost.id,
         source: 'cost',
         source_cost_id: cost.id,
@@ -498,8 +523,20 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         is_supplier_nc: cost.is_supplier_nc,
         supplier_id: cost.supplier_id,
         supplier_name: cost.supplier?.name,
-        type: ncType,
-    }), [buildAnalysisContextDescription]);
+        type,
+        problem_definition: analyses.problem_definition,
+        root_cause: analyses.root_cause,
+        five_why_analysis: analyses.five_why_analysis,
+        five_n1k_analysis: analyses.five_n1k_analysis,
+        ishikawa_analysis: analyses.ishikawa_analysis,
+        ...(type === '8D'
+            ? {
+                eight_d_steps: analyses.eight_d_steps,
+                eight_d_progress: analyses.eight_d_progress,
+            }
+            : {}),
+    };
+    }, [buildAnalysisContextDescription]);
 
     const openNCFromCost = useCallback((cost, ncType, context = null) => {
         if (!cost || !onOpenNCForm) return;
@@ -1118,6 +1155,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     onRefresh={refreshQualityCosts}
                 />
             )}
+            {isDetailModalOpen && (
             <CostDrillDownModal
                 isOpen={isDetailModalOpen}
                 onClose={() => setDetailModalOpen(false)}
@@ -1139,6 +1177,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     onRequestDelete: handleDrillRecordDeleteRequest,
                 }}
             />
+            )}
             <UnitReportModal
                 isOpen={isReportModalOpen}
                 setIsOpen={setIsReportModalOpen}
@@ -1300,7 +1339,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                     {filteredCosts.length > 0 && (
                                         <>
                                             {' '}
-                                            · Toplam: {formatCurrency(filteredCosts.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0))}
+                                            · Toplam: {formatCurrency(filteredCostsTotalAmount)}
                                         </>
                                     )}
                                 </span>
@@ -1328,6 +1367,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        <TooltipProvider delayDuration={300}>
                                         {loading ? (
                                             <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
                                         ) : filteredCosts.length === 0 ? (
@@ -1417,14 +1457,12 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                             <DropdownMenuContent align="end">
                                                                 <DropdownMenuItem onClick={() => handleOpenViewModal(cost, lineItem)}><Eye className="mr-2 h-4 w-4" />Görüntüle</DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleOpenFormModal(cost)}><Edit className="mr-2 h-4 w-4" />Düzenle</DropdownMenuItem>
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <DropdownMenuItem onClick={() => handleCreateNC(cost)} disabled={!hasNCAccess}><LinkIcon className="mr-2 h-4 w-4" />Uygunsuzluk</DropdownMenuItem>
-                                                                        </TooltipTrigger>
-                                                                        {!hasNCAccess && <TooltipContent><p>Yetkiniz yok.</p></TooltipContent>}
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <DropdownMenuItem onClick={() => handleCreateNC(cost)} disabled={!hasNCAccess}><LinkIcon className="mr-2 h-4 w-4" />Uygunsuzluk</DropdownMenuItem>
+                                                                    </TooltipTrigger>
+                                                                    {!hasNCAccess && <TooltipContent><p>Yetkiniz yok.</p></TooltipContent>}
+                                                                </Tooltip>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDeleteConfirmId(cost.id); }}><Trash2 className="mr-2 h-4 w-4" />Sil</DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -1434,6 +1472,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                             );
                                             })
                                         )}
+                                        </TooltipProvider>
                                     </tbody>
                                 </table>
                         </div>
