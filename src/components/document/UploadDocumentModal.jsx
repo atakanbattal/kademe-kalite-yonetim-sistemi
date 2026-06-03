@@ -60,7 +60,6 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
         const { toast } = useToast();
         const { user, profile } = useAuth();
         const { personnel: personnelList, unitCostSettings } = useData();
-        const isEditMode = !!existingDocument && !isRevisionMode;
 
         const validCostSettingIds = useMemo(
             () => new Set((unitCostSettings || []).map((u) => u.id).filter(Boolean)),
@@ -74,7 +73,12 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
         /** Bu oturumda eklenecek yeni kaynak dosyalar */
         const [newSourceFiles, setNewSourceFiles] = useState([]);
         const [isSubmitting, setIsSubmitting] = useState(false);
-        
+        /** PDF olmadan oluşturulan taslak — modal kapanmadan dosya yüklenebilir */
+        const [draftDocument, setDraftDocument] = useState(null);
+
+        const effectiveDocument = existingDocument || draftDocument;
+        const isEditMode = !!effectiveDocument && !isRevisionMode;
+
         const initialLoadRef = useRef(true);
 
         // Revizyon modunda tüm revizyonları çek ve en yüksek numarayı bul, ilk yayın tarihini al
@@ -153,8 +157,8 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         department_id: null,
                     };
 
-                    if (existingDocument) {
-                         const revision = existingDocument.document_revisions;
+                    if (effectiveDocument) {
+                         const revision = effectiveDocument.document_revisions;
                          
                          // Revizyon modunda başlangıç değeri (async useEffect ile güncellenecek)
                          let nextRevisionNumber = revision?.revision_number || '1';
@@ -171,11 +175,12 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                              : (revision?.publish_date ? new Date(revision.publish_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
                          
                          setFormData({
-                            id: existingDocument.id,
-                            title: existingDocument.title || '',
-                            document_type: existingDocument.document_type || '',
-                            personnel_id: existingDocument.personnel_id || null,
-                            valid_until: existingDocument.valid_until ? new Date(existingDocument.valid_until).toISOString().slice(0, 10) : '',
+                            id: effectiveDocument.id,
+                            document_number: effectiveDocument.document_number || '',
+                            title: effectiveDocument.title || '',
+                            document_type: effectiveDocument.document_type || '',
+                            personnel_id: effectiveDocument.personnel_id || null,
+                            valid_until: effectiveDocument.valid_until ? new Date(effectiveDocument.valid_until).toISOString().slice(0, 10) : '',
                             revision_number: nextRevisionNumber,
                             publish_date: publishDate, // Revizyon modunda da ilk yayın tarihini koru
                             // Revizyon modunda: Revizyon tarihi async useEffect ile bugünün tarihi olarak ayarlanacak
@@ -183,7 +188,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                             revision_date: isRevisionMode ? '' : (revision?.revision_date ? new Date(revision.revision_date).toISOString().slice(0, 10) : ''),
                             revision_reason: isRevisionMode ? '' : (revision?.revision_reason || ''),
                             file_name: getPublishedAttachment(revision?.attachments)?.name,
-                            department_id: existingDocument.department_id || null,
+                            department_id: effectiveDocument.department_id || null,
                          });
                          setKeptExistingSources(getSourceAttachments(revision?.attachments || []));
                          setNewSourceFiles([]);
@@ -199,8 +204,9 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 initialLoadRef.current = true;
                 setKeptExistingSources([]);
                 setNewSourceFiles([]);
+                setDraftDocument(null);
             }
-        }, [isOpen, existingDocument, isEditMode, preselectedCategory, profile, isRevisionMode]);
+        }, [isOpen, effectiveDocument, isEditMode, preselectedCategory, profile, isRevisionMode]);
 
         const onDrop = useCallback(acceptedFiles => {
             if (acceptedFiles.length > 0) {
@@ -244,10 +250,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 
         const handleSubmit = async (e) => {
             e.preventDefault();
-            if (!isEditMode && !isRevisionMode && !file) {
-                toast({ variant: 'destructive', title: 'Dosya Eksik', description: 'Lütfen bir PDF dosyası seçin.' });
-                return;
-            }
+            // Yeni kayıt: önce metadata ile numara alınabilir; PDF/Word sonradan eklenir
             if (isRevisionMode && !file && !getPublishedAttachment(existingDocument?.document_revisions?.attachments)?.path) {
                 toast({ variant: 'destructive', title: 'Dosya Eksik', description: 'Lütfen bir PDF dosyası seçin veya mevcut dosyayı kullanın.' });
                 return;
@@ -266,7 +269,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
             if (deptStr && deptStr !== 'undefined' && deptStr !== 'null' && UUID_RE.test(deptStr)) {
                 if (validCostSettingIds.has(deptStr)) {
                     resolvedDepartmentId = deptStr;
-                } else if ((isEditMode || isRevisionMode) && existingDocument?.department_id === deptStr) {
+                } else if ((isEditMode || isRevisionMode) && effectiveDocument?.department_id === deptStr) {
                     resolvedDepartmentId = deptStr;
                 }
             }
@@ -291,7 +294,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     console.warn(`Personel kaydı bulunamadı: ${user.email}. prepared_by_id null olarak kaydedilecek.`);
                 }
 
-                const documentId = (isEditMode || isRevisionMode) ? existingDocument.id : uuidv4();
+                const documentId = (isEditMode || isRevisionMode) ? effectiveDocument.id : uuidv4();
                 const folderName = getDocumentFolder(formData.document_type);
 
                 let publishedMeta = null;
@@ -319,7 +322,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         role: 'published',
                     };
                 } else if (isEditMode || isRevisionMode) {
-                    const prev = getPublishedAttachment(existingDocument.document_revisions?.attachments);
+                    const prev = getPublishedAttachment(effectiveDocument.document_revisions?.attachments);
                     if (prev) {
                         publishedMeta = {
                             ...prev,
@@ -366,6 +369,9 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 if (publishedMeta) mergedAttachments.push(publishedMeta);
                 mergedAttachments.push(...sourceMetas);
 
+                const hasPublishedFile = !!publishedMeta;
+                const wasNewInsert = !isRevisionMode && !isEditMode;
+
                 const documentPayload = {
                     title: formData.title,
                     document_type: formData.document_type,
@@ -402,24 +408,22 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         .eq('id', documentId);
                     if (docUpdateError) throw docUpdateError;
                 } else if (isEditMode) {
-                    const { data: docUpdateData, error: docUpdateError } = await supabase
+                    const { error: docUpdateError } = await supabase
                         .from('documents')
                         .update(documentPayload)
-                        .eq('id', documentId)
-                        .select('id')
-                        .single();
+                        .eq('id', documentId);
                     if (docUpdateError) throw docUpdateError;
-                    
+
                     const { error: revUpdateError } = await supabase
                         .from('document_revisions')
                         .update(revisionPayload)
-                        .eq('id', existingDocument.current_revision_id);
+                        .eq('id', effectiveDocument.current_revision_id);
                      if (revUpdateError) throw revUpdateError;
                 } else {
                     const { data: docData, error: docError } = await supabase
                         .from('documents')
                         .insert({ ...documentPayload, id: documentId })
-                        .select('id, document_number')
+                        .select('id, document_number, current_revision_id')
                         .single();
                     if (docError) throw docError;
 
@@ -435,11 +439,42 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         .update({ current_revision_id: revData.id })
                         .eq('id', docData.id);
                     if (updateDocError) throw updateDocError;
+
+                    const { data: fullDoc, error: fetchErr } = await supabase
+                        .from('documents')
+                        .select('*, document_revisions(*)')
+                        .eq('id', docData.id)
+                        .single();
+                    if (!fetchErr && fullDoc) {
+                        const revs = fullDoc.document_revisions || [];
+                        const currentRev = revs.find((r) => r.id === revData.id) || revs[0];
+                        setDraftDocument({
+                            ...fullDoc,
+                            current_revision_id: revData.id,
+                            document_revisions: currentRev,
+                        });
+                        setFormData((prev) => ({
+                            ...prev,
+                            id: fullDoc.id,
+                            document_number: fullDoc.document_number || docData.document_number || '',
+                        }));
+                    }
+                }
+
+                if (wasNewInsert && !hasPublishedFile) {
+                    toast({
+                        title: 'Doküman numarası alındı',
+                        description:
+                            'Kayıt oluşturuldu. Formu düzenlemeye devam edebilir; ardından PDF ve Word kaynaklarını yükleyebilirsiniz.',
+                    });
+                    refreshDocuments();
+                    return;
                 }
 
                 toast({ title: 'Başarılı!', description: `Doküman başarıyla ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}.` });
                 refreshDocuments();
                 setIsOpen(false);
+                setDraftDocument(null);
             } catch (error) {
                 console.error("Submit Error:", error);
                 toast({ variant: 'destructive', title: 'Hata!', description: `İşlem başarısız: ${error.message}` });
@@ -456,10 +491,18 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         <DialogDescription className="text-muted-foreground">
                             {isRevisionMode 
                                 ? 'Yayın PDF’ini ve isteğe bağlı olarak Word/Excel kaynaklarını yükleyin. Kaynaklar bu revizyonla birlikte saklanır; sonraki düzenlemeler için indirilebilir.' 
-                                : (isEditMode ? 'Yayın PDF’i ve düzenlenebilir kaynak dosyalarını güncelleyebilirsiniz.' : 'Yayın için PDF yükleyin; düzenlenebilir asılları (Word, Excel vb.) ayrıca ekleyebilirsiniz.')}
+                                : (isEditMode
+                                    ? 'Önce bilgileri kaydedip doküman numarasını alın; ardından PDF ve Word/Excel kaynaklarını yükleyin.'
+                                    : 'Önce zorunlu alanları doldurup kaydedin (doküman numarası oluşur); sonra PDF ve kaynak dosyalarını ekleyin.')}
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                        {formData.document_number && (
+                            <div className="md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Doküman numarası</p>
+                                <p className="text-lg font-semibold font-mono text-primary">{formData.document_number}</p>
+                            </div>
+                        )}
                         <div className="md:col-span-2">
                             <Label htmlFor="title">Doküman Adı <span className="text-red-500">*</span></Label>
                             <Input id="title" autoFormat={false} value={formData.title || ''} onChange={handleInputChange} required />
@@ -546,8 +589,12 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         </div>
 
                         <div className="md:col-span-2">
-                            <Label>Yayın dosyası (PDF) <span className="text-red-500">*</span></Label>
-                            <p className="text-xs text-muted-foreground mt-0.5 mb-1">Dağıtım ve görüntüleme için nihai PDF; zorunludur (yeni kayıtta veya revizyonda yeni PDF ile).</p>
+                            <Label>Yayın dosyası (PDF) {isRevisionMode && <span className="text-red-500">*</span>}</Label>
+                            <p className="text-xs text-muted-foreground mt-0.5 mb-1">
+                                {isEditMode && !file && !formData.file_name
+                                    ? 'İlk kayıtta PDF zorunlu değildir; numara aldıktan sonra yükleyebilirsiniz.'
+                                    : 'Dağıtım ve görüntüleme için nihai PDF.'}
+                            </p>
                             <div {...getRootProps()} className={`mt-1 flex justify-center rounded-lg border-2 border-dashed border-border px-6 py-10 transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'hover:border-primary/50'}`}>
                                 <input {...getInputProps()} />
                                 <div className="text-center">
@@ -608,7 +655,15 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                             )}
                         </div>
                          <DialogFooter className="md:col-span-2 mt-4">
-                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : 'Dokümanı Kaydet')}</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting
+                                    ? 'Kaydediliyor...'
+                                    : isRevisionMode
+                                      ? 'Revizyonu Kaydet'
+                                      : isEditMode
+                                        ? 'Değişiklikleri Kaydet'
+                                        : 'Kaydet ve Numara Al'}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

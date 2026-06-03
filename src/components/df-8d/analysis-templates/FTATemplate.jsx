@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,12 @@ const FTATemplate = ({ analysisData, onAnalysisChange }) => {
         topEvent: '',
         events: []
     });
+
+    useEffect(() => {
+        if (analysisData && typeof analysisData === 'object') {
+            setData((prev) => ({ ...prev, ...analysisData }));
+        }
+    }, [analysisData]);
 
     const handleTopEventChange = (value) => {
         const newData = { ...data, topEvent: value };

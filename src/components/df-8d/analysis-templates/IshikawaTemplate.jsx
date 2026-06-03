@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,12 @@ const IshikawaTemplate = ({ analysisData, onAnalysisChange }) => {
         environment: [],
         management: []
     });
+
+    useEffect(() => {
+        if (analysisData && typeof analysisData === 'object') {
+            setData((prev) => ({ ...prev, ...analysisData }));
+        }
+    }, [analysisData]);
 
     const categories = [
         { key: 'man', label: 'İnsan (Man)', icon: Users, color: 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900' },

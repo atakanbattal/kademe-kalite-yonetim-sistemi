@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,12 @@ const FiveWhyTemplate = ({ analysisData, onAnalysisChange }) => {
         immediateAction: '',
         preventiveAction: ''
     });
+
+    useEffect(() => {
+        if (analysisData && typeof analysisData === 'object') {
+            setData((prev) => ({ ...prev, ...analysisData }));
+        }
+    }, [analysisData]);
 
     const handleChange = (field, value) => {
         const newData = {

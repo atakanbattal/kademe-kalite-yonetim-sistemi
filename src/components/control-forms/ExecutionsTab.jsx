@@ -20,6 +20,7 @@ import ExecutionFormModal from '@/components/control-forms/ExecutionFormModal';
 import { generateControlFormPdf } from '@/lib/controlFormPdfGenerator';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { compareControlFormNumbersDesc } from '@/lib/controlFormSort';
 
 const RESULT_VARIANTS = {
     ONAY: { label: 'Onay', variant: 'default', color: 'bg-green-100 text-green-800 border-green-300' },
@@ -62,10 +63,18 @@ const ExecutionsTab = () => {
         fetchData();
     }, [fetchData]);
 
+    const sortedExecutions = useMemo(
+        () =>
+            [...executions].sort((a, b) =>
+                compareControlFormNumbersDesc(a.execution_no, b.execution_no)
+            ),
+        [executions]
+    );
+
     const filtered = useMemo(() => {
         const s = searchTerm.trim().toLocaleLowerCase('tr-TR');
-        if (!s) return executions;
-        return executions.filter(
+        if (!s) return sortedExecutions;
+        return sortedExecutions.filter(
             (e) =>
                 (e.serial_number || '').toLocaleLowerCase('tr-TR').includes(s) ||
                 (e.chassis_no || '').toLocaleLowerCase('tr-TR').includes(s) ||
@@ -73,7 +82,7 @@ const ExecutionsTab = () => {
                 (e.execution_no || '').toLocaleLowerCase('tr-TR').includes(s) ||
                 (e.control_form_templates?.name || '').toLocaleLowerCase('tr-TR').includes(s)
         );
-    }, [executions, searchTerm]);
+    }, [sortedExecutions, searchTerm]);
 
     const handleNew = () => {
         setSelectedExecutionId(null);

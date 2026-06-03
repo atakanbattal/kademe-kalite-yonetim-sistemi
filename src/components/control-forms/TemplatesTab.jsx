@@ -23,6 +23,7 @@ import RevisionHistoryModal from '@/components/control-forms/RevisionHistoryModa
 import { generateControlFormPdf } from '@/lib/controlFormPdfGenerator';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { compareControlFormNumbersDesc } from '@/lib/controlFormSort';
 
 const TemplatesTab = () => {
     const { toast } = useToast();
@@ -89,15 +90,23 @@ const TemplatesTab = () => {
         return m;
     }, [products]);
 
+    const sortedTemplates = useMemo(
+        () =>
+            [...templates].sort((a, b) =>
+                compareControlFormNumbersDesc(a.document_no, b.document_no)
+            ),
+        [templates]
+    );
+
     const filtered = useMemo(() => {
         const s = searchTerm.trim().toLocaleLowerCase('tr-TR');
-        if (!s) return templates;
-        return templates.filter(
+        if (!s) return sortedTemplates;
+        return sortedTemplates.filter(
             (t) =>
                 (t.name || '').toLocaleLowerCase('tr-TR').includes(s) ||
                 (t.document_no || '').toLocaleLowerCase('tr-TR').includes(s)
         );
-    }, [templates, searchTerm]);
+    }, [sortedTemplates, searchTerm]);
 
     const handleCreate = () => {
         setSelectedTemplateId(null);

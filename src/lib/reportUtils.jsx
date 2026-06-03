@@ -4,6 +4,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { toCamelCase, getAttachmentDisplayName, formatDateOnlyLocal } from './utils';
 import { normalizeQuarantineAttachments } from './quarantineAttachments';
 import { getQuarantineDecisionCertificateStatement } from './quarantineDecisionCertificate';
+import { buildIncomingInspectionDefectsListHtml } from './incomingInspectionReportDefects';
+import { buildQualityCostReportPartLabel } from './qualityCostReportPartLabel';
 
 /** Lot → parça-KT → KT-yıl-6hex (UUID tam metin olarak gösterilmez) */
 const getQuarantineDocumentNoValue = (record) => {
@@ -2100,16 +2102,30 @@ const generateListReportHtml = (record, type) => {
 		`;
 	} else if (type === 'quarantine_list') {
 		title = 'Genel Karantina Raporu';
-		headers = ['Tarih', 'Parça Bilgileri', 'Miktar', 'Durum', 'Sorumlu Birim', 'Açıklama'];
-		rowsHtml = record.items.map(item => `
+		headers = ['Tarih', 'Parça Bilgileri', 'Güncel Miktar', 'Başlangıç / İşlem', 'Durum', 'Sorumlu Birim', 'Açıklama'];
+		rowsHtml = record.items.map(item => {
+			const currentQty = item.quantity_current ?? item.quantity ?? 0;
+			const initialQty = item.quantity_initial ?? currentQty;
+			const hurdaTot = item.hurda_processed_total ?? 0;
+			const iadeTot = item.iade_processed_total ?? 0;
+			const processLines = [];
+			if (hurdaTot > 0) processLines.push(`Hurda: ${hurdaTot}`);
+			if (iadeTot > 0) processLines.push(`İade: ${iadeTot}`);
+			const processHtml = processLines.length
+				? `<br><small class="muted" style="font-size:0.75em;">${processLines.join(' · ')}</small>`
+				: '';
+			return `
 			<tr>
 				<td style="white-space: nowrap; width: 10%;">${formatDate(item.quarantine_date)}</td>
-				<td style="width: 20%;">
+				<td style="width: 18%;">
 					<strong style="font-size: 0.9em;">${item.part_name || '-'}</strong><br>
 					<small class="muted" style="font-size: 0.75em;">Kod: ${item.part_code || '-'}</small><br>
 					<small class="muted" style="font-size: 0.75em;">Lot: ${item.lot_no || '-'}</small>
 				</td>
-				<td style="text-align: center; width: 8%; white-space: nowrap;"><strong>${item.quantity || '0'}</strong> ${item.unit || 'Adet'}</td>
+				<td style="text-align: center; width: 7%; white-space: nowrap;"><strong>${currentQty}</strong> ${item.unit || 'Adet'}</td>
+				<td style="text-align: center; width: 10%; white-space: nowrap; font-size: 0.85em;">
+					<strong>Başlangıç: ${initialQty}</strong>${processHtml}
+				</td>
 				<td style="width: 10%;"><span style="padding: 3px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; white-space: nowrap; display: inline-block; ${item.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
 				item.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
 					item.status === 'Serbest Bırakıldı' ? 'background-color: #dbeafe; color: #1e40af;' :
@@ -2119,9 +2135,13 @@ const generateListReportHtml = (record, type) => {
 					<strong>${item.source_department || '-'}</strong><br>
 					<small class="muted" style="font-size: 0.8em;">Talep: ${item.requesting_department || '-'}</small>
 				</td>
-				<td style="width: 40%; font-size: 0.8em;"><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${item.description || '-'}</pre></td>
+				<td style="width: 33%; font-size: 0.8em;"><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${item.description || '-'}</pre></td>
 			</tr>
-		`).join('');
+		`;
+		}).join('');
+
+		const totalHurdaProcessed = record.items.reduce((s, i) => s + (Number(i.hurda_processed_total) || 0), 0);
+		const totalIadeProcessed = record.items.reduce((s, i) => s + (Number(i.iade_processed_total) || 0), 0);
 
 		// Durum bazlı özet
 		const statusCounts = record.items.reduce((acc, item) => {
@@ -2135,6 +2155,8 @@ const generateListReportHtml = (record, type) => {
 		summaryHtml = `
 			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
+			${totalHurdaProcessed > 0 ? `<p><strong>Toplam işlenen hurda miktarı (geçmiş):</strong> ${totalHurdaProcessed}</p>` : ''}
+			${totalIadeProcessed > 0 ? `<p><strong>Toplam işlenen iade miktarı (geçmiş):</strong> ${totalIadeProcessed}</p>` : ''}
 		`;
 	} else if (type === 'equipment_list') {
 		title = 'Ekipman ve Kalibrasyon Listesi Raporu';
@@ -2626,7 +2648,7 @@ const generateListReportHtml = (record, type) => {
 				: '';
 
 			const descSafe = (item.description || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-			const partInfo = [item.part_code, item.part_name].filter(v => v && v !== '-').join(' - ') || '-';
+			const partInfo = buildQualityCostReportPartLabel(item);
 
 			// Müşteri ve birim bilgisi (Dış Hata'da her ikisi de)
 			let unitOrCustomer = item.unit || '-';
@@ -5816,9 +5838,7 @@ const generateGenericReportHtml = async (record, type) => {
 			`;
 			}
 			case 'incoming_inspection':
-				const defectsHtml = record.defects && record.defects.length > 0
-					? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
-					: '<li>Kusur tespit edilmemiştir.</li>';
+				const defectsHtml = buildIncomingInspectionDefectsListHtml(record);
 
 				const resultsTableHtml = record.results && record.results.length > 0
 					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">

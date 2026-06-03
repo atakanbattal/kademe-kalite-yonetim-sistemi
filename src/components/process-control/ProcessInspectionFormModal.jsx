@@ -20,6 +20,7 @@ import { getProcessInkrDisplayNumber } from './processInkrUtils';
 import { buildMeasurementBundle } from './processInspectionUtils';
 import { syncProcessInspectionNonconformity, syncProcessInspectionDefectNonconformities } from '@/lib/processInspectionNonconformitySync';
 import { buildCategoryOptions } from '@/lib/defectCategories';
+import { checkFixtureVerificationForPartCode } from '@/lib/fixtureVerificationCheck';
 import { parseProcessControlVehicleTypes } from '@/lib/df8dTextUtils';
 import {
     AlertCircle,
@@ -200,7 +201,7 @@ const ProcessInspectionFormModal = ({
     const [existingAttachments, setExistingAttachments] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingContext, setIsLoadingContext] = useState(false);
-    const [warnings, setWarnings] = useState({ inkr: null, plan: null });
+    const [warnings, setWarnings] = useState({ inkr: null, plan: null, fixture: null });
     const [measurementSummary, setMeasurementSummary] = useState([]);
     const [generatingRecordNo, setGeneratingRecordNo] = useState(false);
 
@@ -419,7 +420,7 @@ const ProcessInspectionFormModal = ({
 
             partContextRequestRef.current = requestId;
 
-            setWarnings({ inkr: null, plan: null });
+            setWarnings({ inkr: null, plan: null, fixture: null });
             setControlPlan(null);
             setInkrReport(null);
 
@@ -476,6 +477,19 @@ const ProcessInspectionFormModal = ({
                         ...previous,
                         inkr: 'Bu parça için proses INKR kaydı bulunamadı. Ölçüm öncesi ilk numune kontrolünü kontrol edin.',
                     }));
+                }
+
+                try {
+                    const fixtureCheck = await checkFixtureVerificationForPartCode(trimmedPartCode);
+                    if (requestId !== partContextRequestRef.current) return;
+                    if (fixtureCheck.blocked) {
+                        setWarnings((previous) => ({
+                            ...previous,
+                            fixture: fixtureCheck.message,
+                        }));
+                    }
+                } catch (fixtureErr) {
+                    console.warn('Fikstür doğrulama kontrolü atlandı:', fixtureErr);
                 }
             } catch (error) {
                 if (requestId !== partContextRequestRef.current) return;
@@ -751,6 +765,30 @@ const ProcessInspectionFormModal = ({
             return;
         }
 
+        if (warnings.fixture) {
+            toast({
+                variant: 'destructive',
+                title: 'Fikstür doğrulaması gerekli',
+                description: warnings.fixture,
+            });
+            return;
+        }
+
+        try {
+            const fixtureCheck = await checkFixtureVerificationForPartCode(formData.part_code);
+            if (fixtureCheck.blocked) {
+                setWarnings((previous) => ({ ...previous, fixture: fixtureCheck.message }));
+                toast({
+                    variant: 'destructive',
+                    title: 'Fikstür doğrulaması gerekli',
+                    description: fixtureCheck.message,
+                });
+                return;
+            }
+        } catch (fixtureErr) {
+            console.warn('Fikstür doğrulama kontrolü:', fixtureErr);
+        }
+
         const derivedDecision = deriveInspectionDecision({
             quantityProduced: formData.quantity_produced,
             quantityRejected: formData.quantity_rejected,
@@ -1018,6 +1056,14 @@ const ProcessInspectionFormModal = ({
                                             <ShieldAlert className="h-4 w-4" />
                                             <AlertTitle>INKR Uyarısı</AlertTitle>
                                             <AlertDescription>{warnings.inkr}</AlertDescription>
+                                        </Alert>
+                                    )}
+
+                                    {warnings.fixture && (
+                                        <Alert variant="destructive">
+                                            <ShieldAlert className="h-4 w-4" />
+                                            <AlertTitle>Fikstür doğrulaması gerekli</AlertTitle>
+                                            <AlertDescription>{warnings.fixture}</AlertDescription>
                                         </Alert>
                                     )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from 'react';
+import React, { useState, useLayoutEffect, useMemo, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,12 +33,34 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
         )
     );
 
-    // Çift tıklamada / liste yenilenmesinde bileşenler eski kayıt içeriğiyle mount olmadan önce formu yükle (şablon bileşenleri useState ile eski kalırdı).
+    // Modal açıkken liste yenilemesiyle gelen yeni `initialRecord` referansı formu sıfırlamasın (alt sekme veri kaybı).
+    const formInitSignature = useMemo(() => {
+        if (!initialRecord) return isOpen ? 'new' : null;
+        if (initialRecord.id) {
+            return `id:${initialRecord.id}:${initialRecord.updated_at || ''}`;
+        }
+        return `src:${[
+            initialRecord.source_cost_id,
+            initialRecord.source_quarantine_id,
+            initialRecord.source_inspection_id,
+            initialRecord.source_supplier_nc_id,
+            initialRecord.nc_number,
+        ]
+            .filter(Boolean)
+            .join('|') || 'template'}`;
+    }, [initialRecord, isOpen]);
+
+    const lastFormInitSigRef = useRef(null);
+
     useLayoutEffect(() => {
-        if (!isOpen) return;
-        // Kayıt nesnesi yokken (Yeni uygunsuzluk) taslağı yükleme — form anında dolu görünmesin
+        if (!isOpen) {
+            lastFormInitSigRef.current = null;
+            return;
+        }
+        if (lastFormInitSigRef.current === formInitSignature) return;
+        lastFormInitSigRef.current = formInitSignature;
         initializeForm(initialRecord ?? null, { skipDraft: !initialRecord });
-    }, [isOpen, initialRecord, initializeForm]);
+    }, [isOpen, formInitSignature, initialRecord, initializeForm]);
 
     const isEditMode = !!(formData && formData.id && !isSourceTemplate);
 
@@ -282,7 +304,7 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                                 {formData.type === '8D' && <TabsTrigger value="8d_steps">8D Adımları</TabsTrigger>}
                                 <TabsTrigger value="analysis">Kök Neden Analizi</TabsTrigger>
                             </TabsList>
-                            <TabsContent value="general" className="mt-4">
+                            <TabsContent value="general" className="mt-4" forceMount>
                                 <NCFormGeneral
                                     formData={formData}
                                     setFormData={setFormData}
@@ -300,7 +322,7 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                                 />
                             </TabsContent>
                             {formData.type === '8D' && (
-                                <TabsContent value="8d_steps" className="mt-4">
+                                <TabsContent value="8d_steps" className="mt-4" forceMount>
                                     <EightDStepsEnhanced
                                         steps={formData.eight_d_steps || {}}
                                         progress={formData.eight_d_progress || null}
@@ -311,7 +333,7 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                                     />
                                 </TabsContent>
                             )}
-                            <TabsContent value="analysis" className="mt-4 space-y-4">
+                            <TabsContent value="analysis" className="mt-4 space-y-4" forceMount>
                                 <Tabs defaultValue="5n1k" className="w-full">
                                     <TabsList>
                                         <TabsTrigger value="5n1k">5N1K Analizi</TabsTrigger>
@@ -319,25 +341,25 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                                         <TabsTrigger value="5why">5 Neden Analizi</TabsTrigger>
                                         <TabsTrigger value="fta">FTA (Hata Ağacı)</TabsTrigger>
                                     </TabsList>
-                                    <TabsContent value="5n1k" className="mt-4">
+                                    <TabsContent value="5n1k" className="mt-4" forceMount>
                                         <FiveN1KTemplate
                                             analysisData={formData.five_n1k_analysis || {}}
                                             onAnalysisChange={(data) => setFormData(prev => ({ ...prev, five_n1k_analysis: data }))}
                                         />
                                     </TabsContent>
-                                    <TabsContent value="ishikawa" className="mt-4">
+                                    <TabsContent value="ishikawa" className="mt-4" forceMount>
                                         <IshikawaTemplate
                                             analysisData={formData.ishikawa_analysis || {}}
                                             onAnalysisChange={(data) => setFormData(prev => ({ ...prev, ishikawa_analysis: data }))}
                                         />
                                     </TabsContent>
-                                    <TabsContent value="5why" className="mt-4">
+                                    <TabsContent value="5why" className="mt-4" forceMount>
                                         <FiveWhyTemplate
                                             analysisData={formData.five_why_analysis || {}}
                                             onAnalysisChange={(data) => setFormData(prev => ({ ...prev, five_why_analysis: data }))}
                                         />
                                     </TabsContent>
-                                    <TabsContent value="fta" className="mt-4">
+                                    <TabsContent value="fta" className="mt-4" forceMount>
                                         <FTATemplate
                                             analysisData={formData.fta_analysis || {}}
                                             onAnalysisChange={(data) => setFormData(prev => ({ ...prev, fta_analysis: data }))}

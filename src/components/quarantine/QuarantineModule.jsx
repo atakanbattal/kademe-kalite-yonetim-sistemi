@@ -22,6 +22,7 @@
     import DeviationFormModal from '@/components/deviation/DeviationFormModal';
     import { useData } from '@/contexts/DataContext';
     import { openPrintableReport } from '@/lib/reportUtils';
+    import { aggregateQuarantineHistoryByRecord, enrichQuarantineRecordForReport } from '@/lib/quarantineReportStats';
     import { cn } from '@/lib/utils';
 
     const QUARANTINE_STATUSES = [
@@ -265,31 +266,57 @@
         setIsReportFilterOpen(true);
       };
 
-      const handleGenerateReportFromSelection = (selectedRecords) => {
-        const lightweightRecords = selectedRecords.map(r => ({
-          id: r.id,
-          quarantine_date: r.quarantine_date,
-          part_code: r.part_code,
-          part_name: r.part_name,
-          lot_no: r.lot_no,
-          quantity: r.quantity,
-          unit: r.unit,
-          reason: r.reason,
-          source_department: r.source_department,
-          supplier_name: r.supplier_name,
-          requesting_department: r.requesting_department,
-          requesting_person_name: r.requesting_person_name,
-          status: r.status,
-          notes: r.notes,
-          description: r.description,
-        }));
-        
+      const handleGenerateReportFromSelection = async (selectedRecords) => {
+        const ids = selectedRecords.map((r) => r.id);
+        let historyByRecord = {};
+        if (ids.length > 0) {
+          const { data: historyRows, error: histErr } = await supabase
+            .from('quarantine_history')
+            .select('quarantine_record_id, decision, processed_quantity')
+            .in('quarantine_record_id', ids);
+          if (histErr) {
+            toast({
+              variant: 'destructive',
+              title: 'Rapor hazırlanamadı',
+              description: histErr.message,
+            });
+            return;
+          }
+          historyByRecord = aggregateQuarantineHistoryByRecord(historyRows || []);
+        }
+
+        const lightweightRecords = selectedRecords.map((r) => {
+          const enriched = enrichQuarantineRecordForReport(r, historyByRecord[r.id] || {});
+          return {
+            id: r.id,
+            quarantine_date: r.quarantine_date,
+            part_code: r.part_code,
+            part_name: r.part_name,
+            lot_no: r.lot_no,
+            quantity: enriched.quantity_current,
+            quantity_current: enriched.quantity_current,
+            quantity_initial: enriched.quantity_initial,
+            hurda_processed_total: enriched.hurda_processed_total,
+            iade_processed_total: enriched.iade_processed_total,
+            total_processed: enriched.total_processed,
+            unit: r.unit,
+            reason: r.reason,
+            source_department: r.source_department,
+            supplier_name: r.supplier_name,
+            requesting_department: r.requesting_department,
+            requesting_person_name: r.requesting_person_name,
+            status: r.status,
+            notes: r.notes,
+            description: r.description,
+          };
+        });
+
         const reportData = {
           title: 'Aktif Karantina Raporu',
           items: lightweightRecords,
-          id: `quarantine-active-${new Date().toISOString()}`
+          id: `quarantine-active-${new Date().toISOString()}`,
         };
-        
+
         openPrintableReport(reportData, 'quarantine_list', true);
       };
 
