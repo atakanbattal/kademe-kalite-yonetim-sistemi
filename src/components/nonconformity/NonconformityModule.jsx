@@ -51,7 +51,6 @@ import {
   normalizeSuggestionDetectionAreas,
   buildSuggestionAreasForRpc,
   clampThresholdPeriodDays,
-  isCanonicalSuggestionDetectionArea,
   recordMatchesSelectedDataSources,
   getSelectedSourceLabels,
 } from '@/lib/nonconformitySuggestionSources';
@@ -139,24 +138,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   const [settings, setSettings] = useState(null);
 
-  const suggestionDetectionAreasSet = useMemo(
-    () => new Set(normalizeSuggestionDetectionAreas(settings?.suggestion_include_detection_areas)),
-    [settings?.suggestion_include_detection_areas]
-  );
-
   const isSuggestionEligibleRecord = useCallback(
-    (r) => {
-      const a = String(r?.detection_area ?? '').trim();
-      if (!a) {
-        return suggestionDetectionAreasSet.has('Proses İçi Kontrol');
-      }
-      if (isCanonicalSuggestionDetectionArea(a)) {
-        return suggestionDetectionAreasSet.has(a);
-      }
-      // Hat Sonu Kontrol, Girdi KK vb. listede olmayan kurumsal etiketler — analizde tamamen dışlanmasın
-      return true;
-    },
-    [suggestionDetectionAreasSet]
+    (r) => recordMatchesSelectedDataSources(r, settings?.suggestion_include_detection_areas),
+    [settings?.suggestion_include_detection_areas]
   );
 
   const [convertDialog, setConvertDialog] = useState(INITIAL_CONVERT_DIALOG);

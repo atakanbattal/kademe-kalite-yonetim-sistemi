@@ -4,6 +4,12 @@
  */
 export const NC_SUGGESTION_SOURCE_OPTIONS = [
     {
+        id: 'incoming',
+        detection_area: 'Girdi Kalite Kontrol',
+        label: 'Girdi Kalite Kontrol',
+        description: 'Girdi kalite muayenesi ve tedarikçi ret kayıtları',
+    },
+    {
         id: 'process',
         detection_area: 'Proses İçi Kontrol',
         label: 'Proses Kontrol',
@@ -16,10 +22,28 @@ export const NC_SUGGESTION_SOURCE_OPTIONS = [
         description: 'Üretilen araçlar modülünden otomatik oluşturulan kayıtlar',
     },
     {
+        id: 'hat-sonu',
+        detection_area: 'Hat Sonu Kontrol',
+        label: 'Hat Sonu Kontrol',
+        description: 'Hat sonu / final kontrol istasyonundan kayıtlar',
+    },
+    {
         id: 'leak',
         detection_area: 'Sızdırmazlık Kontrol',
         label: 'Sızdırmazlık Kontrol',
         description: 'Sızdırmazlık test modülünden gelen kayıtlar',
+    },
+    {
+        id: 'welding',
+        detection_area: 'Kaynak Atölyesi',
+        label: 'Kaynak Atölyesi',
+        description: 'Kaynak atölyesi ve kaynaklı parça kontrolleri',
+    },
+    {
+        id: 'dynamic-balance',
+        detection_area: 'Dinamik Balans Kontrol',
+        label: 'Dinamik Balans',
+        description: 'Dinamik balans test modülünden gelen kayıtlar',
     },
 ];
 
