@@ -1,4 +1,4 @@
-import { differenceInMilliseconds, format, isValid, parseISO } from 'date-fns';
+import { differenceInMilliseconds, format, isValid, parseISO, startOfMonth, subMonths } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
 const getSortedTimeline = (timelineEvents = []) => {
@@ -168,4 +168,43 @@ export const calculateMonthlyAvgQualityAndRework = (vehicles = [], now = new Dat
             yenidenIslemDonguSayisi: b.rN,
         };
     });
+};
+
+/** Yönetici özet raporu: son N takvim ayı (veri yoksa boş satır). Tarih filtresinden bağımsız tüm araçlardan hesaplanır. */
+export const EXECUTIVE_REPORT_MONTHLY_DURATION_MONTHS = 6;
+
+export const buildExecutiveMonthlyDurationRows = (
+    vehicles = [],
+    now = new Date(),
+    minMonths = EXECUTIVE_REPORT_MONTHLY_DURATION_MONTHS
+) => {
+    const calculated = calculateMonthlyAvgQualityAndRework(vehicles, now);
+    const byKey = new Map(calculated.map((row) => [row.monthKey, row]));
+    const monthCount = Math.max(1, Number(minMonths) || EXECUTIVE_REPORT_MONTHLY_DURATION_MONTHS);
+
+    const rows = [];
+    for (let i = monthCount - 1; i >= 0; i--) {
+        const monthDate = startOfMonth(subMonths(now, i));
+        const monthKey = format(monthDate, 'yyyy-MM');
+        const existing = byKey.get(monthKey);
+
+        if (existing) {
+            rows.push(existing);
+            continue;
+        }
+
+        rows.push({
+            monthKey,
+            monthLabel: format(monthDate, 'LLLL yyyy', { locale: tr }),
+            monthShort: format(monthDate, 'MMM yyyy', { locale: tr }),
+            ortKaliteDk: null,
+            ortYenidenIslemDk: null,
+            ortKaliteMs: null,
+            ortYenidenIslemMs: null,
+            kaliteDonguSayisi: 0,
+            yenidenIslemDonguSayisi: 0,
+        });
+    }
+
+    return rows;
 };

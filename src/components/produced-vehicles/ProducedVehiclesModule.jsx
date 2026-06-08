@@ -14,7 +14,11 @@ import { useSearchParams } from 'react-router-dom';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { openPrintableReport } from '@/lib/reportUtils';
-    import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
+    import {
+        calculateVehicleTimelineStats,
+        buildExecutiveMonthlyDurationRows,
+        EXECUTIVE_REPORT_MONTHLY_DURATION_MONTHS,
+    } from '@/lib/vehicleTimelineUtils';
     import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
     import { getFirstQualityEntryDate } from '@/lib/vehicleQualityMetrics';
 
@@ -511,6 +515,16 @@ import { useSearchParams } from 'react-router-dom';
                     : 0;
                 const averageReworkDuration = formatDuration(averageReworkDurationMillis);
 
+                const monthlyDurationData = buildExecutiveMonthlyDurationRows(producedVehicles, timelineNow)
+                    .map((row) => ({
+                        month: row.monthLabel,
+                        monthShort: row.monthShort,
+                        averageControlDuration: row.ortKaliteMs != null ? formatDuration(row.ortKaliteMs) : '-',
+                        averageReworkDuration: row.ortYenidenIslemMs != null ? formatDuration(row.ortYenidenIslemMs) : '-',
+                        controlCycleCount: row.kaliteDonguSayisi,
+                        reworkCycleCount: row.yenidenIslemDonguSayisi,
+                    }));
+
                 // Rapor verisi
                 const reportData = {
                     id: `produced-vehicles-executive-${Date.now()}`,
@@ -528,6 +542,8 @@ import { useSearchParams } from 'react-router-dom';
                     vehiclesWithFaults,
                     dmoAnalysis,
                     monthlyData,
+                    monthlyDurationData,
+                    monthlyDurationMonthCount: EXECUTIVE_REPORT_MONTHLY_DURATION_MONTHS,
                     averageControlDuration,
                     averageReworkDuration,
                     reportDate: formatDate(new Date())
@@ -546,7 +562,7 @@ import { useSearchParams } from 'react-router-dom';
                     description: `Rapor oluşturulurken hata oluştu: ${error.message}`,
                 });
             }
-        }, [memoizedVehicles, dateRange, toast]);
+        }, [memoizedVehicles, producedVehicles, dateRange, toast]);
 
         const handleSelectReportType = useCallback((type) => {
             setIsReportSelectionModalOpen(false);

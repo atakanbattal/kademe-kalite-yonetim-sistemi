@@ -3877,6 +3877,34 @@ const generateListReportHtml = (record, type) => {
 				`
 				: '';
 
+			const monthlyDurationMonthCount = record.monthlyDurationMonthCount || 6;
+			const monthlyDurationRows = record.monthlyDurationData || [];
+			const monthlyDurationHtml = `
+				<h3 style="font-size: 18px; font-weight: 700; color: #7c3aed; margin-bottom: 15px; border-bottom: 2px solid #a78bfa; padding-bottom: 8px;">Aylık Süre Özeti (Son ${monthlyDurationMonthCount} Ay)</h3>
+				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+					<thead>
+						<tr style="background-color: #7c3aed; color: white;">
+							<th style="width: 22%; padding: 12px; text-align: left;">Ay</th>
+							<th style="width: 22%; padding: 12px; text-align: center;">Ort. Kontrol Süresi</th>
+							<th style="width: 12%; padding: 12px; text-align: center;">Kontrol Döngüsü</th>
+							<th style="width: 22%; padding: 12px; text-align: center;">Ort. Yeniden İşlem</th>
+							<th style="width: 12%; padding: 12px; text-align: center;">Y.İşlem Döngüsü</th>
+						</tr>
+					</thead>
+					<tbody>
+						${monthlyDurationRows.map((item) => `
+							<tr style="border-bottom: 1px solid #e5e7eb;">
+								<td style="padding: 12px; font-weight: 600; color: #111827;">${item.month}</td>
+								<td style="padding: 12px; text-align: center; color: #7c3aed; font-weight: 600;">${item.averageControlDuration || '-'}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.controlCycleCount)}</td>
+								<td style="padding: 12px; text-align: center; color: #ea580c; font-weight: 600;">${item.averageReworkDuration || '-'}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.reworkCycleCount)}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`;
+
 			// Aylık Trend Analizi
 			const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
 				? `
@@ -3913,6 +3941,7 @@ const generateListReportHtml = (record, type) => {
 					<p style="font-size: 14px; color: #6b7280;"><strong>Toplam Araç Sayısı:</strong> ${formatNumber(record.totalVehicles)}</p>
 				</div>
 				${summaryCardsHtml}
+				${monthlyDurationHtml}
 				${statusAnalysisHtml}
 				${topVehicleTypesHtml}
 				${topCustomersHtml}
