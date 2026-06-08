@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { isWithinModuleDateRange, resolveModuleDateRange } from '@/lib/moduleDateRange';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -124,8 +126,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
-  const [detectionDateFrom, setDetectionDateFrom] = useState('');
-  const [detectionDateTo, setDetectionDateTo] = useState('');
+  const [dateRange, setDateRange] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'record_number', direction: 'desc' });
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -432,8 +433,23 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     [displayRecordNumberMap]
   );
 
+  const getRecordDateValue = useCallback(
+    (record) => record?.detection_date || record?.created_at,
+    []
+  );
+
+  const recordsInDateRange = useMemo(
+    () => records.filter((r) => isWithinModuleDateRange(getRecordDateValue(r), dateRange)),
+    [records, dateRange, getRecordDateValue]
+  );
+
+  const smartGroupsInDateRange = useMemo(() => {
+    const idSet = new Set(recordsInDateRange.map((r) => r.id));
+    return smartGroups.filter((g) => g.records.some((r) => idSet.has(r.id)));
+  }, [smartGroups, recordsInDateRange]);
+
   const filteredRecords = useMemo(() => {
-    let filtered = [...records];
+    let filtered = [...recordsInDateRange];
 
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
@@ -449,24 +465,6 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }
     if (statusFilter !== 'all') filtered = filtered.filter(r => r.status === statusFilter);
     if (severityFilter !== 'all') filtered = filtered.filter(r => r.severity === severityFilter);
-
-    if (detectionDateFrom || detectionDateTo) {
-      const fromTs = detectionDateFrom
-        ? (() => { const d = new Date(detectionDateFrom); d.setHours(0, 0, 0, 0); return d.getTime(); })()
-        : null;
-      const toTs = detectionDateTo
-        ? (() => { const d = new Date(detectionDateTo); d.setHours(23, 59, 59, 999); return d.getTime(); })()
-        : null;
-      filtered = filtered.filter((r) => {
-        const raw = r.detection_date || r.created_at;
-        if (!raw) return false;
-        const t = new Date(raw).getTime();
-        if (Number.isNaN(t)) return false;
-        if (fromTs != null && t < fromTs) return false;
-        if (toTs != null && t > toTs) return false;
-        return true;
-      });
-    }
 
     filtered.sort((a, b) => {
       let aVal, bVal;
@@ -493,7 +491,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     });
 
     return filtered;
-  }, [getDisplayRecordNumber, records, searchTerm, statusFilter, severityFilter, detectionDateFrom, detectionDateTo, sortConfig]);
+  }, [getDisplayRecordNumber, recordsInDateRange, searchTerm, statusFilter, severityFilter, sortConfig]);
 
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -519,10 +517,12 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       toast({
         variant: 'destructive',
         title: 'Hata',
-        description: 'Rapor oluşturmak için en az bir uygunsuzluk kaydı olmalıdır.',
+        description: 'Seçili tarih aralığında rapor oluşturulacak uygunsuzluk kaydı yok.',
       });
       return;
     }
+
+    const period = resolveModuleDateRange(dateRange);
 
     const statusCounts = filteredRecords.reduce((acc, item) => {
       const key = item.status || 'Belirsiz';
@@ -576,6 +576,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const reportData = {
       id: `nonconformity-record-list-${Date.now()}`,
       title: 'Uygunsuzluk Yönetimi Liste Raporu',
+      period: period.label,
+      periodStart: period.fromIso,
+      periodEnd: period.toIso,
       statusCounts,
       severityCounts,
       personnelPerformance,
@@ -593,7 +596,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     openPrintableReport(reportData, 'nonconformity_record_list', true);
-  }, [filteredRecords, getDisplayRecordNumber, toast]);
+  }, [filteredRecords, getDisplayRecordNumber, dateRange, toast]);
 
   const closeConvertDialog = useCallback(() => {
     setConvertDialog(INITIAL_CONVERT_DIALOG);
@@ -990,7 +993,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   // Dashboard istatistikleri — öneri sayıları yalnızca kapatılmamış / dönüştürülmemiş kayıtlar (tutarlılık)
   const stats = useMemo(() => {
-    const summary = records.reduce((acc, record) => {
+    const summary = recordsInDateRange.reduce((acc, record) => {
       acc.total += 1;
 
       if (record.severity === 'Kritik' && record.status !== 'Kapatıldı') {
@@ -1036,7 +1039,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     // En çok tekrarlayan parça kodları (ayarlarda seçilen tespit alanları; kapalı kayıtlar dahil)
     const partCounts = {};
-    records
+    recordsInDateRange
       .filter(
         (r) =>
           r.part_code &&
@@ -1052,7 +1055,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     // Kategori dağılımı
     const categoryCounts = {};
-    records.forEach(r => {
+    recordsInDateRange.forEach(r => {
       const cat = r.category || 'Belirsiz';
       categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
     });
@@ -1062,7 +1065,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     // En çok sorumlu personeller (sorumlu oldukları uygunsuzluk sayısına göre)
     const responsibleCounts = {};
-    records.filter(r => r.responsible_person && r.status !== 'Kapatıldı').forEach(r => {
+    recordsInDateRange.filter(r => r.responsible_person && r.status !== 'Kapatıldı').forEach(r => {
       responsibleCounts[r.responsible_person] = (responsibleCounts[r.responsible_person] || 0) + 1;
     });
     const topResponsiblePersonnel = Object.entries(responsibleCounts)
@@ -1072,7 +1075,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     // En çok tespit eden personeller (raporladıkları uygunsuzluk sayısına göre)
     const detectedByCounts = {};
     const excludedDetectors = ['Üretilen Araçlar', 'Atakan Battal', 'atakan.battal@kademe.com.tr'];
-    records.filter(r => r.detected_by && !excludedDetectors.includes(r.detected_by)).forEach(r => {
+    recordsInDateRange.filter(r => r.detected_by && !excludedDetectors.includes(r.detected_by)).forEach(r => {
       detectedByCounts[r.detected_by] = (detectedByCounts[r.detected_by] || 0) + 1;
     });
     const topDetectedByPersonnel = Object.entries(detectedByCounts)
@@ -1080,7 +1083,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       .slice(0, 5);
 
     return { ...summary, topParts, topCategories, topResponsiblePersonnel, topDetectedByPersonnel };
-  }, [getEffectiveSuggestionForStats, records, isSuggestionEligibleRecord]);
+  }, [getEffectiveSuggestionForStats, recordsInDateRange, isSuggestionEligibleRecord]);
 
   const activeConvertType = convertDialog.selectedType || convertDialog.suggestedType;
   const is8DConversion = activeConvertType === '8D';
@@ -1088,8 +1091,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   /** Analiz: gruplara girmeyen ama tekil DF/8D önerisi olan açık kayıtlar */
   const individualSuggestionRecords = useMemo(() => {
     const out = [];
-    for (let i = 0; i < records.length; i++) {
-      const r = records[i];
+    for (let i = 0; i < recordsInDateRange.length; i++) {
+      const r = recordsInDateRange[i];
       if (isNonconformityLinkedToDf8d(r) || CONVERTED_STATUSES.has(r.status)) continue;
       if (r.source_nc_id) continue;
       if (!isSuggestionEligibleRecord(r)) continue;
@@ -1099,7 +1102,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       out.push({ record: r, suggestion: s });
     }
     return out;
-  }, [records, suggestionMap, recordGroupMap, isSuggestionEligibleRecord]);
+  }, [recordsInDateRange, suggestionMap, recordGroupMap, isSuggestionEligibleRecord]);
 
   /** Analiz: TÜM DF/8D öneri/dönüştürme geçmişi (kapatılmış dahil) */
   const allSuggestedRecords = useMemo(() => {
@@ -1109,8 +1112,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const eightDThr = settings?.eight_d_threshold ?? 5;
 
     const out = [];
-    for (let i = 0; i < records.length; i++) {
-      const r = records[i];
+    for (let i = 0; i < recordsInDateRange.length; i++) {
+      const r = recordsInDateRange[i];
 
       let suggestion = null;
       let reason = '';
@@ -1168,7 +1171,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       return new Date(b.record.detection_date || b.record.created_at) - new Date(a.record.detection_date || a.record.created_at);
     });
     return out;
-  }, [records, settings, suggestionMap, partCodeAnalysisData, effectivePeriodDays]);
+  }, [recordsInDateRange, settings, suggestionMap, partCodeAnalysisData, effectivePeriodDays]);
 
   /** Dönüştürülmeyi bekleyen (DF/8D henüz açılmamış; Kapatıldı dahil) */
   const isPendingConversionRow = useCallback((item) => {
@@ -1187,7 +1190,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
         byId.set(item.record.id, item);
       }
     });
-    records.forEach((r) => {
+    recordsInDateRange.forEach((r) => {
       if (isNonconformityLinkedToDf8d(r) || CONVERTED_STATUSES.has(r.status)) return;
       if (r.source_nc_id) return;
       if (!isSuggestionEligibleRecord(r)) return;
@@ -1203,7 +1206,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       });
     });
     return Array.from(byId.values());
-  }, [records, allSuggestedRecords, isPendingConversionRow, recordGroupMap, isSuggestionEligibleRecord]);
+  }, [recordsInDateRange, allSuggestedRecords, isPendingConversionRow, recordGroupMap, isSuggestionEligibleRecord]);
 
   const pendingConversionCount = pendingConversionRows.length;
 
@@ -1265,8 +1268,18 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               <Settings2 className="w-4 h-4" /> Ayarlar
             </TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleGenerateReport}>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-[220px]">
+              <DateRangePicker
+                date={dateRange}
+                onDateChange={(next) => {
+                  setDateRange(next);
+                  setVisibleCount(PAGE_SIZE);
+                  setSuggestionVisibleCount(30);
+                }}
+              />
+            </div>
+            <Button variant="outline" onClick={handleGenerateReport} disabled={loading || filteredRecords.length === 0}>
               <FileText className="w-4 h-4 mr-2" /> Rapor Al
             </Button>
             <Button onClick={() => { setSelectedRecord(null); setIsFormOpen(true); }} className="bg-amber-600 hover:bg-amber-700">
@@ -1283,12 +1296,12 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             <StatCard title="Açık" value={stats.open} icon={<AlertTriangle className="h-4 w-4" />} color="text-blue-600" />
             <StatCard
               title="Grup Önerisi"
-              value={smartGroups.length > 0 ? `${smartGroups.length}` : '0'}
+              value={smartGroupsInDateRange.length > 0 ? `${smartGroupsInDateRange.length}` : '0'}
               icon={<Layers className="h-4 w-4" />}
               color="text-amber-600"
               subtitle={
-                smartGroups.length > 0
-                  ? `${smartGroups.reduce((s, g) => s + g.records.length, 0)} kayıt`
+                smartGroupsInDateRange.length > 0
+                  ? `${smartGroupsInDateRange.reduce((s, g) => s + g.records.length, 0)} kayıt`
                   : 'Aynı tespit alanı+kategoride eşik (adet/kayıt)'
               }
             />
@@ -1329,23 +1342,6 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 <SelectItem value="Kritik">Kritik</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
-              <Input
-                type="date"
-                className="w-full sm:w-40"
-                value={detectionDateFrom}
-                onChange={(e) => { setDetectionDateFrom(e.target.value); setVisibleCount(PAGE_SIZE); }}
-                title="Tespit tarihi başlangıç"
-              />
-              <span className="hidden sm:inline text-muted-foreground text-xs">—</span>
-              <Input
-                type="date"
-                className="w-full sm:w-40"
-                value={detectionDateTo}
-                onChange={(e) => { setDetectionDateTo(e.target.value); setVisibleCount(PAGE_SIZE); }}
-                title="Tespit tarihi bitiş"
-              />
-            </div>
             <Button variant="outline" size="icon" onClick={() => { fetchRecords(); fetchSettings(); }}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -1359,7 +1355,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
           ) : filteredRecords.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Henüz uygunsuzluk kaydı bulunmuyor.</p>
+              <p className="text-sm">
+                {records.length > 0 && dateRange?.from && dateRange?.to
+                  ? 'Seçili tarih aralığında uygunsuzluk kaydı bulunmuyor.'
+                  : 'Henüz uygunsuzluk kaydı bulunmuyor.'}
+              </p>
             </div>
           ) : (
             <div className="rounded-lg border bg-card overflow-x-auto">
@@ -1619,7 +1619,10 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             </div>
           )}
           <p className="text-xs text-muted-foreground text-right">
-            {Math.min(visibleCount, filteredRecords.length)} / {filteredRecords.length} kayıt gösteriliyor (toplam {records.length})
+            {Math.min(visibleCount, filteredRecords.length)} / {filteredRecords.length} kayıt gösteriliyor
+            {dateRange?.from && dateRange?.to
+              ? ` (dönem: ${resolveModuleDateRange(dateRange).label})`
+              : ` (toplam ${records.length})`}
           </p>
         </TabsContent>
 

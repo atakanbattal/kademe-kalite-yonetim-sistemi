@@ -2541,7 +2541,11 @@ const generateListReportHtml = (record, type) => {
 			</tr>
 		`).join('');
 
+		const ncPeriodInfo = record.periodStart && record.periodEnd
+			? `${record.periodStart} - ${record.periodEnd}`
+			: record.period || 'Tüm Zamanlar';
 		summaryHtml = `
+			<p><strong>Rapor dönemi:</strong> ${escapeHtml(ncPeriodInfo)}</p>
 			<p><strong>Toplam Uygunsuzluk Kaydı:</strong> ${totalCount}</p>
 			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
 			${severitySummary ? `<p><strong>Ciddiyet Dağılımı:</strong> ${severitySummary}</p>` : ''}
