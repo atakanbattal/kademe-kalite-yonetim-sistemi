@@ -104,6 +104,48 @@ const INITIAL_CONVERT_DIALOG = {
 
 const NC_RECORD_COLUMNS = 'id, record_number, source_nc_id, status, part_code, part_name, vehicle_type, vehicle_identifier, description, category, severity, quantity, detection_date, detection_area, detected_by, responsible_person, department, shift, action_taken, notes, created_at';
 
+const NC_REPORT_EXCLUDED_DETECTORS = new Set(['Üretilen Araçlar', 'Atakan Battal', 'atakan.battal@kademe.com.tr']);
+
+const buildPersonnelPerformanceRows = (records, pickName) => Object.values(
+  records.reduce((acc, item) => {
+    const name = pickName(item);
+    if (!name) return acc;
+
+    if (!acc[name]) {
+      acc[name] = {
+        name,
+        total: 0,
+        closed: 0,
+        open: 0,
+        critical: 0,
+        quantity: 0,
+      };
+    }
+
+    acc[name].total += 1;
+    acc[name].quantity += Number(item.quantity) || 0;
+
+    if (item.status === 'Kapatıldı') {
+      acc[name].closed += 1;
+    } else {
+      acc[name].open += 1;
+    }
+
+    if (item.severity === 'Kritik') {
+      acc[name].critical += 1;
+    }
+
+    return acc;
+  }, {})
+).map((person) => ({
+  ...person,
+  closeRate: person.total > 0 ? Math.round((person.closed / person.total) * 100) : 0,
+})).sort((a, b) => {
+  if (b.total !== a.total) return b.total - a.total;
+  if (b.closed !== a.closed) return b.closed - a.closed;
+  return a.name.localeCompare(b.name, 'tr');
+});
+
 const SYNC_SESSION_KEY = 'nc_backfill_done';
 const SYNC_THROTTLE_MS = 10 * 60 * 1000; // 10 dakika
 
@@ -536,42 +578,18 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       return acc;
     }, {});
 
-    const personnelPerformance = Object.values(filteredRecords.reduce((acc, item) => {
-      const name = item.responsible_person || item.detected_by || 'Atanmamış';
+    const responsiblePersonPerformance = buildPersonnelPerformanceRows(
+      filteredRecords,
+      (item) => String(item.responsible_person ?? '').trim() || null
+    );
 
-      if (!acc[name]) {
-        acc[name] = {
-          name,
-          total: 0,
-          closed: 0,
-          open: 0,
-          critical: 0,
-          quantity: 0,
-        };
-      }
-
-      acc[name].total += 1;
-      acc[name].quantity += Number(item.quantity) || 0;
-
-      if (item.status === 'Kapatıldı') {
-        acc[name].closed += 1;
-      } else {
-        acc[name].open += 1;
-      }
-
-      if (item.severity === 'Kritik') {
-        acc[name].critical += 1;
-      }
-
-      return acc;
-    }, {})).map((person) => ({
-      ...person,
-      closeRate: person.total > 0 ? Math.round((person.closed / person.total) * 100) : 0,
-    })).sort((a, b) => {
-      if (b.total !== a.total) return b.total - a.total;
-      if (b.closed !== a.closed) return b.closed - a.closed;
-      return a.name.localeCompare(b.name, 'tr');
-    });
+    const detectedByPerformance = buildPersonnelPerformanceRows(
+      filteredRecords.filter((item) => {
+        const detector = String(item.detected_by ?? '').trim();
+        return detector && !NC_REPORT_EXCLUDED_DETECTORS.has(detector);
+      }),
+      (item) => String(item.detected_by ?? '').trim() || null
+    );
 
     const reportData = {
       id: `nonconformity-record-list-${Date.now()}`,
@@ -581,7 +599,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       periodEnd: period.toIso,
       statusCounts,
       severityCounts,
-      personnelPerformance,
+      responsiblePersonPerformance,
+      detectedByPerformance,
       items: filteredRecords.map((item) => ({
         record_number: getDisplayRecordNumber(item),
         part_code: item.part_code || '-',
@@ -591,6 +610,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
         quantity: item.quantity || 0,
         detection_date: item.detection_date ? new Date(item.detection_date).toLocaleDateString('tr-TR') : '-',
         status: item.status || '-',
+        detected_by: item.detected_by || '-',
         responsible_person: item.responsible_person || '-',
       })),
     };

@@ -2478,7 +2478,7 @@ const generateListReportHtml = (record, type) => {
 		`;
 	} else if (type === 'nonconformity_record_list') {
 		title = record.title || 'Uygunsuzluk Yönetimi Liste Raporu';
-		headers = ['Kayıt No', 'Parça Kodu', 'Parça Adı', 'Kategori', 'Ciddiyet', 'Adet', 'Tespit Tarihi', 'Durum', 'Sorumlu'];
+		headers = ['Kayıt No', 'Parça Kodu', 'Parça Adı', 'Kategori', 'Ciddiyet', 'Adet', 'Tespit Tarihi', 'Durum', 'Tespit Eden', 'Sorumlu Kişi'];
 		const escapeHtml = (value) => String(value ?? '-')
 			.replace(/&/g, '&amp;')
 			.replace(/</g, '&lt;')
@@ -2516,7 +2516,8 @@ const generateListReportHtml = (record, type) => {
 					<td style="text-align: center;">${item.quantity || 0}</td>
 					<td style="white-space: nowrap;">${item.detection_date || '-'}</td>
 					<td>${statusBadge}</td>
-					<td>${item.responsible_person || '-'}</td>
+					<td>${escapeHtml(item.detected_by)}</td>
+					<td>${escapeHtml(item.responsible_person)}</td>
 				</tr>
 			`;
 		}).join('');
@@ -2529,29 +2530,22 @@ const generateListReportHtml = (record, type) => {
 		const severitySummary = Object.entries(severityCounts)
 			.map(([severity, count]) => `<span style="margin-right: 15px;"><strong>${severity}:</strong> ${count}</span>`)
 			.join('');
-		const personnelPerformanceRows = (record.personnelPerformance || []).map(person => `
-			<tr>
-				<td>${escapeHtml(person.name)}</td>
-				<td style="text-align: center;">${person.total || 0}</td>
-				<td style="text-align: center;">${person.closed || 0}</td>
-				<td style="text-align: center;">${person.open || 0}</td>
-				<td style="text-align: center;">${person.critical || 0}</td>
-				<td style="text-align: center;">${person.quantity || 0}</td>
-				<td style="text-align: center;">%${person.closeRate || 0}</td>
-			</tr>
-		`).join('');
-
-		const ncPeriodInfo = record.periodStart && record.periodEnd
-			? `${record.periodStart} - ${record.periodEnd}`
-			: record.period || 'Tüm Zamanlar';
-		summaryHtml = `
-			<p><strong>Rapor dönemi:</strong> ${escapeHtml(ncPeriodInfo)}</p>
-			<p><strong>Toplam Uygunsuzluk Kaydı:</strong> ${totalCount}</p>
-			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
-			${severitySummary ? `<p><strong>Ciddiyet Dağılımı:</strong> ${severitySummary}</p>` : ''}
-			${personnelPerformanceRows ? `
+		const buildNcPersonnelPerformanceTable = (rows, title) => {
+			if (!rows?.length) return '';
+			const tableRows = rows.map((person) => `
+				<tr>
+					<td>${escapeHtml(person.name)}</td>
+					<td style="text-align: center;">${person.total || 0}</td>
+					<td style="text-align: center;">${person.closed || 0}</td>
+					<td style="text-align: center;">${person.open || 0}</td>
+					<td style="text-align: center;">${person.critical || 0}</td>
+					<td style="text-align: center;">${person.quantity || 0}</td>
+					<td style="text-align: center;">%${person.closeRate || 0}</td>
+				</tr>
+			`).join('');
+			return `
 				<div style="margin-top: 16px;">
-					<p><strong>Personel Performansı (Sorumlu Kişi Bazında):</strong></p>
+					<p><strong>${title}:</strong></p>
 					<table class="info-table" style="margin-top: 8px;">
 						<thead>
 							<tr>
@@ -2565,11 +2559,26 @@ const generateListReportHtml = (record, type) => {
 							</tr>
 						</thead>
 						<tbody>
-							${personnelPerformanceRows}
+							${tableRows}
 						</tbody>
 					</table>
 				</div>
-			` : ''}
+			`;
+		};
+
+		const responsiblePersonPerformance = record.responsiblePersonPerformance || [];
+		const detectedByPerformance = record.detectedByPerformance || [];
+
+		const ncPeriodInfo = record.periodStart && record.periodEnd
+			? `${record.periodStart} - ${record.periodEnd}`
+			: record.period || 'Tüm Zamanlar';
+		summaryHtml = `
+			<p><strong>Rapor dönemi:</strong> ${escapeHtml(ncPeriodInfo)}</p>
+			<p><strong>Toplam Uygunsuzluk Kaydı:</strong> ${totalCount}</p>
+			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
+			${severitySummary ? `<p><strong>Ciddiyet Dağılımı:</strong> ${severitySummary}</p>` : ''}
+			${buildNcPersonnelPerformanceTable(responsiblePersonPerformance, 'Personel Performansı (Sorumlu Kişi Bazında)')}
+			${buildNcPersonnelPerformanceTable(detectedByPerformance, 'Personel Performansı (Tespit Eden Bazında)')}
 		`;
 	} else if (type === 'nonconformity_list') {
 		title = 'Uygunsuzluk (DF/8D) Listesi Raporu';
