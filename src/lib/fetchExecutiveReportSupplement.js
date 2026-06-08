@@ -246,6 +246,116 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
         }
     })();
 
+    const controlFormExecutionsPromise = (async () => {
+        try {
+            return await fetchPaginated(() =>
+                supabase
+                    .from('control_form_executions')
+                    .select(
+                        'id, execution_no, result, inspection_date, created_at, serial_number, control_form_templates(name, document_no)'
+                    )
+                    .gte('created_at', s)
+                    .lte('created_at', e)
+                    .order('created_at', { ascending: false })
+            );
+        } catch (err) {
+            console.warn('control_form_executions executive supplement:', err?.message || err);
+            return [];
+        }
+    })();
+
+    const inkrReportsPromise = (async () => {
+        try {
+            const [a, b] = await Promise.all([
+                fetchPaginated(() =>
+                    supabase
+                        .from('inkr_reports')
+                        .select('*, supplier:supplier_id(name)')
+                        .not('report_date', 'is', null)
+                        .gte('report_date', s)
+                        .lte('report_date', e)
+                        .order('report_date', { ascending: false })
+                ),
+                fetchPaginated(() =>
+                    supabase
+                        .from('inkr_reports')
+                        .select('*, supplier:supplier_id(name)')
+                        .is('report_date', null)
+                        .gte('created_at', s)
+                        .lte('created_at', e)
+                        .order('created_at', { ascending: false })
+                ),
+            ]);
+            return mergeById([...a, ...b]);
+        } catch (err) {
+            console.warn('inkr_reports executive supplement:', err?.message || err);
+            return [];
+        }
+    })();
+
+    const complaintAnalysesPromise = (async () => {
+        try {
+            return await fetchPaginated(() =>
+                supabase.from('complaint_analyses').select('*').order('created_at', { ascending: false })
+            );
+        } catch (err) {
+            console.warn('complaint_analyses executive supplement:', err?.message || err);
+            return [];
+        }
+    })();
+
+    const complaintActionsPromise = (async () => {
+        try {
+            return await fetchPaginated(() =>
+                supabase
+                    .from('complaint_actions')
+                    .select(
+                        '*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name)'
+                    )
+                    .order('created_at', { ascending: false })
+            );
+        } catch (err) {
+            console.warn('complaint_actions executive supplement:', err?.message || err);
+            return [];
+        }
+    })();
+
+    const deviationsPromise = (async () => {
+        try {
+            return await fetchPaginated(() =>
+                supabase
+                    .from('deviations')
+                    .select(
+                        'id, request_no, created_at, status, source, source_type, deviation_type, requesting_unit, requesting_person, part_code, part_name, vehicle_type, description, deviation_reason'
+                    )
+                    .gte('created_at', s)
+                    .lte('created_at', e)
+                    .order('created_at', { ascending: false })
+            );
+        } catch (err) {
+            console.warn('deviations executive supplement:', err?.message || err);
+            return [];
+        }
+    })();
+
+    const kaizenEntriesPromise = (async () => {
+        try {
+            return await fetchPaginated(() =>
+                supabase
+                    .from('kaizen_entries')
+                    .select(
+                        '*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'
+                    )
+                    .gte('created_at', s)
+                    .lte('created_at', e)
+                    .order('created_at', { ascending: false })
+            );
+        } catch (err) {
+            console.warn('kaizen_entries executive supplement:', err?.message || err);
+            return [];
+        }
+    })();
+
     const fanBalanceRecordsPromise = (async () => {
         try {
             const inRange = await fetchPaginated(() =>
@@ -291,6 +401,12 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
         leakTestRecords,
         fanBalanceRecords,
         equipments,
+        controlFormExecutions,
+        inkrReports,
+        complaintAnalyses,
+        complaintActions,
+        deviations,
+        kaizenEntries,
     ] = await Promise.all([
         vehiclesPromise,
         ncRecordsPromise,
@@ -307,6 +423,12 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
         leakTestRecordsPromise,
         fanBalanceRecordsPromise,
         equipmentsPromise,
+        controlFormExecutionsPromise,
+        inkrReportsPromise,
+        complaintAnalysesPromise,
+        complaintActionsPromise,
+        deviationsPromise,
+        kaizenEntriesPromise,
     ]);
 
     return {
@@ -325,5 +447,11 @@ export async function fetchExecutiveReportSupplement({ startDate, endDate }) {
         leakTestRecords,
         fanBalanceRecords,
         equipments: equipments ?? undefined,
+        controlFormExecutions,
+        inkrReports,
+        complaintAnalyses,
+        complaintActions,
+        deviations,
+        kaizenEntries,
     };
 }

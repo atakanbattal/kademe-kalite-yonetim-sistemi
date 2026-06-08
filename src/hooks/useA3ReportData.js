@@ -508,8 +508,8 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 producedVehicles: (supplement?.producedVehicles ?? ctx.producedVehicles) || [],
                 productionDepartments: ctx.productionDepartments || [],
                 customerComplaints: (supplement?.customerComplaints ?? ctx.customerComplaints) || [],
-                kaizenEntries: ctx.kaizenEntries || [],
-                deviations: ctx.deviations || [],
+                kaizenEntries: (supplement?.kaizenEntries ?? ctx.kaizenEntries) || [],
+                deviations: (supplement?.deviations ?? ctx.deviations) || [],
                 equipments: (executiveReport && supplement?.equipments != null ? supplement.equipments : ctx.equipments) || [],
                 audits: ctx.audits || [],
                 auditFindings: ctx.auditFindings || [],
@@ -520,7 +520,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 suppliers: ctx.suppliers || [],
                 supplierNonConformities: (supplement?.supplierNonConformities ?? ctx.supplierNonConformities) || [],
                 incomingControlPlans: ctx.incomingControlPlans || [],
-                processControlPlans: ctx.processControlPlans || [],
+                processControlPlans: (supplement?.processControlPlans ?? ctx.processControlPlans) || [],
                 trainings: (() => {
                     if (executiveReport && supplement && Array.isArray(supplement.trainingsRaw)) {
                         return supplement.trainingsRaw.filter((t) =>
@@ -529,10 +529,10 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                     }
                     return ctx.trainings || [];
                 })(),
-                complaintAnalyses: ctx.complaintAnalyses || [],
-                complaintActions: ctx.complaintActions || [],
+                complaintAnalyses: (supplement?.complaintAnalyses ?? ctx.complaintAnalyses) || [],
+                complaintActions: (supplement?.complaintActions ?? ctx.complaintActions) || [],
                 stockRiskControls: (supplement?.stockRiskControls ?? ctx.stockRiskControls) || [],
-                inkrReports: ctx.inkrReports || [],
+                inkrReports: (supplement?.inkrReports ?? ctx.inkrReports) || [],
             };
 
             let qualityGoalsFetched = [];
@@ -560,6 +560,15 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 if (!cfRes.error && cfRes.data) controlFormExecFetched = cfRes.data;
             } catch (extraFetchErr) {
                 console.warn('A3/icra raporu ek kalite verileri:', extraFetchErr);
+            }
+
+            if (executiveReport && supplement) {
+                if (Array.isArray(supplement.processInspections)) {
+                    processInspectionFetched = supplement.processInspections;
+                }
+                if (Array.isArray(supplement.controlFormExecutions)) {
+                    controlFormExecFetched = supplement.controlFormExecutions;
+                }
             }
 
             let fixtureRows = [];
@@ -624,6 +633,15 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 const sev = r.severity || 'Belirtilmemiş';
                 ncRecordsBySeverity[sev] = (ncRecordsBySeverity[sev] || 0) + 1;
             });
+            const ncRecordsByDetectionArea = {};
+            ncRecordsData.forEach(r => {
+                const area = r.detection_area || 'Belirtilmemiş';
+                ncRecordsByDetectionArea[area] = (ncRecordsByDetectionArea[area] || 0) + 1;
+            });
+            const ncByDetectionAreaArr = Object.entries(ncRecordsByDetectionArea)
+                .map(([name, value]) => ({ name, value }))
+                .sort((a, b) => b.value - a.value)
+                .slice(0, XL);
             const ncRecordsOpen = ncRecordsData.filter(r => r.status !== 'Kapatıldı').length;
             const ncRecordTotalQuantity = ncRecordsData.reduce((sum, record) => sum + (Number(record.quantity) || 0), 0);
             const ncRecordDfSuggested = ncRecordsData.filter(r => r.status === 'DF Önerildi').length;
@@ -1188,6 +1206,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                     rejectedBySupplier[key].count += 1;
                 });
             const topRejectedSuppliers = Object.values(rejectedBySupplier)
+                .filter((item) => item.count > 0)
                 .map(item => ({ name: item.name.slice(0, 22), count: item.count }))
                 .sort((a, b) => b.count - a.count)
                 .slice(0, XL);
@@ -1218,6 +1237,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                 else row.pendingCount += 1;
             });
             const incomingSupplierBreakdownArr = Object.values(incomingSupplierBreakdown)
+                .filter((r) => !executiveReport || r.rejectedCount > 0 || r.qtyRejected > 0)
                 .sort((a, b) => b.qtyRejected - a.qtyRejected || b.inspections - a.inspections)
                 .slice(0, executiveReport ? 36 : 18);
 
@@ -2201,6 +2221,28 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                         const leakFailed = lt.filter((r) => r.test_result === 'Kaçak Var').length;
                         const leakSuccessRatePct =
                             lt.length > 0 ? roundTo((leakAccepted / lt.length) * 100, 1) : null;
+                        const leakMonthly = {};
+                        lt.forEach((r) => {
+                            const rawDate = r.test_date;
+                            if (!rawDate || !isValid(parseISO(rawDate))) return;
+                            const month = format(parseISO(rawDate), 'MMM yy', { locale: tr });
+                            const t = parseISO(rawDate).getTime();
+                            if (!leakMonthly[month]) {
+                                leakMonthly[month] = { name: month, sort: t, total: 0, accepted: 0, failed: 0 };
+                            }
+                            leakMonthly[month].total += 1;
+                            if (r.test_result === 'Kabul') leakMonthly[month].accepted += 1;
+                            if (r.test_result === 'Kaçak Var') leakMonthly[month].failed += 1;
+                        });
+                        const leakMonthlyArr = Object.values(leakMonthly)
+                            .sort((a, b) => a.sort - b.sort)
+                            .slice(-8)
+                            .map((m) => ({
+                                ...m,
+                                successRatePct: m.total > 0 ? roundTo((m.accepted / m.total) * 100, 1) : null,
+                            }));
+                        const piRejected = pi.filter((x) => x.decision === 'Ret').length;
+                        const piRejectionRatePct = pi.length > 0 ? roundTo((piRejected / pi.length) * 100, 1) : null;
                         const isBalancePass = (r) =>
                             r.overall_result === 'PASS' ||
                             (r.left_plane_result === 'PASS' && r.right_plane_result === 'PASS');
@@ -2208,13 +2250,16 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                         return {
                             processInspections: {
                                 total: pi.length,
+                                rejectedCount: piRejected,
+                                rejectionRatePct: piRejectionRatePct,
                                 byDecision: Object.entries(
                                     pi.reduce((acc, x) => {
                                         const d = x.decision || '—';
                                         acc[d] = (acc[d] || 0) + 1;
                                         return acc;
                                     }, {})
-                                ).map(([name, value]) => ({ name, value })),
+                                ).map(([name, value]) => ({ name, value }))
+                                    .sort((a, b) => b.value - a.value),
                                 recent: pi.slice(0, 14).map((x) => ({
                                     recordNo: x.record_no || '—',
                                     date: x.inspection_date,
@@ -2239,6 +2284,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                                 acceptedCount: leakAccepted,
                                 failCount: leakFailed,
                                 successRatePct: leakSuccessRatePct,
+                                monthly: leakMonthlyArr,
                                 byResult: Object.entries(leakByResult)
                                     .map(([name, value]) => ({ name, value }))
                                     .sort((a, b) => b.value - a.value),
@@ -2268,8 +2314,38 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                     })()
                     : null;
 
+            const dataCoverage = executiveReport
+                ? {
+                    fullFetch: !!supplement,
+                    records: {
+                        nonconformityRecords: ncRecordsData.length,
+                        df8d: ncData.length,
+                        incomingInspections: incomingData.length,
+                        producedVehicles: vehicleData.length,
+                        customerComplaints: complaintData.length,
+                        complaintAnalyses: complaintAnalysesData.length,
+                        complaintActions: complaintActionsData.length,
+                        processInspections: processInspectionFetched.length,
+                        controlFormExecutions: controlFormExecFetched.length,
+                        leakTests: supplement?.leakTestRecords?.length ?? 0,
+                        fanBalance: supplement?.fanBalanceRecords?.length ?? 0,
+                        stockRisk: stockRiskData.length,
+                        inkrIncoming: inkrData.length,
+                        deviations: deviationData.length,
+                        kaizen: kaizenData.length,
+                        supplierNc: supplierNcData.length,
+                        trainings: trainingData.length,
+                    },
+                }
+                : undefined;
+
             setData({
-                meta: { periodLabel, generatedAt: new Date().toISOString(), totalPersonnel: personnelData.length },
+                meta: {
+                    periodLabel,
+                    generatedAt: new Date().toISOString(),
+                    totalPersonnel: personnelData.length,
+                    dataCoverage,
+                },
                 kpis: {
                     openDF, open8D,
                     totalNc: ncData.length, closedNc, avgClosureDays,
@@ -2372,6 +2448,7 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
                     totalQuantity: ncRecordTotalQuantity,
                     byStatus: Object.entries(ncRecordsByStatus).map(([name, value]) => ({ name, value })),
                     bySeverity: Object.entries(ncRecordsBySeverity).map(([name, value]) => ({ name, value })),
+                    byDetectionArea: ncByDetectionAreaArr,
                     topCategories: ncTopCategories,
                     topParts: ncTopParts,
                     responsibleLoad: ncResponsibleLoad,

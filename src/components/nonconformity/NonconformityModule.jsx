@@ -34,7 +34,7 @@ import {
   parseNonconformityRecordNumber
 } from '@/lib/vehicleFaultNonconformitySync';
 import { backfillProcessInspectionNonconformities } from '@/lib/processInspectionNonconformitySync';
-import { backfillLeakTestNonconformities } from '@/lib/leakTestNonconformitySync';
+import { backfillLeakTestNonconformities, parseLeakFieldsFromDescription } from '@/lib/leakTestNonconformitySync';
 import {
   buildLeakDraftAnalysesForUyGroup,
   buildLeakDraftAnalysesForUyRecord,
@@ -677,23 +677,30 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       ? `${firstMeaningfulLine} (Kaynak UYG: ${recNo})`
       : fallbackRefTitle;
 
+    const leakParsed = isLeakUyRecord(record) ? parseLeakFieldsFromDescription(record) : null;
+
     const ncFormData = {
       title: titleForDf,
       description: L.filter(l => l !== null).join('\n'),
       problem_definition: uyDesc || undefined,
       type: selectedType,
-      part_code: record.part_code || '',
-      part_name: record.part_name || '',
-      vehicle_type: record.vehicle_type || '',
+      part_code: leakParsed?.part_code || record.part_code || '',
+      part_name: leakParsed?.part_name || record.part_name || '',
+      vehicle_type: leakParsed?.vehicle_type || record.vehicle_type || '',
+      vehicle_identifier: leakParsed?.vehicle_identifier || record.vehicle_identifier || '',
       responsible_person: record.responsible_person || '',
-      department: record.department || '',
-      requesting_person: record.detected_by || record.responsible_person || '',
+      department: record.department || (leakParsed ? 'Üretim' : ''),
+      requesting_person: record.detected_by || leakParsed?.detected_by || record.responsible_person || '',
       requesting_unit: record.department || '',
       priority: record.severity === 'Kritik' ? 'Kritik' : record.severity === 'Yüksek' ? 'Yüksek' : 'Orta',
     };
 
     if (isLeakUyRecord(record)) {
       Object.assign(ncFormData, buildLeakDraftAnalysesForUyRecord(record));
+      if (/Kaynak\s+tedarikçi:/i.test(uyDesc)) {
+        ncFormData.department = 'Tedarikçi';
+        ncFormData.requesting_unit = 'Tedarikçi';
+      }
     }
 
     // DF/8D formunu aç

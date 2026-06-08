@@ -13,6 +13,12 @@ import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink, Clipboa
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeQuarantineAttachments } from '@/lib/quarantineAttachments';
 import { QUARANTINE_DECISION_TYPES } from '@/lib/quarantineDecisionCertificate';
+import {
+    isHurdaDecision,
+    isPendingHurdaHistoryEntry,
+    saveQuarantineHistoryEntry,
+    syncQuarantineRecordFromLatestHistory,
+} from '@/lib/quarantineHurdaPending';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeFileName, getAttachmentDisplayName } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +51,7 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
 
     // Inline hurda tutanağı yükleme (geçmiş sekmesindeki bekleyen girişler için)
     const [hurdaUploadingId, setHurdaUploadingId] = useState(null);
+    const [historyDecisionSavingId, setHistoryDecisionSavingId] = useState(null);
     const hurdaFileRefs = useRef({});
 
     const fetchHistory = useCallback(async () => {
@@ -250,12 +257,22 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
             if (!publicUrl) throw new Error('Dosya adresi alınamadı.');
 
             if (certHistoryId) {
+                const historyPatch = { deviation_approval_url: publicUrl };
+                if (certDecision) {
+                    historyPatch.decision = certDecision;
+                    if (!isHurdaDecision(certDecision)) {
+                        historyPatch.quality_cost_id = null;
+                    }
+                }
                 const { error: hErr } = await supabase
                     .from('quarantine_history')
-                    .update({ deviation_approval_url: publicUrl })
+                    .update(historyPatch)
                     .eq('id', certHistoryId);
                 if (hErr) throw new Error(hErr.message);
                 await fetchHistory();
+                if (certDecision) {
+                    await syncQuarantineRecordFromLatestHistory(record.id);
+                }
             } else {
                 const prev = normalizeQuarantineAttachments(record.attachments);
                 const newAtt = {
@@ -323,9 +340,39 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
     };
 
     const pendingHurdaCount = useMemo(
-        () => history.filter((h) => h.decision === 'Hurda' && !h.deviation_approval_url && !h.quality_cost_id).length,
+        () => history.filter((h) => isPendingHurdaHistoryEntry(h)).length,
         [history]
     );
+
+    const handleHistoryDecisionChange = async (entry, newDecision) => {
+        if (!entry?.id || !record?.id || !newDecision || newDecision === entry.decision) return;
+        setHistoryDecisionSavingId(entry.id);
+        try {
+            await saveQuarantineHistoryEntry({
+                id: entry.id,
+                quarantine_record_id: record.id,
+                decision: newDecision,
+                processed_quantity: entry.processed_quantity,
+                notes: entry.notes,
+                decision_date: entry.decision_date,
+            });
+            await fetchHistory();
+            await reloadRecord();
+            refreshData?.();
+            toast({
+                title: 'Karar güncellendi',
+                description: `İşlem «${newDecision}» olarak kaydedildi; hurda tutanağı artık istenmiyor.`,
+            });
+        } catch (err) {
+            toast({
+                variant: 'destructive',
+                title: 'Karar güncellenemedi',
+                description: err?.message || 'Kayıt güncellenemedi.',
+            });
+        } finally {
+            setHistoryDecisionSavingId(null);
+        }
+    };
 
     const handleDownloadPDF = (e) => {
         if (e) {
@@ -727,7 +774,7 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                                                                         İmzalı hurda tutanağı mevcut.
                                                                     </p>
                                                                 )}
-                                                                {h.decision === 'Hurda' && !h.quality_cost_id && !h.deviation_approval_url && (
+                                                                {isPendingHurdaHistoryEntry(h) && (
                                                                     <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 p-3 space-y-2">
                                                                         <div className="flex items-center gap-2">
                                                                             <FileWarning className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -736,8 +783,27 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                                                                             </p>
                                                                         </div>
                                                                         <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                                                                            Bu işlem için imzalı PDF henüz yüklenmedi.
+                                                                            Kararı değiştirirseniz (ör. İade) tutanak zorunluluğu kalkar.
                                                                         </p>
+                                                                        <div className="space-y-1">
+                                                                            <Label className="text-[10px] text-amber-800 dark:text-amber-300">Karar türü</Label>
+                                                                            <Select
+                                                                                value={h.decision}
+                                                                                disabled={historyDecisionSavingId === h.id}
+                                                                                onValueChange={(value) => handleHistoryDecisionChange(h, value)}
+                                                                            >
+                                                                                <SelectTrigger className="h-8 text-xs bg-background">
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {QUARANTINE_DECISION_TYPES.map((d) => (
+                                                                                        <SelectItem key={d} value={d}>
+                                                                                            {d}
+                                                                                        </SelectItem>
+                                                                                    ))}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </div>
                                                                         <input
                                                                             ref={(el) => { hurdaFileRefs.current[h.id] = el; }}
                                                                             type="file"

@@ -23,8 +23,15 @@ import {
     writeProcessInspectionFlow,
 } from '@/lib/processInspectionFlowKeys';
 import { startProcessInspectionResolution } from '@/lib/finalizeProcessInspectionResolution';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { resolveModuleDateRange } from '@/lib/moduleDateRange';
 
-const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenConsumed }) => {
+const ProcessInspectionManagement = ({
+    externalOpenInspectionId,
+    onExternalOpenConsumed,
+    dateRange: externalDateRange,
+    onDateRangeChange,
+}) => {
     const { toast } = useToast();
     const navigate = useNavigate();
     const [inspections, setInspections] = useState([]);
@@ -38,8 +45,12 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [decisionFilter, setDecisionFilter] = useState('all');
     const [resolutionFilter, setResolutionFilter] = useState('all');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
+    const [localDateRange, setLocalDateRange] = useState(null);
+    const dateRange = externalDateRange !== undefined ? externalDateRange : localDateRange;
+    const setDateRange = onDateRangeChange || setLocalDateRange;
+    const resolvedDates = resolveModuleDateRange(dateRange);
+    const dateFrom = resolvedDates.fromIso || '';
+    const dateTo = resolvedDates.toIso || '';
 
     useEffect(() => {
         const id = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 500);
@@ -475,29 +486,9 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="pi-from" className="text-xs text-muted-foreground">
-                            Tarih başlangıç
-                        </Label>
-                        <input
-                            id="pi-from"
-                            type="date"
-                            value={dateFrom}
-                            onChange={(e) => setDateFrom(e.target.value)}
-                            className="flex h-10 w-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="pi-to" className="text-xs text-muted-foreground">
-                            Tarih bitiş
-                        </Label>
-                        <input
-                            id="pi-to"
-                            type="date"
-                            value={dateTo}
-                            onChange={(e) => setDateTo(e.target.value)}
-                            className="flex h-10 w-[160px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
+                    <div className="space-y-1.5 min-w-[220px]">
+                        <Label className="text-xs text-muted-foreground">Tarih aralığı</Label>
+                        <DateRangePicker date={dateRange} onDateChange={(range) => setDateRange(range || null)} />
                     </div>
                     {(dateFrom || dateTo || decisionFilter !== 'all' || resolutionFilter !== 'all') && (
                         <Button
@@ -508,8 +499,7 @@ const ProcessInspectionManagement = ({ externalOpenInspectionId, onExternalOpenC
                             onClick={() => {
                                 setDecisionFilter('all');
                                 setResolutionFilter('all');
-                                setDateFrom('');
-                                setDateTo('');
+                                setDateRange(null);
                             }}
                         >
                             Filtreleri temizle

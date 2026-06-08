@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/customSupabaseClient';
+import { saveQuarantineHistoryEntry } from '@/lib/quarantineHurdaPending';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import { PlusCircle, Trash2, Edit, History } from 'lucide-react';
@@ -79,20 +80,26 @@ const QuarantineHistoryModal = ({ isOpen, setIsOpen, record, refreshData }) => {
             return;
         }
 
-        const { id, ...dbData } = currentEntry;
-        
-        const { error } = id
-            ? await supabase.from('quarantine_history').update(dbData).eq('id', id)
-            : await supabase.from('quarantine_history').insert(dbData);
-
-        if (error) {
-            toast({ variant: 'destructive', title: 'Hata!', description: `İşlem kaydedilemedi: ${error.message}` });
-        } else {
+        try {
+            await saveQuarantineHistoryEntry({
+                id: currentEntry.id,
+                quarantine_record_id: currentEntry.quarantine_record_id,
+                decision: currentEntry.decision,
+                processed_quantity: currentEntry.processed_quantity,
+                notes: currentEntry.notes,
+                decision_date: currentEntry.decision_date,
+            });
             toast({ title: 'Başarılı!', description: 'İşlem başarıyla kaydedildi.' });
             setIsEditing(false);
             setCurrentEntry(null);
             fetchHistory();
             refreshData();
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata!',
+                description: `İşlem kaydedilemedi: ${error?.message || 'Bilinmeyen hata'}`,
+            });
         }
     };
 

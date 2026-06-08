@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { BarChart3, Droplets, FileSpreadsheet, List, Plus, Presentation } from 'lucide-react';
+import { BarChart3, Droplets, FileSpreadsheet, List, Plus } from 'lucide-react';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { isWithinModuleDateRange, resolveModuleDateRange } from '@/lib/moduleDateRange';
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -33,6 +34,7 @@ const LeakTestModule = () => {
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [activeTab, setActiveTab] = useState('list');
+    const [dateRange, setDateRange] = useState(null);
     const [resolutionRecord, setResolutionRecord] = useState(null);
     const [isResolutionModalOpen, setResolutionModalOpen] = useState(false);
 
@@ -124,16 +126,25 @@ const LeakTestModule = () => {
         setResolutionModalOpen(true);
     }, []);
 
+    const filteredRecords = useMemo(
+        () => records.filter((r) => isWithinModuleDateRange(r.test_date, dateRange)),
+        [records, dateRange]
+    );
+
     const handleLeakTestListReport = useCallback(() => {
-        if (!records.length) {
-            toast({ variant: 'destructive', title: 'Rapor', description: 'Listelenecek sızdırmazlık kaydı yok.' });
+        if (!filteredRecords.length) {
+            toast({ variant: 'destructive', title: 'Rapor', description: 'Seçili tarih aralığında listelenecek sızdırmazlık kaydı yok.' });
             return;
         }
+        const period = resolveModuleDateRange(dateRange);
         openPrintableReport(
             {
                 id: `leak-test-list-${Date.now()}`,
                 title: 'Sızdırmazlık Test Listesi Raporu',
-                items: records.map((r) => ({
+                period: period.label,
+                periodStart: period.fromIso,
+                periodEnd: period.toIso,
+                items: filteredRecords.map((r) => ({
                     record_number: r.record_number,
                     test_date: r.test_date,
                     test_result: r.test_result,
@@ -148,7 +159,7 @@ const LeakTestModule = () => {
             'leak_test_list',
             true
         );
-    }, [records, toast]);
+    }, [filteredRecords, dateRange, toast]);
 
     if (!schemaReady) {
         return (
@@ -185,15 +196,12 @@ const LeakTestModule = () => {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleLeakTestListReport} disabled={loading || !records.length}>
+                        <div className="w-[220px]">
+                            <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleLeakTestListReport} disabled={loading || !filteredRecords.length}>
                             <FileSpreadsheet className="mr-2 h-4 w-4" />
                             Rapor Al
-                        </Button>
-                        <Button variant="outline" size="sm" asChild>
-                            <Link to="/print/executive-presentation" target="_blank" rel="noopener noreferrer">
-                                <Presentation className="mr-2 h-4 w-4" />
-                                Yönetici özeti
-                            </Link>
                         </Button>
                         <Button onClick={handleAddNew}>
                             <Plus className="mr-2 h-4 w-4" />
@@ -217,7 +225,7 @@ const LeakTestModule = () => {
                     <TabsContent value="list" className="mt-6">
                         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
                             <LeakTestList
-                                records={records}
+                                records={filteredRecords}
                                 loading={loading}
                                 onView={handleView}
                                 onEdit={handleEdit}
@@ -229,7 +237,7 @@ const LeakTestModule = () => {
 
                     <TabsContent value="dashboard" className="mt-6">
                         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-                            <LeakTestDashboard records={records} loading={loading} />
+                            <LeakTestDashboard records={filteredRecords} loading={loading} />
                         </motion.div>
                     </TabsContent>
                 </Tabs>

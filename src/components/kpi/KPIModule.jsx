@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, RefreshCw, Search, CheckCircle2, AlertCircle,
-    TrendingUp, BarChart3, Target, Zap, Clock, FileSpreadsheet, Presentation, Filter,
+    TrendingUp, BarChart3, Target, Zap, Clock, FileSpreadsheet, Filter,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -287,11 +286,6 @@ const KPIModule = ({ onOpenNCForm }) => {
                         disabled={loading || kpis.length === 0}
                     >
                         <FileSpreadsheet className="w-4 h-4 mr-2" /> Rapor Al
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                        <Link to="/print/executive-presentation" target="_blank" rel="noopener noreferrer">
-                            <Presentation className="w-4 h-4 mr-2" /> Yönetici özeti
-                        </Link>
                     </Button>
                     <Button size="sm" onClick={() => setAddModalOpen(true)}>
                         <Plus className="w-4 h-4 mr-2" /> Yeni KPI

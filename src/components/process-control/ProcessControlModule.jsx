@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { openPrintableReport } from '@/lib/reportUtils';
@@ -12,7 +11,9 @@ import ProcessInkrManagement from './ProcessInkrManagement';
 import ProcessInspectionManagement from './ProcessInspectionManagement';
 import ProcessControlAnalytics from './ProcessControlAnalytics';
 import ProcessControlFolderDownloadModal from './ProcessControlFolderDownloadModal';
-import { Download, FileSpreadsheet, Presentation } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { isWithinModuleDateRange, resolveModuleDateRange } from '@/lib/moduleDateRange';
 import { enrichProcessInkrReports } from './processInkrUtils';
 
 const PROCESS_CONTROL_TABS = [
@@ -32,6 +33,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
     const [pendingInspectionOpenId, setPendingInspectionOpenId] = useState(null);
+    const [dateRange, setDateRange] = useState(null);
 
     const enrichedInkrReports = useMemo(
         () => enrichProcessInkrReports(inkrReports, plans),
@@ -146,16 +148,25 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
         loadData();
     }, [fetchPlans, fetchInkrReports, fetchInspections]);
 
+    const filteredInspectionsForReport = useMemo(
+        () => inspections.filter((i) => isWithinModuleDateRange(i.inspection_date, dateRange)),
+        [inspections, dateRange]
+    );
+
     const handleProcessInspectionListReport = useCallback(() => {
-        if (!inspections.length) {
-            toast({ variant: 'destructive', title: 'Rapor', description: 'Yazdırılacak muayene kaydı yok.' });
+        if (!filteredInspectionsForReport.length) {
+            toast({ variant: 'destructive', title: 'Rapor', description: 'Seçili tarih aralığında yazdırılacak muayene kaydı yok.' });
             return;
         }
+        const period = resolveModuleDateRange(dateRange);
         openPrintableReport(
             {
                 id: `process-inspection-list-${Date.now()}`,
                 title: 'Proses Muayene Listesi Raporu',
-                items: inspections.map((i) => ({
+                period: period.label,
+                periodStart: period.fromIso,
+                periodEnd: period.toIso,
+                items: filteredInspectionsForReport.map((i) => ({
                     record_no: i.record_no,
                     part_code: i.part_code,
                     inspection_date: i.inspection_date,
@@ -166,7 +177,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
             'process_inspection_list',
             true
         );
-    }, [inspections, toast]);
+    }, [filteredInspectionsForReport, dateRange, toast]);
 
     const clearPendingInspectionOpen = useCallback(() => {
         setPendingInspectionOpenId(null);
@@ -191,15 +202,12 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:self-start">
-                        <Button variant="outline" size="sm" onClick={handleProcessInspectionListReport} disabled={loading || !inspections.length}>
+                        <div className="w-[220px]">
+                            <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleProcessInspectionListReport} disabled={loading || !filteredInspectionsForReport.length}>
                             <FileSpreadsheet className="mr-2 h-4 w-4" />
                             Rapor Al
-                        </Button>
-                        <Button variant="outline" size="sm" asChild>
-                            <Link to="/print/executive-presentation" target="_blank" rel="noopener noreferrer">
-                                <Presentation className="mr-2 h-4 w-4" />
-                                Yönetici özeti
-                            </Link>
                         </Button>
                         <Button onClick={() => setIsFolderDownloadOpen(true)}>
                             <Download className="mr-2 h-4 w-4" />
@@ -228,7 +236,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                         <ProcessControlDashboard 
                             plans={plans}
                             inkrReports={enrichedInkrReports}
-                            inspections={inspections}
+                            inspections={filteredInspectionsForReport}
                             loading={loading}
                             onTabChange={setActiveTab}
                         />
@@ -238,11 +246,17 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                         <ProcessInspectionManagement
                             externalOpenInspectionId={pendingInspectionOpenId}
                             onExternalOpenConsumed={clearPendingInspectionOpen}
+                            dateRange={dateRange}
+                            onDateRangeChange={setDateRange}
                         />
                     </TabsContent>
 
                     <TabsContent value="analytics" className="mt-6">
-                        <ProcessControlAnalytics onOpenInspectionRecord={openInspectionFromAnalytics} />
+                        <ProcessControlAnalytics
+                            onOpenInspectionRecord={openInspectionFromAnalytics}
+                            dateRange={dateRange}
+                            onDateRangeChange={setDateRange}
+                        />
                     </TabsContent>
 
                     <TabsContent value="plans" className="mt-6">

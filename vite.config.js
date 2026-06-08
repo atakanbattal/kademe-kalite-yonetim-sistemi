@@ -5,6 +5,7 @@ import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-e
 import editModeDevPlugin from './plugins/visual-editor/vite-plugin-edit-mode.js';
 import iframeRouteRestorationPlugin from './plugins/vite-plugin-iframe-route-restoration.js';
 import createReportPdfPlugin from './plugins/vite-plugin-report-pdf.js';
+import createManageUserPlugin from './plugins/vite-plugin-manage-user.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -234,7 +235,7 @@ logger.error = (msg, options) => {
 export default defineConfig({
 	customLogger: logger,
 	plugins: [
-		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), iframeRouteRestorationPlugin(), createReportPdfPlugin()] : []),
+		...(isDev ? [createManageUserPlugin(), inlineEditPlugin(), editModeDevPlugin(), iframeRouteRestorationPlugin(), createReportPdfPlugin()] : []),
 		react(),
 		addTransformIndexHtml
 	],
@@ -243,13 +244,6 @@ export default defineConfig({
 		allowedHosts: true,
 		port: 3003,
 		host: '::',
-		proxy: {
-			'/api': {
-				target: 'https://kademekalite.online',
-				changeOrigin: true,
-				secure: true,
-			},
-		},
 	},
 	// Safari / iframe: node_modules/.vite/deps/*.js.map istekleri "access control" ile düşebilir
 	// Radix paketlerini önceden bundle etmek, "504 Outdated Optimize Dep" hatalarını azaltır

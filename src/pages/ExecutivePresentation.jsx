@@ -123,12 +123,26 @@ const ExecutivePresentation = () => {
 
     if (error || !data) return <div style={{ textAlign: 'center', padding: 60, color: C.red, fontSize: 16, fontWeight: 600 }}>{error || 'Sunum verileri yüklenemedi.'}</div>;
 
-    const { kpis, ncByDept, ncByType, ncMonthly, costByType, costMonthly, costByUnit, costBurden,
+    const { meta, kpis, ncByDept, ncByType, ncMonthly, costByType, costMonthly, costByUnit, costBurden,
             incoming, suppliers, vehicles, complaints, nonconformityModule, governance,
             deviations, kaizen, fixtureTracking, qualityActivities,
             df8dResponsiblePerformance, df8dRequesterContribution,
             openNC, activeQuarantine, overdueCalibrations,
             stockRisk, inkrIncoming, executiveProcessQuality } = data;
+
+    const dataCoverage = meta?.dataCoverage;
+    const coverageRows = dataCoverage?.records
+        ? [
+            { label: 'Uygunsuzluk modülü', value: dataCoverage.records.nonconformityRecords },
+            { label: 'DF/8D', value: dataCoverage.records.df8d },
+            { label: 'Girdi muayene', value: dataCoverage.records.incomingInspections },
+            { label: 'Üretilen araç', value: dataCoverage.records.producedVehicles },
+            { label: 'Proses muayene', value: dataCoverage.records.processInspections },
+            { label: 'Sızdırmazlık testi', value: dataCoverage.records.leakTests },
+            { label: 'Müşteri şikayeti', value: dataCoverage.records.customerComplaints },
+            { label: 'Stok risk', value: dataCoverage.records.stockRisk },
+        ].filter((r) => r.value > 0)
+        : [];
 
     const epq = executiveProcessQuality;
     const hasProcInspRows = (epq?.processInspections?.total ?? 0) > 0 || (epq?.processInspections?.recent?.length ?? 0) > 0;
@@ -246,10 +260,22 @@ const ExecutivePresentation = () => {
                     <p style={{maxWidth:520,margin:'14px 0 0',fontSize:13,opacity:.62,lineHeight:1.55}}>
                         Performans göstergeleri ve modül özetleri izleyen slaytlarda sunulmaktadır.
                     </p>
+                    {dataCoverage && (
+                        <div style={{ marginTop: 28, background: 'rgba(255,255,255,.08)', borderRadius: 12, padding: '14px 28px', maxWidth: 720 }}>
+                            <div style={{ fontSize: 10, opacity: .55, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
+                                Dönem veri kapsamı {dataCoverage.fullFetch ? '(tam sayfalı çekim)' : '(yedek kaynak)'}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px 20px', fontSize: 11, opacity: .82, textAlign: 'left' }}>
+                                {coverageRows.slice(0, 8).map((r) => (
+                                    <div key={r.label}><span style={{ opacity: .65 }}>{r.label}:</span> <strong>{fmtNum(r.value)}</strong></div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* ═══ 2 — KPI ÖZETİ ═══ */}
-                <Slide title="Kalite Performans Göstergeleri (KPI)" subtitle="Tüm modüllerden dönem özet göstergeleri" slideNum={slideNo(2)} totalSlides={T}>
+                <Slide title="Kalite Performans Göstergeleri (KPI)" subtitle={`Tüm modüllerden dönem özet göstergeleri${dataCoverage?.fullFetch ? ' · sayfalı tam veri çekimi aktif' : ''}`} slideNum={slideNo(2)} totalSlides={T}>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:16}}>
                         <KpiCard large label="Açık DF" value={kpis.openDF} color={C.red} sub={`Toplam ${fmtNum(kpis.totalNc)} NC`} />
                         <KpiCard large label="Açık 8D" value={kpis.open8D} color={C.orange} sub={`${fmtNum(kpis.closedNc)} kapatıldı`} />
@@ -372,6 +398,7 @@ const ExecutivePresentation = () => {
                             {nonconformityModule.topCategories?.length>0&&<div><SL color={C.navy}>En Çok Tekrarlayan Kategoriler</SL><DT headers={['Kategori','Adet']} rows={nonconformityModule.topCategories.slice(0,8).map((c,i)=>[<span style={{fontWeight:600,color:CHART_COLORS[i%CHART_COLORS.length]}}>{trunc(c.name,40)}</span>,<span style={{fontWeight:700}}>{fmtNum(c.value)}</span>])} fontSize={12}/></div>}
                             {nonconformityModule.bySeverity?.length>0&&<div><SL color={C.rose}>Ciddiyet Dağılımı</SL><DT headers={['Ciddiyet','Adet']} rows={nonconformityModule.bySeverity.map((s,i)=>[<span style={{fontWeight:700,color:s.name==='Kritik'?C.red:s.name==='Yüksek'?C.orange:CHART_COLORS[i%CHART_COLORS.length]}}>{s.name}</span>,<span style={{fontWeight:700}}>{fmtNum(s.value)}</span>])} fontSize={12}/></div>}
                             {nonconformityModule.topParts?.length>0&&<div><SL color={C.purple}>En Çok Hata Alan Parçalar</SL><DT headers={['Parça','Adet','Ciddiyet']} rows={nonconformityModule.topParts.slice(0,8).map(p=>[<span style={{fontWeight:600,fontSize:11}}>{trunc(p.name,36)}</span>,<span style={{fontWeight:700}}>{fmtNum(p.count)}</span>,<span style={{fontSize:11,color:p.severity==='Kritik'?C.red:C.gray}}>{p.severity}</span>])} fontSize={12}/></div>}
+                            {nonconformityModule.byDetectionArea?.length>0&&<div><SL color={C.blue}>Tespit alanı dağılımı</SL><DT headers={['Alan','Adet']} rows={nonconformityModule.byDetectionArea.slice(0,10).map((a,i)=>[<span style={{fontWeight:600}}>{trunc(a.name,40)}</span>,<span style={{fontWeight:700,color:CHART_COLORS[i%CHART_COLORS.length]}}>{fmtNum(a.value)}</span>])} fontSize={12}/></div>}
                         </VStack>
                     </>}
                 </Slide>
@@ -571,7 +598,7 @@ const ExecutivePresentation = () => {
                 </Slide>
 
                 {/* ═══ 13 — GİRDİ KALİTE ═══ */}
-                <Slide title="Girdi Kalite Kontrol Performansı" subtitle="Parça ve muayene özeti; tedarikçi bazlı gelen ve ret miktarları" slideNum={slideNo(13)} totalSlides={T}>
+                <Slide title="Girdi Kalite Kontrol Performansı" subtitle="Parça ve muayene özeti; ret alan tedarikçilerin gelen ve ret miktarları" slideNum={slideNo(13)} totalSlides={T}>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
                         <KpiCard large label="Toplam Kontrol" value={fmtNum(kpis.totalIncoming)} color={C.teal} sub={`${fmtNum(kpis.totalPartsInspected??0)} parça kontrol`}/>
                         <KpiCard large label="Kabul / Ş.Kabul" value={`${fmtNum(kpis.acceptedIncoming)} / ${fmtNum(kpis.conditionalIncoming)}`} color={C.green}/>
@@ -589,11 +616,11 @@ const ExecutivePresentation = () => {
                         </div>
                         <div>
                             <SL color={C.red}>En çok ret alan tedarikçi / kayıt</SL>
-                            <DT headers={['Tedarikçi / kayıt','Ret sayısı']} rows={(incoming.topRejectedSuppliers||[]).slice(0,14).map(s=>[<span style={{fontWeight:600}}>{trunc(s.name,48)}</span>,<span style={{fontWeight:800,color:C.red}}>{s.count}</span>])} fontSize={12}/>
+                            <DT headers={['Tedarikçi / kayıt','Ret sayısı']} rows={(incoming.topRejectedSuppliers||[]).filter(s=>(s.count??0)>0).slice(0,14).map(s=>[<span style={{fontWeight:600}}>{trunc(s.name,48)}</span>,<span style={{fontWeight:800,color:C.red}}>{s.count}</span>])} fontSize={12}/>
                         </div>
                         {incoming?.supplierBreakdown?.length > 0 && (
                             <div>
-                                <SL color={C.teal}>Tedarikçi bazlı muayene ve parça özeti</SL>
+                                <SL color={C.teal}>Ret alan tedarikçiler — muayene ve parça özeti</SL>
                                 <DT
                                     headers={['Tedarikçi', 'Muayene', 'Gelen miktar', 'Ret miktar', 'Kabul', 'Ş.Kabul', 'Ret']}
                                     colWidths={['28%','12%','12%','12%','12%','12%','12%']}
@@ -772,11 +799,39 @@ const ExecutivePresentation = () => {
                     <VStack gap={20}>
                         {executiveProcessQuality ? (
                             <>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                                    <KpiCard large label="Proses muayene (dönem)" value={fmtNum(executiveProcessQuality.processInspections?.total ?? 0)} color={C.navy} />
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                                    <KpiCard large label="Proses muayene (dönem)" value={fmtNum(executiveProcessQuality.processInspections?.total ?? 0)} color={C.navy} sub={executiveProcessQuality.processInspections?.rejectionRatePct != null ? `Ret oranı %${executiveProcessQuality.processInspections.rejectionRatePct} (${fmtNum(executiveProcessQuality.processInspections.rejectedCount ?? 0)} ret)` : undefined} />
                                     <KpiCard large label="Sızdırmazlık başarı oranı" value={executiveProcessQuality.leakTest?.successRatePct != null ? `%${executiveProcessQuality.leakTest.successRatePct}` : '—'} color={C.teal} sub={`${fmtNum(executiveProcessQuality.leakTest?.total ?? 0)} test · Kabul ${fmtNum(executiveProcessQuality.leakTest?.acceptedCount ?? 0)} · Kaçak ${fmtNum(executiveProcessQuality.leakTest?.failCount ?? 0)}`} />
                                     <KpiCard large label="Dinamik balans" value={fmtNum(executiveProcessQuality.dynamicBalance?.total ?? 0)} color={C.indigo} sub={`Uygun ${fmtNum(executiveProcessQuality.dynamicBalance?.passCount ?? 0)} · Uygun değil ${fmtNum(executiveProcessQuality.dynamicBalance?.failCount ?? 0)}`} />
+                                    <KpiCard large label="Kontrol formu (dönem)" value={fmtNum(governance?.processQualityRecords?.controlForms?.total ?? 0)} color={C.purple} />
                                 </div>
+                                {(executiveProcessQuality.processInspections?.byDecision?.length ?? 0) > 0 && (
+                                    <div>
+                                        <SL color={C.navy}>Proses muayene — karar dağılımı</SL>
+                                        <DT headers={['Karar', 'Adet']} rows={(executiveProcessQuality.processInspections.byDecision || []).map((x, i) => [
+                                            <span style={{ fontWeight: 600, color: RESULT_COLORS[x.name] || CHART_COLORS[i % CHART_COLORS.length] }}>{trunc(x.name, 20)}</span>,
+                                            <span style={{ fontWeight: 700 }}>{fmtNum(x.value)}</span>,
+                                        ])} fontSize={11} />
+                                    </div>
+                                )}
+                                {(executiveProcessQuality.leakTest?.monthly?.length ?? 0) > 0 && (
+                                    <div>
+                                        <SL color={C.teal}>Sızdırmazlık — aylık test ve başarı oranı</SL>
+                                        <ResponsiveContainer width="100%" height={220}>
+                                            <ComposedChart data={executiveProcessQuality.leakTest.monthly} margin={{ top: 8, right: 40, left: 8, bottom: 28 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                                <XAxis dataKey="name" fontSize={11} angle={-20} textAnchor="end" height={32} />
+                                                <YAxis yAxisId="left" fontSize={11} />
+                                                <YAxis yAxisId="right" orientation="right" fontSize={11} domain={[0, 100]} tickFormatter={(v) => `%${v}`} />
+                                                <Tooltip formatter={(v, name) => (name === 'Başarı %' ? [`%${v}`, name] : [fmtNum(v), name])} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                                                <Legend wrapperStyle={{ fontSize: 10 }} />
+                                                <Bar dataKey="total" name="Test" fill={C.teal} yAxisId="left" radius={[3, 3, 0, 0]} opacity={0.75} />
+                                                <Bar dataKey="failed" name="Kaçak" fill={C.red} yAxisId="left" radius={[3, 3, 0, 0]} />
+                                                <Line type="monotone" dataKey="successRatePct" name="Başarı %" stroke={C.green} strokeWidth={2.5} dot={{ r: 3 }} yAxisId="right" connectNulls={false} />
+                                            </ComposedChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, maxWidth: 720 }}>
                                     <KpiCard label="Aktif proses kontrol planı" value={fmtNum(executiveProcessQuality.processControlPlans?.activeCount ?? 0)} color={C.blue} />
                                     <KpiCard label="Proses İNKR (dönem)" value={fmtNum(executiveProcessQuality.processInkr?.total ?? 0)} color={C.purple} />

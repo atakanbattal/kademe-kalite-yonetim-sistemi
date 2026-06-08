@@ -27,6 +27,7 @@
       enrichQuarantineRecordForReport,
       getQuarantineQuantitySummary,
     } from '@/lib/quarantineReportStats';
+    import { isPendingHurdaHistoryEntry } from '@/lib/quarantineHurdaPending';
     import { cn } from '@/lib/utils';
 
     const QUARANTINE_STATUSES = [
@@ -107,7 +108,7 @@
             setHistoryByRecordId(aggregateQuarantineHistoryByRecord(rows));
             const pendingIds = [...new Set(
               rows
-                .filter((r) => r.decision === 'Hurda' && !r.deviation_approval_url && !r.quality_cost_id)
+                .filter((r) => isPendingHurdaHistoryEntry(r))
                 .map((r) => r.quarantine_record_id)
             )];
             setPendingHurdaRecordIds(pendingIds);

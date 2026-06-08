@@ -11,6 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { History, AlertCircle, CheckCircle2, Clock, FileWarning } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+    isHurdaDecision,
+    isPendingHurdaHistoryEntry,
+    reconcilePendingHurdaBeforeNewDecision,
+    statusForQuarantineDecision,
+} from '@/lib/quarantineHurdaPending';
 
 const DECISION_TYPES = ['Serbest Bırak', 'Sapma Onayı', 'Yeniden İşlem', 'Hurda', 'İade', 'Onay Bekliyor'];
 const DECISIONS_REQUIRING_DEVIATION = ['Serbest Bırak', 'Sapma Onayı', 'Yeniden İşlem'];
@@ -72,7 +78,7 @@ const QuarantineDecisionModal = ({
     }, [totalProcessed, record]);
 
     const hasPendingHurda = useMemo(
-        () => history.some((h) => h.decision === 'Hurda' && !h.deviation_approval_url && !h.quality_cost_id),
+        () => history.some((h) => isPendingHurdaHistoryEntry(h)),
         [history]
     );
 
@@ -95,13 +101,45 @@ const QuarantineDecisionModal = ({
         setNotes('');
     }, [record, isOpen, restoreDraft, onRestoreDraftApplied]);
 
+    const resolveCurrentQuantity = async () => {
+        if (!record?.id || isHurdaDecision(decision)) {
+            return record?.quantity ?? 0;
+        }
+        const { removedCount } = await reconcilePendingHurdaBeforeNewDecision(record.id);
+        if (removedCount <= 0) return record.quantity ?? 0;
+        const { data: fresh, error } = await supabase
+            .from('quarantine_records')
+            .select('quantity')
+            .eq('id', record.id)
+            .single();
+        if (error) throw error;
+        return Number(fresh?.quantity) || 0;
+    };
+
     const handleSubmit = async () => {
         if (!decision) {
             toast({ variant: 'destructive', title: 'Karar Seçilmedi', description: 'Lütfen bir karar seçin.' });
             return;
         }
-        if (quantity <= 0 || quantity > record.quantity) {
-            toast({ variant: 'destructive', title: 'Geçersiz Miktar', description: `Miktar 1 ile ${record.quantity} arasında olmalıdır.` });
+
+        let currentQuantity = record.quantity ?? 0;
+        try {
+            currentQuantity = await resolveCurrentQuantity();
+        } catch (err) {
+            toast({
+                variant: 'destructive',
+                title: 'Hurda kaydı güncellenemedi',
+                description: err?.message || 'Bekleyen hurda kararı temizlenemedi.',
+            });
+            return;
+        }
+
+        if (quantity <= 0 || quantity > currentQuantity) {
+            toast({
+                variant: 'destructive',
+                title: 'Geçersiz Miktar',
+                description: `Miktar 1 ile ${currentQuantity} arasında olmalıdır.`,
+            });
             return;
         }
 
@@ -132,7 +170,7 @@ const QuarantineDecisionModal = ({
 
         setIsSubmitting(true);
         try {
-            const remainingQuantity = record.quantity - quantity;
+            const remainingQuantity = currentQuantity - quantity;
 
             const { error: historyError } = await supabase.from('quarantine_history').insert({
                 quarantine_record_id: record.id,
@@ -144,20 +182,7 @@ const QuarantineDecisionModal = ({
             });
             if (historyError) throw historyError;
 
-            let newStatus;
-            if (remainingQuantity > 0) {
-                newStatus = 'Karantinada';
-            } else {
-                const statusMap = {
-                    'Serbest Bırak': 'Serbest Bırakıldı',
-                    'Sapma Onayı': 'Sapma Onaylı',
-                    'Yeniden İşlem': 'Yeniden İşlem',
-                    Hurda: 'Hurda',
-                    İade: 'İade',
-                    'Onay Bekliyor': 'Onay Bekliyor',
-                };
-                newStatus = statusMap[decision] || 'Tamamlandı';
-            }
+            const newStatus = statusForQuarantineDecision(decision, remainingQuantity);
 
             const { error: updateError } = await supabase
                 .from('quarantine_records')
@@ -260,7 +285,7 @@ const QuarantineDecisionModal = ({
                                         <tbody>
                                             {history.map((h, idx) => {
                                                 const hasTutanak = !!h.deviation_approval_url || !!h.quality_cost_id;
-                                                const isPendingHurda = h.decision === 'Hurda' && !hasTutanak;
+                                                const isPendingHurda = isPendingHurdaHistoryEntry(h);
                                                 return (
                                                     <tr key={h.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20">
                                                         <td className="px-3 py-2 text-muted-foreground font-mono">{idx + 1}</td>
@@ -300,7 +325,11 @@ const QuarantineDecisionModal = ({
                     {hasPendingHurda && (
                         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
                             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                            <span>Bu kayıt için imzalanmamış hurda tutanağı var. Kaydı görüntüleyerek tutanağı yükleyebilirsiniz.</span>
+                            <span>
+                                {decision && !isHurdaDecision(decision)
+                                    ? 'Bekleyen hurda kararı iptal edilip miktar geri yüklenecek; ardından seçtiğiniz yeni karar uygulanacak.'
+                                    : 'Bu kayıt için imzalanmamış hurda tutanağı var. Hurda dışı karar verirseniz bekleyen hurda iptal edilir; tutanak yüklemek için kaydı görüntüleyin.'}
+                            </span>
                         </div>
                     )}
 

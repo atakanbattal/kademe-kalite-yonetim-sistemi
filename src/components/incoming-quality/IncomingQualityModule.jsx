@@ -636,6 +636,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             });
 
             const topSuppliers = Object.entries(bySupplier)
+                .filter(([, data]) => data.totalRejected > 0 || (data.decisions['Ret'] || 0) > 0)
                 .map(([name, data]) => ({
                     name,
                     count: data.count,
@@ -670,6 +671,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             });
 
             const topParts = Object.entries(byPart)
+                .filter(([, data]) => data.totalRejected > 0)
                 .map(([code, data]) => ({
                     partCode: code,
                     partName: data.partName,

@@ -82,6 +82,32 @@ const buildWelderDescriptionLine = (leak) => {
     return `Ürünü kaynatan: ${leak.welded_by_name || '-'}`;
 };
 
+const pickDescriptionLine = (text, label) => {
+    if (!text) return null;
+    const matched = String(text).match(new RegExp(`^${label}:\\s*(.+)$`, 'im'));
+    return matched ? matched[1].trim() : null;
+};
+
+/** Açıklama metninden eksik yapılandırılmış alanları tamamlar (eski kayıtlar için). */
+export const parseLeakFieldsFromDescription = (record) => {
+    const text = `${record?.description || ''}\n${record?.notes || ''}`;
+    return {
+        part_code: record?.part_code || pickDescriptionLine(text, 'Parça kodu'),
+        part_name: record?.part_name || pickDescriptionLine(text, 'Sızdırmazlık parçası'),
+        vehicle_type: record?.vehicle_type || pickDescriptionLine(text, 'Araç tipi'),
+        vehicle_identifier: record?.vehicle_identifier || pickDescriptionLine(text, 'Seri no'),
+        detected_by: record?.detected_by || pickDescriptionLine(text, 'Testi yapan'),
+        category: record?.category || 'Sızdırmazlık Kaçağı',
+        detection_area: record?.detection_area || LEAK_DETECTION_AREA,
+    };
+};
+
+const resolveLeakDepartment = (leak) => {
+    if (leak?.welding_at_supplier) return 'Tedarikçi';
+    if (leak?.welded_by?.department) return leak.welded_by.department;
+    return 'Üretim';
+};
+
 const buildPayload = (leak) => {
     const leakCount = Math.max(Number(leak?.leak_count) || 0, 1);
     const partCodeFromForm = String(leak?.part_code || '').trim();
@@ -112,7 +138,7 @@ const buildPayload = (leak) => {
         detected_by: leak?.tested_by_name || 'Sızdırmazlık Kontrol',
         severity: getLeakSeverity(leakCount),
         quantity: leakCount,
-        department: null,
+        department: resolveLeakDepartment(leak),
         action_taken: null,
         vehicle_type: leak?.vehicle_type_label || null,
         vehicle_identifier: leak?.vehicle_serial_number || null,
@@ -152,6 +178,21 @@ const getNextNonconformityRecordNumber = async (supabase) => {
 
     if (error) throw error;
     return data;
+};
+
+const mergePayloadWithRecord = (record, payload) => {
+    const parsed = parseLeakFieldsFromDescription(record);
+    return {
+        ...payload,
+        part_code: payload.part_code || parsed.part_code || null,
+        part_name: payload.part_name || parsed.part_name || null,
+        vehicle_type: payload.vehicle_type || parsed.vehicle_type || null,
+        vehicle_identifier: payload.vehicle_identifier || parsed.vehicle_identifier || null,
+        detected_by: payload.detected_by || parsed.detected_by || null,
+        category: payload.category || parsed.category || null,
+        detection_area: payload.detection_area || parsed.detection_area || null,
+        department: payload.department || record?.department || null,
+    };
 };
 
 const needsUpdate = (record, payload, nextStatus) =>
@@ -240,7 +281,7 @@ const reconcileLeak = async ({ supabase, leak, existingRecords, userId }) => {
         };
     }
 
-    const payload = buildPayload(leak);
+    const payload = mergePayloadWithRecord(primaryRecord, buildPayload(leak));
     const nextStatus = LOCKED_NONCONFORMITY_STATUSES.has(primaryRecord?.status)
         ? primaryRecord.status
         : 'Açık';
@@ -394,6 +435,26 @@ export const backfillLeakTestNonconformities = async ({ supabase, userId }) => {
         if (result.mode === 'deleted') stats.deleted += 1;
         if (result.mode === 'preserved') stats.preserved += 1;
         stats.deletedDuplicates += result.deletedDuplicates || 0;
+    }
+
+    for (const record of existingRecords || []) {
+        if (record.detection_area !== LEAK_DETECTION_AREA) continue;
+        const parsed = parseLeakFieldsFromDescription(record);
+        const patch = {};
+        if (!record.part_code && parsed.part_code) patch.part_code = parsed.part_code;
+        if (!record.part_name && parsed.part_name) patch.part_name = parsed.part_name;
+        if (!record.vehicle_type && parsed.vehicle_type) patch.vehicle_type = parsed.vehicle_type;
+        if (!record.vehicle_identifier && parsed.vehicle_identifier) patch.vehicle_identifier = parsed.vehicle_identifier;
+        if (!record.detected_by && parsed.detected_by) patch.detected_by = parsed.detected_by;
+        if (!record.category && parsed.category) patch.category = parsed.category;
+        if (!record.detection_area && parsed.detection_area) patch.detection_area = parsed.detection_area;
+        if (!record.department) {
+            if (/Kaynak\s+tedarikçi:/i.test(record.description || '')) patch.department = 'Tedarikçi';
+            else patch.department = 'Üretim';
+        }
+        if (!Object.keys(patch).length || !record.id) continue;
+        const { error } = await supabase.from('nonconformity_records').update(patch).eq('id', record.id);
+        if (!error) stats.updated += 1;
     }
 
     return stats;

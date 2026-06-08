@@ -40,6 +40,8 @@ import {
     TrendingUp,
 } from 'lucide-react';
 import { formatInspectionDateOnly } from '@/lib/dateDisplay';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { resolveModuleDateRange } from '@/lib/moduleDateRange';
 
 const PAGE = 1000;
 const COLORS = ['#3b82f6', '#ef4444', '#f97316', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b'];
@@ -60,7 +62,8 @@ const normalizeDefectType = (d) => (d.defect_type || '').trim() || 'Belirsiz';
  * @param {object} props
  * @param {(inspectionId: string) => void} [props.onOpenInspectionRecord]
  */
-const ProcessControlAnalytics = ({ onOpenInspectionRecord }) => {
+const ProcessControlAnalytics = ({ onOpenInspectionRecord, dateRange: externalDateRange, onDateRangeChange }) => {
+    const usesSharedDateRange = typeof onDateRangeChange === 'function';
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [inspections, setInspections] = useState([]);
@@ -91,8 +94,9 @@ const ProcessControlAnalytics = ({ onOpenInspectionRecord }) => {
         if (preset !== 'custom') applyPreset(preset);
     }, [preset, applyPreset]);
 
-    const effectiveFrom = manualFrom || null;
-    const effectiveTo = manualTo || null;
+    const sharedRange = resolveModuleDateRange(externalDateRange);
+    const effectiveFrom = usesSharedDateRange ? sharedRange.fromIso : (manualFrom || null);
+    const effectiveTo = usesSharedDateRange ? sharedRange.toIso : (manualTo || null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -100,7 +104,7 @@ const ProcessControlAnalytics = ({ onOpenInspectionRecord }) => {
             const range = defaultRange();
             let filterFrom = effectiveFrom;
             let filterTo = effectiveTo;
-            if (preset === 'custom' && !filterFrom && !filterTo) {
+            if (!usesSharedDateRange && preset === 'custom' && !filterFrom && !filterTo) {
                 filterFrom = range.from;
                 filterTo = range.to;
             }
@@ -149,7 +153,7 @@ const ProcessControlAnalytics = ({ onOpenInspectionRecord }) => {
         } finally {
             setLoading(false);
         }
-    }, [effectiveFrom, effectiveTo, preset, toast]);
+    }, [effectiveFrom, effectiveTo, preset, toast, usesSharedDateRange]);
 
     useEffect(() => {
         loadData();
@@ -256,6 +260,15 @@ const ProcessControlAnalytics = ({ onOpenInspectionRecord }) => {
         <div className="space-y-6">
             <div className="flex flex-col gap-4 rounded-lg border bg-card p-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex flex-wrap items-end gap-3">
+                    {usesSharedDateRange ? (
+                        <div className="space-y-1.5 min-w-[220px]">
+                            <Label>Tarih aralığı</Label>
+                            <DateRangePicker
+                                date={externalDateRange}
+                                onDateChange={(range) => onDateRangeChange(range || null)}
+                            />
+                        </div>
+                    ) : (
                     <div className="space-y-1.5">
                         <Label>Dönem</Label>
                         <Select value={preset} onValueChange={setPreset}>
@@ -271,7 +284,8 @@ const ProcessControlAnalytics = ({ onOpenInspectionRecord }) => {
                             </SelectContent>
                         </Select>
                     </div>
-                    {preset === 'custom' && (
+                    )}
+                    {!usesSharedDateRange && preset === 'custom' && (
                         <>
                             <div className="space-y-1.5">
                                 <Label htmlFor="pc-an-from">Başlangıç</Label>
