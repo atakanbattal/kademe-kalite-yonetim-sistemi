@@ -77,6 +77,29 @@ export function buildSuggestionAreasForRpc(areas) {
 }
 
 /**
+ * Kayıt, ayarlarda seçili öneri veri kaynaklarından birine ait mi?
+ * Liste ve dönem istatistikleri için kanonik tespit alanlarına göre sıkı eşleşme.
+ */
+export function recordMatchesSelectedDataSources(record, areasRaw) {
+    const set = new Set(normalizeSuggestionDetectionAreas(areasRaw));
+    const area = String(record?.detection_area ?? '').trim();
+    if (!area) {
+        return set.has('Proses İçi Kontrol');
+    }
+    if (isCanonicalSuggestionDetectionArea(area)) {
+        return set.has(area);
+    }
+    return false;
+}
+
+/** Seçili kaynakların kullanıcıya dönük etiketleri */
+export function getSelectedSourceLabels(areasRaw) {
+    const areas = normalizeSuggestionDetectionAreas(areasRaw);
+    const byArea = new Map(NC_SUGGESTION_SOURCE_OPTIONS.map((o) => [o.detection_area, o.label]));
+    return areas.map((a) => byArea.get(a) || a);
+}
+
+/**
  * Çok kısa periyotta (ör. 1 gün) dönem içi tekrar hep 0 kalır; DF/8D önerisi oluşmaz.
  * En az 7 gün kullanılır (öneri ve Analiz ile tutarlı).
  */

@@ -159,7 +159,7 @@ const NonconformitySettings = ({ onSaved }) => {
               <div>
                 <p className="text-sm font-medium">Öneri veri kaynakları</p>
                 <p className="text-xs text-muted-foreground">
-                  Tekrar ve eşik hesaplarında hangi modüllerden gelen uygunsuzluk kayıtları dikkate alınsın? (Tespit alanına göre)
+                  Kayıt listesi, analiz ve tekrar/eşik hesapları yalnızca seçili modüllerden gelen uygunsuzlukları kapsar (tespit alanına göre).
                 </p>
               </div>
             </div>

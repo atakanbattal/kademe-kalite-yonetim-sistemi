@@ -52,6 +52,8 @@ import {
   buildSuggestionAreasForRpc,
   clampThresholdPeriodDays,
   isCanonicalSuggestionDetectionArea,
+  recordMatchesSelectedDataSources,
+  getSelectedSourceLabels,
 } from '@/lib/nonconformitySuggestionSources';
 
 const severityColors = {
@@ -438,9 +440,23 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     []
   );
 
+  const selectedSourceLabels = useMemo(
+    () => getSelectedSourceLabels(settings?.suggestion_include_detection_areas),
+    [settings?.suggestion_include_detection_areas]
+  );
+
+  const recordsMatchingSelectedSources = useMemo(
+    () => records.filter((r) =>
+      recordMatchesSelectedDataSources(r, settings?.suggestion_include_detection_areas)
+    ),
+    [records, settings?.suggestion_include_detection_areas]
+  );
+
   const recordsInDateRange = useMemo(
-    () => records.filter((r) => isWithinModuleDateRange(getRecordDateValue(r), dateRange)),
-    [records, dateRange, getRecordDateValue]
+    () => recordsMatchingSelectedSources.filter((r) =>
+      isWithinModuleDateRange(getRecordDateValue(r), dateRange)
+    ),
+    [recordsMatchingSelectedSources, dateRange, getRecordDateValue]
   );
 
   const smartGroupsInDateRange = useMemo(() => {
@@ -1310,6 +1326,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             <StatCard title="Kritik" value={stats.critical} icon={<AlertTriangle className="h-4 w-4" />} color="text-red-600" />
           </div>
 
+          <p className="text-xs text-muted-foreground">
+            Liste ve analiz yalnızca ayarlarda seçili veri kaynaklarından gelen kayıtları gösterir:
+            <span className="font-medium text-foreground"> {selectedSourceLabels.join(', ')}</span>
+          </p>
+
           {/* Filtreler */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -1356,9 +1377,13 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             <div className="text-center py-16 text-muted-foreground">
               <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="text-sm">
-                {records.length > 0 && dateRange?.from && dateRange?.to
-                  ? 'Seçili tarih aralığında uygunsuzluk kaydı bulunmuyor.'
-                  : 'Henüz uygunsuzluk kaydı bulunmuyor.'}
+                {records.length > 0 && recordsMatchingSelectedSources.length === 0
+                  ? 'Seçili veri kaynaklarına ait uygunsuzluk kaydı bulunmuyor. Ayarlar sekmesinden kaynak modüllerini kontrol edin.'
+                  : recordsMatchingSelectedSources.length > 0 && dateRange?.from && dateRange?.to
+                    ? 'Seçili tarih aralığında, seçili kaynaklara ait uygunsuzluk kaydı bulunmuyor.'
+                    : records.length > 0
+                      ? 'Seçili veri kaynakları ve filtrelerle eşleşen kayıt bulunmuyor.'
+                      : 'Henüz uygunsuzluk kaydı bulunmuyor.'}
               </p>
             </div>
           ) : (
@@ -1622,7 +1647,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
             {Math.min(visibleCount, filteredRecords.length)} / {filteredRecords.length} kayıt gösteriliyor
             {dateRange?.from && dateRange?.to
               ? ` (dönem: ${resolveModuleDateRange(dateRange).label})`
-              : ` (toplam ${records.length})`}
+              : ` (${recordsMatchingSelectedSources.length} kayıt · ${selectedSourceLabels.join(', ')})`}
           </p>
         </TabsContent>
 
