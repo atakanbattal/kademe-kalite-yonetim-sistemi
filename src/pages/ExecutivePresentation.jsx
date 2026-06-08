@@ -514,15 +514,15 @@ const ExecutivePresentation = () => {
                         <KpiCard large label="Toplam Hata" value={fmtNum(kpis.totalVehicleFaults)} color={C.red} sub={`Tekrar eden %${vehicles.recurringFaultRate??0}`}/>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
-                        <KpiCard label="Dönem ort. kontrol süresi" value={qualityActivities?.avgControlHr != null ? `${qualityActivities.avgControlHr} sa` : '—'} color={C.blue} sub={`${fmtNum(qualityActivities?.vehiclesWithControl||0)} araçta timeline · ${qualityActivities?.avgControlTimeFormatted ?? ''}`}/>
-                        <KpiCard label="Dönem ort. yeniden işlem" value={qualityActivities?.avgReworkHr != null ? `${qualityActivities.avgReworkHr} sa` : '—'} color={C.orange} sub={`${fmtNum(qualityActivities?.vehiclesWithRework||0)} araçta timeline · ${qualityActivities?.avgReworkTimeFormatted ?? ''}`}/>
+                        <KpiCard label="Dönem ort. kontrol süresi" value={qualityActivities?.avgControlHr != null ? `${qualityActivities.avgControlHr} sa` : '—'} color={C.blue} sub={`${fmtNum(qualityActivities?.vehiclesWithControl||0)} kapalı döngü · ${qualityActivities?.avgControlTimeFormatted ?? ''}`}/>
+                        <KpiCard label="Dönem ort. yeniden işlem" value={qualityActivities?.avgReworkHr != null ? `${qualityActivities.avgReworkHr} sa` : '—'} color={C.orange} sub={`${fmtNum(qualityActivities?.vehiclesWithRework||0)} kapalı döngü · ${qualityActivities?.avgReworkTimeFormatted ?? ''}`}/>
                         <KpiCard label="En İyi Ay (DPU)" value={vehicles.bestMonth?.name||'—'} color={C.green} sub={vehicles.bestMonth?`DPU ${vehicles.bestMonth.dpu} · %${vehicles.bestMonth.passRate} geçiş`:''}/>
                         <KpiCard label="En Kötü Ay (DPU)" value={vehicles.worstMonth?.name||'—'} color={C.red} sub={vehicles.worstMonth?`DPU ${vehicles.worstMonth.dpu} · %${vehicles.worstMonth.passRate} geçiş`:''}/>
                     </div>
                     {hasVehicleTimelineTrendChart ? (
                         <div style={{ marginBottom: 20 }}>
                             <SL color={C.blue}>Kontrol ve yeniden işlem süresi — aylık ortalama (saat)</SL>
-                            <div style={{ fontSize: 11, color: C.slate, marginBottom: 8 }}>Son 12 ay: üretilen araç kayıt tarihine göre aylık gruplanır; süreler timeline olaylarından hesaplanır (KPI kartlarıyla aynı yöntem). İlgili ayda örnek yoksa çizgi kesilir.</div>
+                            <div style={{ fontSize: 11, color: C.slate, marginBottom: 8 }}>Son 12 ay (tarih filtresinden bağımsız): yalnızca kapanmış kontrol / yeniden işlem döngüleri, döngünün bittiği aya göre gruplanır — Üretilen Araçlar modülündeki Aylık Süre Özeti ile birebir aynı yöntem. İlgili ayda kapalı döngü yoksa çizgi kesilir.</div>
                             <ResponsiveContainer width="100%" height={280}>
                                 <ComposedChart data={vehicleTimelineTrendChart} margin={{ top: 8, right: 24, left: 8, bottom: 28 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -537,7 +537,7 @@ const ExecutivePresentation = () => {
                             <div style={{ marginTop: 16 }}>
                                 <SL color={C.slate}>Aylık değerler (tablo)</SL>
                                 <DT
-                                    headers={['Ay', 'Kontrol (dk)', 'Kontrol (sa)', 'Yen. işl. (dk)', 'Yen. işl. (sa)', 'Araç (ktrl.)', 'Araç (rework)']}
+                                    headers={['Ay', 'Kontrol (dk)', 'Kontrol (sa)', 'Yen. işl. (dk)', 'Yen. işl. (sa)', 'Kontrol döngü', 'Yen.işl. döngü']}
                                     colWidths={['14%', '12%', '12%', '12%', '12%', '14%', '14%']}
                                     rows={vehicleTimelineTrendChart.map((row) => [
                                         <span style={{ fontWeight: 600 }}>{row.name}</span>,

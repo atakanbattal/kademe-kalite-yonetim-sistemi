@@ -15,8 +15,8 @@ import { useSearchParams } from 'react-router-dom';
     import { tr } from 'date-fns/locale';
     import { openPrintableReport } from '@/lib/reportUtils';
     import {
-        calculateVehicleTimelineStats,
-        buildExecutiveMonthlyDurationRows,
+        aggregateFleetTimelineDurations,
+        calculateMonthlyAvgQualityAndRework,
         EXECUTIVE_REPORT_MONTHLY_DURATION_MONTHS,
     } from '@/lib/vehicleTimelineUtils';
     import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
@@ -335,6 +335,9 @@ import { useSearchParams } from 'react-router-dom';
             };
 
             try {
+                // Süre hesapları modül panosuyla birebir aynı kümeyi kullanır (memoizedVehicles).
+                const vehiclesForDurationStats = memoizedVehicles;
+
                 // Genel istatistikler
                 const totalVehicles = memoizedVehicles.length;
                 
@@ -487,35 +490,23 @@ import { useSearchParams } from 'react-router-dom';
                     .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
                     .slice(-12); // Son 12 ay
 
-                // Ortalama kontrol süresi hesaplama (control_start ve control_end arasındaki süre - dinamik)
-                let totalControlMillis = 0;
-                let controlCount = 0;
-                const timelineNow = new Date();
-                memoizedVehicles.forEach(vehicle => {
-                    const timelineStats = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, timelineNow);
-                    totalControlMillis += timelineStats.totalControlMillis;
-                    controlCount += timelineStats.controlCycleCount;
-                });
-                // Ortalama kontrol süresini saat ve dakika formatında hesapla
-                const averageControlDurationMillis = controlCount > 0 
-                    ? totalControlMillis / controlCount
-                    : 0;
-                const averageControlDuration = formatDuration(averageControlDurationMillis);
+                const {
+                    totalControlMillis,
+                    controlCount,
+                    totalReworkMillis,
+                    reworkCount,
+                } = aggregateFleetTimelineDurations(vehiclesForDurationStats);
 
-                // Ortalama yeniden işlem süresi hesaplama (dinamik - devam edenler dahil)
-                let totalReworkMillis = 0;
-                let reworkCount = 0;
-                memoizedVehicles.forEach(vehicle => {
-                    const timelineStats = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, timelineNow);
-                    totalReworkMillis += timelineStats.totalReworkMillis;
-                    reworkCount += timelineStats.reworkCycleCount;
-                });
-                const averageReworkDurationMillis = reworkCount > 0 
-                    ? totalReworkMillis / reworkCount
-                    : 0;
-                const averageReworkDuration = formatDuration(averageReworkDurationMillis);
+                const averageControlDuration = formatDuration(
+                    controlCount > 0 ? totalControlMillis / controlCount : 0
+                );
+                const averageReworkDuration = formatDuration(
+                    reworkCount > 0 ? totalReworkMillis / reworkCount : 0
+                );
 
-                const monthlyDurationData = buildExecutiveMonthlyDurationRows(producedVehicles, timelineNow)
+                // Aylık süre özeti, tarih filtresinden BAĞIMSIZ tüm araç havuzundan hesaplanır → her zaman son 12 ay.
+                const monthlyDurationData = calculateMonthlyAvgQualityAndRework(producedVehicles)
+                    .slice(-EXECUTIVE_REPORT_MONTHLY_DURATION_MONTHS)
                     .map((row) => ({
                         month: row.monthLabel,
                         monthShort: row.monthShort,

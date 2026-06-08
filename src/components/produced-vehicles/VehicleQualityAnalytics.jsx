@@ -112,7 +112,9 @@ const VehicleQualityAnalytics = ({ vehicles: vehiclesProp, dateRange }) => {
             if (reworkCount > 0) faultsByModel[model].reworked += 1;
 
             // Süre döngüleri (saat/dk olarak da göstermek için)
-            const tl = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, now);
+            const tl = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, now, {
+                vehicleStatus: vehicle.status,
+            });
             totalCycleControlMs += tl.totalControlMillis;
             totalCycleReworkMs += tl.totalReworkMillis;
             controlCycleCount += tl.controlCycleCount;

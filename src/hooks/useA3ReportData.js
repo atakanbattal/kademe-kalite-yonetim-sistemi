@@ -7,7 +7,7 @@ import {
     eachMonthOfInterval,
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { calculateInspectionDuration, calculateReworkDuration } from '@/lib/vehicleCostCalculator';
+import { aggregateFleetTimelineDurations, calculateMonthlyAvgQualityAndRework } from '@/lib/vehicleTimelineUtils';
 import { fetchExecutiveReportSupplement, fetchEquipmentsWithCalibrationsPaginated } from '@/lib/fetchExecutiveReportSupplement';
 import { getOverdueCalibrationsFromEquipments } from '@/lib/overdueCalibrationsHelpers';
 import { isNCOverdue } from '@/lib/statusUtils';
@@ -740,10 +740,6 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
             );
             const vehicleData = raw.producedVehicles.filter(v =>
                 inDateRange(v.created_at, startDate, endDate)
-            );
-            const twelveMonthsAgoForTrend = startOfDay(subMonths(endDate, 12));
-            const vehiclesFor12mTrend = (raw.producedVehicles || []).filter((v) =>
-                inDateRange(v.created_at, twelveMonthsAgoForTrend, endDate)
             );
             const complaintData = raw.customerComplaints.filter(c =>
                 inDateRange(c.complaint_date || c.created_at, startDate, endDate)
@@ -1996,60 +1992,35 @@ const useA3ReportData = (period = 'last3months', options = {}) => {
             const totalIncomingControlPlans = incomingPlans.filter(p => p.is_current !== false).length || incomingPlans.length;
             const totalProcessControlPlans = processPlans.length;
 
-            let totalControlMin = 0, totalReworkMin = 0, vehiclesWithControl = 0, vehiclesWithRework = 0;
-            vehicleData.forEach(v => {
-                const events = v.vehicle_timeline_events || [];
-                if (events.length > 0) {
-                    const ctrl = calculateInspectionDuration(events);
-                    const rework = calculateReworkDuration(events);
-                    if (ctrl > 0) {
-                        totalControlMin += ctrl;
-                        vehiclesWithControl++;
-                    }
-                    if (rework > 0) {
-                        totalReworkMin += rework;
-                        vehiclesWithRework++;
-                    }
-                }
-            });
-            const avgControlTimeMin = vehiclesWithControl > 0 ? Math.round(totalControlMin / vehiclesWithControl) : 0;
-            const avgReworkTimeMin = vehiclesWithRework > 0 ? Math.round(totalReworkMin / vehiclesWithRework) : 0;
+            // Üretilen araçlar modülüyle BİREBİR aynı yöntem: yalnızca KAPANMIŞ kontrol/yeniden işlem
+            // döngüleri (extractClosedTimelineCycles) üzerinden hesaplanır.
+            // Dönem kartları: rapor tarih aralığındaki araçların kapalı döngü ortalaması.
+            const periodFleetDurations = aggregateFleetTimelineDurations(vehicleData);
+            const vehiclesWithControl = periodFleetDurations.controlCount;
+            const vehiclesWithRework = periodFleetDurations.reworkCount;
+            const avgControlTimeMin = vehiclesWithControl > 0
+                ? Math.round(periodFleetDurations.totalControlMillis / vehiclesWithControl / 60000)
+                : 0;
+            const avgReworkTimeMin = vehiclesWithRework > 0
+                ? Math.round(periodFleetDurations.totalReworkMillis / vehiclesWithRework / 60000)
+                : 0;
             const fmtDuration = (min) => min >= 60 ? `${Math.floor(min / 60)}sa ${min % 60}dk` : `${min} dk`;
 
-            const controlReworkByMonth = {};
-            vehiclesFor12mTrend.forEach(v => {
-                if (!v.created_at || !isValid(parseISO(v.created_at))) return;
-                const month = format(parseISO(v.created_at), 'MMM yy', { locale: tr });
-                const t = parseISO(v.created_at).getTime();
-                if (!controlReworkByMonth[month]) {
-                    controlReworkByMonth[month] = { name: month, sort: t, sumCtrl: 0, sumRework: 0, nCtrl: 0, nRework: 0 };
-                }
-                const events = v.vehicle_timeline_events || [];
-                const ctrl = calculateInspectionDuration(events);
-                const rework = calculateReworkDuration(events);
-                if (ctrl > 0) {
-                    controlReworkByMonth[month].sumCtrl += ctrl;
-                    controlReworkByMonth[month].nCtrl += 1;
-                }
-                if (rework > 0) {
-                    controlReworkByMonth[month].sumRework += rework;
-                    controlReworkByMonth[month].nRework += 1;
-                }
-            });
-            const controlReworkMonthly = Object.values(controlReworkByMonth)
-                .sort((a, b) => a.sort - b.sort)
+            // Aylık trend: tarih filtresinden BAĞIMSIZ tüm araç havuzu, kapalı döngü bitiş ayına göre,
+            // her zaman son 12 ay (modüldeki Aylık Süre Özeti ile birebir aynı).
+            const controlReworkMonthly = calculateMonthlyAvgQualityAndRework(raw.producedVehicles || [])
                 .slice(-12)
-                .map(m => {
-                    const avgControlMin = m.nCtrl > 0 ? Math.round(m.sumCtrl / m.nCtrl) : 0;
-                    const avgReworkMin = m.nRework > 0 ? Math.round(m.sumRework / m.nRework) : 0;
+                .map((m) => {
+                    const avgControlMin = m.ortKaliteDk != null ? Math.round(m.ortKaliteDk) : 0;
+                    const avgReworkMin = m.ortYenidenIslemDk != null ? Math.round(m.ortYenidenIslemDk) : 0;
                     return {
-                        name: m.name,
+                        name: m.monthShort,
                         avgControlMin,
                         avgReworkMin,
-                        avgControlHr: roundTo(avgControlMin / 60, 1),
-                        avgReworkHr: roundTo(avgReworkMin / 60, 1),
-                        vehiclesWithControl: m.nCtrl,
-                        vehiclesWithRework: m.nRework,
+                        avgControlHr: m.ortKaliteMs != null ? roundTo(m.ortKaliteMs / 3600000, 1) : 0,
+                        avgReworkHr: m.ortYenidenIslemMs != null ? roundTo(m.ortYenidenIslemMs / 3600000, 1) : 0,
+                        vehiclesWithControl: m.kaliteDonguSayisi,
+                        vehiclesWithRework: m.yenidenIslemDonguSayisi,
                     };
                 });
 

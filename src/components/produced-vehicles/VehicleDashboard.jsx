@@ -7,7 +7,7 @@ import { Clock, CheckCircle, Wrench, Truck, Hourglass, BarChartHorizontal, Flask
 import { formatDuration } from '@/lib/formatDuration.js';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Badge } from '@/components/ui/badge';
-import { calculateVehicleTimelineStats, calculateMonthlyAvgQualityAndRework } from '@/lib/vehicleTimelineUtils';
+import { aggregateFleetTimelineDurations, calculateMonthlyAvgQualityAndRework } from '@/lib/vehicleTimelineUtils';
 
 const MonthlyDurationTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -284,21 +284,15 @@ const STATUS_CONFIG = [
                 shipped: vehicles.filter(v => v.status === 'Sevk Edildi').length,
             };
 
-            let totalInspectionMillis = 0;
-            let inspectionCount = 0;
-            let totalReworkMillis = 0;
-            let reworkCount = 0;
-            const timelineNow = new Date();
+            // Kart ortalamaları, aşağıdaki "Aylık süre özeti" grafiğiyle aynı kapanmış döngü kümesinden hesaplanır.
+            const {
+                totalControlMillis,
+                controlCount,
+                totalReworkMillis,
+                reworkCount,
+            } = aggregateFleetTimelineDurations(vehicles);
 
-            vehicles.forEach(vehicle => {
-                const timelineStats = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, timelineNow);
-                totalInspectionMillis += timelineStats.totalControlMillis;
-                inspectionCount += timelineStats.controlCycleCount;
-                totalReworkMillis += timelineStats.totalReworkMillis;
-                reworkCount += timelineStats.reworkCycleCount;
-            });
-
-            const avgInspectionTime = inspectionCount > 0 ? formatDuration(totalInspectionMillis / inspectionCount) : "0 dk";
+            const avgInspectionTime = controlCount > 0 ? formatDuration(totalControlMillis / controlCount) : "0 dk";
             const avgReworkTime = reworkCount > 0 ? formatDuration(totalReworkMillis / reworkCount) : "0 dk";
 
             return {
