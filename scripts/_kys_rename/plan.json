@@ -1,0 +1,1571 @@
+{
+  "plan": [
+    {
+      "no": "A072",
+      "group": "DOTFIX",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Prosedürler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Prosedürler/DEP.PR.2026.0001 Depo işleyiş prösedürü.pdf",
+      "oldName": "DEP.PR.2026.0001 Depo işleyiş prösedürü.pdf",
+      "newName": "DEP-PR-2026-0001 Depo İşleyiş Prosedürü.pdf",
+      "note": ""
+    },
+    {
+      "no": "A072",
+      "group": "DOTFIX",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Prosedürler/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Prosedürler/kaynak/1-DEP.PR.2026.0001 Depo işleyiş prösedürü.docx",
+      "oldName": "1-DEP.PR.2026.0001 Depo işleyiş prösedürü.docx",
+      "newName": "1-DEP-PR-2026-0001 Depo İşleyiş Prosedürü.docx",
+      "note": ""
+    },
+    {
+      "no": "A073",
+      "group": "DOTFIX",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/HOM.TL.2026.0001 DMO ARAÇ MUAYENE VE KONTROL SÜRECİ.pdf",
+      "oldName": "HOM.TL.2026.0001 DMO ARAÇ MUAYENE VE KONTROL SÜRECİ.pdf",
+      "newName": "HOM-TL-2026-0001 DMO ARAÇ MUAYENE VE KONTROL SÜRECİ.pdf",
+      "note": ""
+    },
+    {
+      "no": "A073",
+      "group": "DOTFIX",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak/1-HOM.TL.2026.0001 DMO ARAÇ MUAYENE VE KONTROL SÜRECİ.docx",
+      "oldName": "1-HOM.TL.2026.0001 DMO ARAÇ MUAYENE VE KONTROL SÜRECİ.docx",
+      "newName": "1-HOM-TL-2026-0001 DMO ARAÇ MUAYENE VE KONTROL SÜRECİ.docx",
+      "note": ""
+    },
+    {
+      "no": "A074",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/HSCK 8+1.pdf",
+      "oldName": "HSCK 8+1.pdf",
+      "newName": "KAL-FR-2026-0028 HSCK 8+1.pdf",
+      "note": ""
+    },
+    {
+      "no": "A074",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/kaynak/1-HSCK 8+1.xlsx",
+      "oldName": "1-HSCK 8+1.xlsx",
+      "newName": "1-KAL-FR-2026-0028 HSCK 8+1.xlsx",
+      "note": ""
+    },
+    {
+      "no": "A075",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/Kaynakhane Parametre Doğrulama Formu.pdf",
+      "oldName": "Kaynakhane Parametre Doğrulama Formu.pdf",
+      "newName": "KAL-FR-2026-0030 Kaynakhane Parametre Doğrulama Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A075",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/kaynak/1-Kaynakhane Parametre Doğrulama Formu.xlsx",
+      "oldName": "1-Kaynakhane Parametre Doğrulama Formu.xlsx",
+      "newName": "1-KAL-FR-2026-0030 Kaynakhane Parametre Doğrulama Formu.xlsx",
+      "note": ""
+    },
+    {
+      "no": "A076",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/Sapma Yönetimi Talimatı.pdf",
+      "oldName": "Sapma Yönetimi Talimatı.pdf",
+      "newName": "KAL-TL-2026-0016 Sapma Yönetimi Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A077",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/crosscut.pdf",
+      "oldName": "crosscut.pdf",
+      "newName": "KAL-TL-2026-0010 crosscut.pdf",
+      "note": ""
+    },
+    {
+      "no": "A077",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-crosscut.docx",
+      "oldName": "1-crosscut.docx",
+      "newName": "1-KAL-TL-2026-0010 crosscut.docx",
+      "note": ""
+    },
+    {
+      "no": "A078",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Şemalar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Şemalar/ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.drawio.pdf",
+      "oldName": "ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.drawio.pdf",
+      "newName": "KAL-SM-2026-0005 ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.pdf",
+      "note": ""
+    },
+    {
+      "no": "A079",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Şemalar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Şemalar/Organizasyon Şeması R4.pdf",
+      "oldName": "Organizasyon Şeması R4.pdf",
+      "newName": "KAL-SM-2026-0006 Organizasyon Şeması.pdf",
+      "note": ""
+    },
+    {
+      "no": "A080",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Şemalar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Şemalar/Satınalma Süreci İş Akışı.pdf",
+      "oldName": "Satınalma Süreci İş Akışı.pdf",
+      "newName": "SAT-SM-2026-0002 Satınalma Süreci İş Akışı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A081",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar/DIŞ HİZMET & TAMİRAT FORMU.pdf",
+      "oldName": "DIŞ HİZMET & TAMİRAT FORMU.pdf",
+      "newName": "BAK-FR-2026-0001 DIŞ HİZMET & TAMİRAT FORMU.pdf",
+      "note": ""
+    },
+    {
+      "no": "A082",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/Boya Kalınlık Ölçüm Talimatı.pdf",
+      "oldName": "Boya Kalınlık Ölçüm Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0030 Boya Kalınlık Ölçüm Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A082",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak/1-Boya Kalınlık Ölçüm Talimatı.docx",
+      "oldName": "1-Boya Kalınlık Ölçüm Talimatı.docx",
+      "newName": "1-ÜRE-TL-2026-0030 Boya Kalınlık Ölçüm Talimatı.docx",
+      "note": ""
+    },
+    {
+      "no": "A083",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/Kaynaklı Operasyon Talimatı.pdf",
+      "oldName": "Kaynaklı Operasyon Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0028 Kaynaklı Operasyon Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A085",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Şemalar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Şemalar/Süreç Akış Şeması_03062026.pdf",
+      "oldName": "Süreç Akış Şeması_03062026.pdf",
+      "newName": "ÜRE-SM-2026-0004 Süreç Akış Şeması.pdf",
+      "note": ""
+    },
+    {
+      "no": "A086",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar/ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.pdf",
+      "oldName": "ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.pdf",
+      "newName": "ÜRE-FR-2026-0027 ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.pdf",
+      "note": ""
+    },
+    {
+      "no": "A086",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar/kaynak/1-ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.docx",
+      "oldName": "1-ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.docx",
+      "newName": "1-ÜRE-FR-2026-0027 ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.docx",
+      "note": ""
+    },
+    {
+      "no": "A087",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar/Kumlama Ve Boyahane Çalışma Talimatı.pdf",
+      "oldName": "Kumlama Ve Boyahane Çalışma Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0020 Kumlama Ve Boyahane Çalışma Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A088",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Formlar/İSG-FR-2026-0001 KURUL TOPLANTI.pdf",
+      "oldName": "İSG-FR-2026-0001 KURUL TOPLANTI.pdf",
+      "newName": "İSG-FR-2026-0001 İSG Kurul Toplantı Tutanağı Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A089",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar/DIŞ BAKIM TALİMATI.pdf",
+      "oldName": "DIŞ BAKIM TALİMATI.pdf",
+      "newName": "İDA-TL-2026-0003 DIŞ BAKIM TALİMATI.pdf",
+      "note": ""
+    },
+    {
+      "no": "A089",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar/kaynak/1-DIŞ BAKIM TALİMATI.docx",
+      "oldName": "1-DIŞ BAKIM TALİMATI.docx",
+      "newName": "1-İDA-TL-2026-0003 DIŞ BAKIM TALİMATI.docx",
+      "note": ""
+    },
+    {
+      "no": "A090",
+      "group": "KODSUZ",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Yönetmelikler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Yönetmelikler/KDM.YN.01Disiplin Yönetmenliği.pdf",
+      "oldName": "KDM.YN.01Disiplin Yönetmenliği.pdf",
+      "newName": "İNS-YN-2026-0001 Disiplin Yönetmeliği.pdf",
+      "note": ""
+    },
+    {
+      "no": "A091+A204",
+      "group": "ESKIKOD+TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/KDM-TL-036 Hidrolik Çöp Sıkıştıma Görsel Etiket Talimatı.pdf",
+      "oldName": "KDM-TL-036 Hidrolik Çöp Sıkıştıma Görsel Etiket Talimatı.pdf",
+      "newName": "AR-TL-2026-0011 Hidrolik Çöp Sıkıştırma Görsel Etiket Talimatı.pdf",
+      "note": "eski: KDM-TL-036"
+    },
+    {
+      "no": "A092",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/KDM-TL-100 Mühendislik Değişiklik İsteği Talimatı.pdf",
+      "oldName": "KDM-TL-100 Mühendislik Değişiklik İsteği Talimatı.pdf",
+      "newName": "AR-TL-2026-0012 Mühendislik Değişiklik İsteği Talimatı.pdf",
+      "note": "eski: KDM-TL-100"
+    },
+    {
+      "no": "A092",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak/1-KDM-TL-100 Mühendislik Değişiklik İsteği Talimatı.docx",
+      "oldName": "1-KDM-TL-100 Mühendislik Değişiklik İsteği Talimatı.docx",
+      "newName": "1-AR-TL-2026-0012 Mühendislik Değişiklik İsteği Talimatı.docx",
+      "note": "eski: KDM-TL-100"
+    },
+    {
+      "no": "A093",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/KDM-TL-142 Fizibilite Raporu Talep Formu Doldurma Talimatı.pdf",
+      "oldName": "KDM-TL-142 Fizibilite Raporu Talep Formu Doldurma Talimatı.pdf",
+      "newName": "AR-TL-2026-0013 Fizibilite Raporu Talep Formu Doldurma Talimatı.pdf",
+      "note": "eski: KDM-TL-142"
+    },
+    {
+      "no": "A093",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak/1-KDM-TL-142 Fizibilite Raporu Talep Formu Doldurma Talimatı.docx",
+      "oldName": "1-KDM-TL-142 Fizibilite Raporu Talep Formu Doldurma Talimatı.docx",
+      "newName": "1-AR-TL-2026-0013 Fizibilite Raporu Talep Formu Doldurma Talimatı.docx",
+      "note": "eski: KDM-TL-142"
+    },
+    {
+      "no": "A094",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/KDM-TL-143 Fizibilite Raporu Oluşturma Talimatı.pdf",
+      "oldName": "KDM-TL-143 Fizibilite Raporu Oluşturma Talimatı.pdf",
+      "newName": "AR-TL-2026-0014 Fizibilite Raporu Oluşturma Talimatı.pdf",
+      "note": "eski: KDM-TL-143"
+    },
+    {
+      "no": "A094",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak/1-KDM-TL-143 Fizibilite Raporu Oluşturma Talimatı.docx",
+      "oldName": "1-KDM-TL-143 Fizibilite Raporu Oluşturma Talimatı.docx",
+      "newName": "1-AR-TL-2026-0014 Fizibilite Raporu Oluşturma Talimatı.docx",
+      "note": "eski: KDM-TL-143"
+    },
+    {
+      "no": "A095",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Talimatlar/KDM-TL-072 Araç Teslim Alma Talimatı.pdf",
+      "oldName": "KDM-TL-072 Araç Teslim Alma Talimatı.pdf",
+      "newName": "DEP-TL-2026-0001 Araç Teslim Alma Talimatı.pdf",
+      "note": "eski: KDM-TL-072"
+    },
+    {
+      "no": "A095",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Depo Şefliği/Talimatlar/kaynak/1-KDM-TL-072 Araç Teslim Alma Talimatı.docx",
+      "oldName": "1-KDM-TL-072 Araç Teslim Alma Talimatı.docx",
+      "newName": "1-DEP-TL-2026-0001 Araç Teslim Alma Talimatı.docx",
+      "note": "eski: KDM-TL-072"
+    },
+    {
+      "no": "A096",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/KDM.FRM.177 Kompost Makinesi Final Kalite Kontrol Formu (Rev.02).pdf",
+      "oldName": "KDM.FRM.177 Kompost Makinesi Final Kalite Kontrol Formu (Rev.02).pdf",
+      "newName": "KAL-FR-2026-0031 Kompost Makinesi Final Kalite Kontrol Formu.pdf",
+      "note": "eski: KDM.FRM.177"
+    },
+    {
+      "no": "A096",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Formlar/kaynak/1-KDM.FRM.177 Kompost Makinesi Final Kalite Kontrol Formu (Rev.03).XLSX",
+      "oldName": "1-KDM.FRM.177 Kompost Makinesi Final Kalite Kontrol Formu (Rev.03).XLSX",
+      "newName": "1-KAL-FR-2026-0031 Kompost Makinesi Final Kalite Kontrol Formu.XLSX",
+      "note": "eski: KDM.FRM.177"
+    },
+    {
+      "no": "A097",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Planlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Planlar/KDM.PLN.001 Girdi Kalite Kontrol Planı (Rev.00).pdf",
+      "oldName": "KDM.PLN.001 Girdi Kalite Kontrol Planı (Rev.00).pdf",
+      "newName": "KAL-PL-2026-0002 Girdi Kalite Kontrol Planı.pdf",
+      "note": "eski: KDM.PLN.001"
+    },
+    {
+      "no": "A097",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Planlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Planlar/kaynak/1-KDM.PLN.001 Girdi Kalite Kontrol Planı (Rev.00).xlsx",
+      "oldName": "1-KDM.PLN.001 Girdi Kalite Kontrol Planı (Rev.00).xlsx",
+      "newName": "1-KAL-PL-2026-0002 Girdi Kalite Kontrol Planı.xlsx",
+      "note": "eski: KDM.PLN.001"
+    },
+    {
+      "no": "A098",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar/KDM.TBL.001 FMEA Değerlendirme Tablosu (Rev.00).pdf",
+      "oldName": "KDM.TBL.001 FMEA Değerlendirme Tablosu (Rev.00).pdf",
+      "newName": "KAL-TB-2026-0004 FMEA Değerlendirme Tablosu.pdf",
+      "note": "eski: KDM.TBL.001"
+    },
+    {
+      "no": "A098",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar/kaynak/1-KDM.TBL.001 FMEA Değerlendirme Tablosu (Rev.00).xlsx",
+      "oldName": "1-KDM.TBL.001 FMEA Değerlendirme Tablosu (Rev.00).xlsx",
+      "newName": "1-KAL-TB-2026-0004 FMEA Değerlendirme Tablosu.xlsx",
+      "note": "eski: KDM.TBL.001"
+    },
+    {
+      "no": "A099",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar/KDM.TBL.006 Personel Yetkinlik Matris Tablosu (Rev (1).pdf",
+      "oldName": "KDM.TBL.006 Personel Yetkinlik Matris Tablosu (Rev (1).pdf",
+      "newName": "KAL-TB-2026-0005 Personel Yetkinlik Matris Tablosu.pdf",
+      "note": "eski: KDM.TBL.006"
+    },
+    {
+      "no": "A099",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Tablolar/kaynak/1-KDM.TBL.006 Personel Yetkinlik Matris Tablosu (Rev (1).xlsx",
+      "oldName": "1-KDM.TBL.006 Personel Yetkinlik Matris Tablosu (Rev (1).xlsx",
+      "newName": "1-KAL-TB-2026-0005 Personel Yetkinlik Matris Tablosu.xlsx",
+      "note": "eski: KDM.TBL.006"
+    },
+    {
+      "no": "A100",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-051 Araç Bekleme, Temizlik ve Koruma Talimatı.pdf",
+      "oldName": "KDM-TL-051 Araç Bekleme, Temizlik ve Koruma Talimatı.pdf",
+      "newName": "KAL-TL-2026-0022 Araç Bekleme, Temizlik ve Koruma Talimatı.pdf",
+      "note": "eski: KDM-TL-051"
+    },
+    {
+      "no": "A100",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-051 Araç Bekleme, Temizlik ve Koruma Talimatı.doc",
+      "oldName": "1-KDM-TL-051 Araç Bekleme, Temizlik ve Koruma Talimatı.doc",
+      "newName": "1-KAL-TL-2026-0022 Araç Bekleme, Temizlik ve Koruma Talimatı.doc",
+      "note": "eski: KDM-TL-051"
+    },
+    {
+      "no": "A101+A207",
+      "group": "ESKIKOD+TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-088 Fikstür-Kalıp Tanımlama ve Dogrulama Talimatı.pdf",
+      "oldName": "KDM-TL-088 Fikstür-Kalıp Tanımlama ve Dogrulama Talimatı.pdf",
+      "newName": "KAL-TL-2026-0023 Fikstür-Kalıp Tanımlama ve Doğrulama Talimatı.pdf",
+      "note": "eski: KDM-TL-088"
+    },
+    {
+      "no": "A101+A207",
+      "group": "ESKIKOD+TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-088 Fikstür-Kalıp Tanımlama ve Dogrulama Talimatı.docx",
+      "oldName": "1-KDM-TL-088 Fikstür-Kalıp Tanımlama ve Dogrulama Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0023 Fikstür-Kalıp Tanımlama ve Doğrulama Talimatı.docx",
+      "note": "eski: KDM-TL-088"
+    },
+    {
+      "no": "A102",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-108 İNKR Talimatı.pdf",
+      "oldName": "KDM-TL-108 İNKR Talimatı.pdf",
+      "newName": "KAL-TL-2026-0024 İNKR Talimatı.pdf",
+      "note": "eski: KDM-TL-108"
+    },
+    {
+      "no": "A103",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-127 Ret Alanı  Karantina Alanı Yönetim Talimatı.pdf",
+      "oldName": "KDM-TL-127 Ret Alanı  Karantina Alanı Yönetim Talimatı.pdf",
+      "newName": "KAL-TL-2026-0025 Ret Alanı Karantina Alanı Yönetim Talimatı.pdf",
+      "note": "eski: KDM-TL-127"
+    },
+    {
+      "no": "A103",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-127 Ret Alanı Karantina Alanı Yönetim Talimatı.docx",
+      "oldName": "1-KDM-TL-127 Ret Alanı Karantina Alanı Yönetim Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0025 Ret Alanı Karantina Alanı Yönetim Talimatı.docx",
+      "note": "eski: KDM-TL-127"
+    },
+    {
+      "no": "A105",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-130 Fanlar İçin Dinamik Balans Kontrolü Talimatı.pdf",
+      "oldName": "KDM-TL-130 Fanlar İçin Dinamik Balans Kontrolü Talimatı.pdf",
+      "newName": "KAL-TL-2026-0026 Fanlar İçin Dinamik Balans Kontrolü Talimatı.pdf",
+      "note": "eski: KDM-TL-130"
+    },
+    {
+      "no": "A105",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-130 Fanlar İçin Dinamik Balans Kontrolü Talimatı.docx",
+      "oldName": "1-KDM-TL-130 Fanlar İçin Dinamik Balans Kontrolü Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0026 Fanlar İçin Dinamik Balans Kontrolü Talimatı.docx",
+      "note": "eski: KDM-TL-130"
+    },
+    {
+      "no": "A106",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-132 Hidrolik Hortum Seçim Talimatı.pdf",
+      "oldName": "KDM-TL-132 Hidrolik Hortum Seçim Talimatı.pdf",
+      "newName": "KAL-TL-2026-0027 Hidrolik Hortum Seçim Talimatı.pdf",
+      "note": "eski: KDM-TL-132"
+    },
+    {
+      "no": "A106",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-132 Hidrolik Hortum Seçim Talimatı.docx",
+      "oldName": "1-KDM-TL-132 Hidrolik Hortum Seçim Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0027 Hidrolik Hortum Seçim Talimatı.docx",
+      "note": "eski: KDM-TL-132"
+    },
+    {
+      "no": "A107",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-135 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.pdf",
+      "oldName": "KDM-TL-135 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.pdf",
+      "newName": "KAL-TL-2026-0028 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.pdf",
+      "note": "eski: KDM-TL-135"
+    },
+    {
+      "no": "A107",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-135 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.docx",
+      "oldName": "1-KDM-TL-135 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0028 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.docx",
+      "note": "eski: KDM-TL-135"
+    },
+    {
+      "no": "A108",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-137 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.pdf",
+      "oldName": "KDM-TL-137 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.pdf",
+      "newName": "KAL-TL-2026-0029 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.pdf",
+      "note": "eski: KDM-TL-137"
+    },
+    {
+      "no": "A108",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-137 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.docx",
+      "oldName": "1-KDM-TL-137 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0029 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.docx",
+      "note": "eski: KDM-TL-137"
+    },
+    {
+      "no": "A109",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-141 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.pdf",
+      "oldName": "KDM-TL-141 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.pdf",
+      "newName": "KAL-TL-2026-0030 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.pdf",
+      "note": "eski: KDM-TL-141"
+    },
+    {
+      "no": "A109",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-141 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.docx",
+      "oldName": "1-KDM-TL-141 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0030 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.docx",
+      "note": "eski: KDM-TL-141"
+    },
+    {
+      "no": "A110",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-144 Hurda Komisyonu Talimatı.pdf",
+      "oldName": "KDM-TL-144 Hurda Komisyonu Talimatı.pdf",
+      "newName": "KAL-TL-2026-0031 Hurda Komisyonu Talimatı.pdf",
+      "note": "eski: KDM-TL-144"
+    },
+    {
+      "no": "A110",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-144 Hurda Komisyonu Talimatı.docx",
+      "oldName": "1-KDM-TL-144 Hurda Komisyonu Talimatı.docx",
+      "newName": "1-KAL-TL-2026-0031 Hurda Komisyonu Talimatı.docx",
+      "note": "eski: KDM-TL-144"
+    },
+    {
+      "no": "A112",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Şartnameler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Şartnameler/KDM.ŞRT.008 HSCK Teknik Satınalma Ve İmalat Şartnamesi.pdf",
+      "oldName": "KDM.ŞRT.008 HSCK Teknik Satınalma Ve İmalat Şartnamesi.pdf",
+      "newName": "SAT-ST-2026-0002 HSCK Teknik Satınalma Ve İmalat Şartnamesi.pdf",
+      "note": "eski: KDM.ŞRT.008"
+    },
+    {
+      "no": "A112",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Şartnameler/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Şartnameler/kaynak/1-KDM.ŞRT.008 HSCK Teknik Satınalma Ve İmalat Şartnamesi.doc",
+      "oldName": "1-KDM.ŞRT.008 HSCK Teknik Satınalma Ve İmalat Şartnamesi.doc",
+      "newName": "1-SAT-ST-2026-0002 HSCK Teknik Satınalma Ve İmalat Şartnamesi.doc",
+      "note": "eski: KDM.ŞRT.008"
+    },
+    {
+      "no": "A113",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satış Sonrası Hizmetler Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satış Sonrası Hizmetler Müdürlüğü/Talimatlar/KDM-TL-120 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.pdf",
+      "oldName": "KDM-TL-120 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.pdf",
+      "newName": "SSH-TL-2026-0001 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.pdf",
+      "note": "eski: KDM-TL-120"
+    },
+    {
+      "no": "A113",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satış Sonrası Hizmetler Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satış Sonrası Hizmetler Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-120 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.docx",
+      "oldName": "1-KDM-TL-120 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.docx",
+      "newName": "1-SSH-TL-2026-0001 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.docx",
+      "note": "eski: KDM-TL-120"
+    },
+    {
+      "no": "A114",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar/KDM.FRM.312 Boyahane Fırın Haftalık Bakım Kontrol Formu.pdf",
+      "oldName": "KDM.FRM.312 Boyahane Fırın Haftalık Bakım Kontrol Formu.pdf",
+      "newName": "ÜRE-FR-2026-0028 Boyahane Fırın Haftalık Bakım Kontrol Formu.pdf",
+      "note": "eski: KDM.FRM.312"
+    },
+    {
+      "no": "A114",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar/kaynak/1-KDM.FRM.312 Boyahane Fırın Haftalık Bakım Kontrol Formu.xlsx",
+      "oldName": "1-KDM.FRM.312 Boyahane Fırın Haftalık Bakım Kontrol Formu.xlsx",
+      "newName": "1-ÜRE-FR-2026-0028 Boyahane Fırın Haftalık Bakım Kontrol Formu.xlsx",
+      "note": "eski: KDM.FRM.312"
+    },
+    {
+      "no": "A115",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/KDM-TL-003 Giyotin Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "oldName": "KDM-TL-003 Giyotin Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0031 Giyotin Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "note": "eski: KDM-TL-003"
+    },
+    {
+      "no": "A116",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/KDM-TL-030 BOYAHANE PERİYODİK BAKIM TALİMATI.pdf",
+      "oldName": "KDM-TL-030 BOYAHANE PERİYODİK BAKIM TALİMATI.pdf",
+      "newName": "ÜRE-TL-2026-0032 BOYAHANE PERİYODİK BAKIM TALİMATI.pdf",
+      "note": "eski: KDM-TL-030"
+    },
+    {
+      "no": "A117",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/KDM-TL-081 Abkant Pres Bakım Talimatı.pdf",
+      "oldName": "KDM-TL-081 Abkant Pres Bakım Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0033 Abkant Pres Bakım Talimatı.pdf",
+      "note": "eski: KDM-TL-081"
+    },
+    {
+      "no": "A117",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak/1-KDM-TL-081 Abkant Pres Bakım Talimatı.docx",
+      "oldName": "1-KDM-TL-081 Abkant Pres Bakım Talimatı.docx",
+      "newName": "1-ÜRE-TL-2026-0033 Abkant Pres Bakım Talimatı.docx",
+      "note": "eski: KDM-TL-081"
+    },
+    {
+      "no": "A118",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/KDM-TL-097 Korozyon Testi Uygulama Talimatı (Rev.02).pdf",
+      "oldName": "KDM-TL-097 Korozyon Testi Uygulama Talimatı (Rev.02).pdf",
+      "newName": "ÜRE-TL-2026-0034 Korozyon Testi Uygulama Talimatı.pdf",
+      "note": "eski: KDM-TL-097"
+    },
+    {
+      "no": "A118",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak/1-KDM-TL-097 Korozyon Testi Uygulama Talimatı (Rev.02).docx",
+      "oldName": "1-KDM-TL-097 Korozyon Testi Uygulama Talimatı (Rev.02).docx",
+      "newName": "1-ÜRE-TL-2026-0034 Korozyon Testi Uygulama Talimatı.docx",
+      "note": "eski: KDM-TL-097"
+    },
+    {
+      "no": "A119",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/KDM-TL-138 Hidrolik Pres Kullanım Talimatı.pdf",
+      "oldName": "KDM-TL-138 Hidrolik Pres Kullanım Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0035 Hidrolik Pres Kullanım Talimatı.pdf",
+      "note": "eski: KDM-TL-138"
+    },
+    {
+      "no": "A119",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak/1-KDM-TL-138 Hidrolik Pres Kullanım Talimatı.docx",
+      "oldName": "1-KDM-TL-138 Hidrolik Pres Kullanım Talimatı.docx",
+      "newName": "1-ÜRE-TL-2026-0035 Hidrolik Pres Kullanım Talimatı.docx",
+      "note": "eski: KDM-TL-138"
+    },
+    {
+      "no": "A120",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/KDM-TL-139 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.pdf",
+      "oldName": "KDM-TL-139 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0036 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.pdf",
+      "note": "eski: KDM-TL-139"
+    },
+    {
+      "no": "A120",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak/1-KDM-TL-139 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.docx",
+      "oldName": "1-KDM-TL-139 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.docx",
+      "newName": "1-ÜRE-TL-2026-0036 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.docx",
+      "note": "eski: KDM-TL-139"
+    },
+    {
+      "no": "A121",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/KDM-TL-140 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.pdf",
+      "oldName": "KDM-TL-140 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.pdf",
+      "newName": "ÜRE-TL-2026-0037 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.pdf",
+      "note": "eski: KDM-TL-140"
+    },
+    {
+      "no": "A121",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/kaynak/1-KDM-TL-140 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.docx",
+      "oldName": "1-KDM-TL-140 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.docx",
+      "newName": "1-ÜRE-TL-2026-0037 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.docx",
+      "note": "eski: KDM-TL-140"
+    },
+    {
+      "no": "A122",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar/KDM.FRM.232 Malzeme Talep Formu.pdf",
+      "oldName": "KDM.FRM.232 Malzeme Talep Formu.pdf",
+      "newName": "PLA-FR-2026-0001 Malzeme Talep Formu.pdf",
+      "note": "eski: KDM.FRM.232"
+    },
+    {
+      "no": "A122",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Formlar/kaynak/1-KDM.FRM.232 Malzeme Talep Formu.xlsx",
+      "oldName": "1-KDM.FRM.232 Malzeme Talep Formu.xlsx",
+      "newName": "1-PLA-FR-2026-0001 Malzeme Talep Formu.xlsx",
+      "note": "eski: KDM.FRM.232"
+    },
+    {
+      "no": "A123",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar/KDM-TL-114 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.pdf",
+      "oldName": "KDM-TL-114 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.pdf",
+      "newName": "PLA-TL-2026-0001 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.pdf",
+      "note": "eski: KDM-TL-114"
+    },
+    {
+      "no": "A123",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-114 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.docx",
+      "oldName": "1-KDM-TL-114 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.docx",
+      "newName": "1-PLA-TL-2026-0001 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.docx",
+      "note": "eski: KDM-TL-114"
+    },
+    {
+      "no": "A124",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar/KDM-TL-136 Ürün Ağacı Hazırlama Talimatı.pdf",
+      "oldName": "KDM-TL-136 Ürün Ağacı Hazırlama Talimatı.pdf",
+      "newName": "PLA-TL-2026-0002 Ürün Ağacı Hazırlama Talimatı.pdf",
+      "note": "eski: KDM-TL-136"
+    },
+    {
+      "no": "A124",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Planlama Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-136 Ürün Ağacı Hazırlama Talimatı.docx",
+      "oldName": "1-KDM-TL-136 Ürün Ağacı Hazırlama Talimatı.docx",
+      "newName": "1-PLA-TL-2026-0002 Ürün Ağacı Hazırlama Talimatı.docx",
+      "note": "eski: KDM-TL-136"
+    },
+    {
+      "no": "A125",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar/KDM-TL-145 Su Sebili Temizleme Talimatı.pdf",
+      "oldName": "KDM-TL-145 Su Sebili Temizleme Talimatı.pdf",
+      "newName": "İDA-TL-2026-0004 Su Sebili Temizleme Talimatı.pdf",
+      "note": "eski: KDM-TL-145"
+    },
+    {
+      "no": "A125",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-145 Su Sebili Temizleme Talimatı.docx",
+      "oldName": "1-KDM-TL-145 Su Sebili Temizleme Talimatı.docx",
+      "newName": "1-İDA-TL-2026-0004 Su Sebili Temizleme Talimatı.docx",
+      "note": "eski: KDM-TL-145"
+    },
+    {
+      "no": "A126",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Sözleşmeler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Sözleşmeler/KDM.SÖZ.002 Gizlilik Sözleşmesi (Rev.00).pdf",
+      "oldName": "KDM.SÖZ.002 Gizlilik Sözleşmesi (Rev.00).pdf",
+      "newName": "İNS-SZ-2026-0002 Gizlilik Sözleşmesi.pdf",
+      "note": "eski: KDM.SÖZ.002"
+    },
+    {
+      "no": "A126",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Sözleşmeler/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Sözleşmeler/kaynak/1-KDM.SÖZ.002 Gizlilik Sözleşmesi (Rev.00).docx",
+      "oldName": "1-KDM.SÖZ.002 Gizlilik Sözleşmesi (Rev.00).docx",
+      "newName": "1-İNS-SZ-2026-0002 Gizlilik Sözleşmesi.docx",
+      "note": "eski: KDM.SÖZ.002"
+    },
+    {
+      "no": "A127",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar/KDM-TL-105 Polivalans Değerlendirme Talimatı.pdf",
+      "oldName": "KDM-TL-105 Polivalans Değerlendirme Talimatı.pdf",
+      "newName": "İNS-TL-2026-0003 Polivalans Değerlendirme Talimatı.pdf",
+      "note": "eski: KDM-TL-105"
+    },
+    {
+      "no": "A127",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-105 Polivalans Değerlendirme Talimatı.docx",
+      "oldName": "1-KDM-TL-105 Polivalans Değerlendirme Talimatı.docx",
+      "newName": "1-İNS-TL-2026-0003 Polivalans Değerlendirme Talimatı.docx",
+      "note": "eski: KDM-TL-105"
+    },
+    {
+      "no": "A128",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar/KDM-TL-118 Polivalans Tablosu Hazırlama Talimatı.pdf",
+      "oldName": "KDM-TL-118 Polivalans Tablosu Hazırlama Talimatı.pdf",
+      "newName": "İNS-TL-2026-0004 Polivalans Tablosu Hazırlama Talimatı.pdf",
+      "note": "eski: KDM-TL-118"
+    },
+    {
+      "no": "A128",
+      "group": "ESKIKOD",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-118 Polivalans Tablosu Hazırlama Talimatı.docx",
+      "oldName": "1-KDM-TL-118 Polivalans Tablosu Hazırlama Talimatı.docx",
+      "newName": "1-İNS-TL-2026-0004 Polivalans Tablosu Hazırlama Talimatı.docx",
+      "note": "eski: KDM-TL-118"
+    },
+    {
+      "no": "A202",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Antetler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Antetler/KDM-TR-001 Teknil Resim A4.PDF",
+      "oldName": "KDM-TR-001 Teknil Resim A4.PDF",
+      "newName": "KDM-TR-001 Teknik Resim A4.PDF",
+      "note": ""
+    },
+    {
+      "no": "A203+A201",
+      "group": "TYPO+ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar/AR--FR-2025-0015 Gannt Chart Formu.pdf",
+      "oldName": "AR--FR-2025-0015 Gannt Chart Formu.pdf",
+      "newName": "AR-FR-2025-0015 Gantt Chart Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A205",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Listeler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Listeler/KAL-LS-2025-0006 Kaliteyi Dogrudan Etkileyen Malzemeler Listesi.pdf",
+      "oldName": "KAL-LS-2025-0006 Kaliteyi Dogrudan Etkileyen Malzemeler Listesi.pdf",
+      "newName": "KAL-LS-2025-0006 Kaliteyi Doğrudan Etkileyen Malzemeler Listesi.pdf",
+      "note": ""
+    },
+    {
+      "no": "A208",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KDM-TL-095 Tehlikleli Atık Yönetimi Talimatı.pdf",
+      "oldName": "KDM-TL-095 Tehlikleli Atık Yönetimi Talimatı.pdf",
+      "newName": "KDM-TL-095 Tehlikeli Atık Yönetimi Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A208",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/kaynak/1-KDM-TL-095 Tehlikleli Atık Yönetimi Talimatı.docx",
+      "oldName": "1-KDM-TL-095 Tehlikleli Atık Yönetimi Talimatı.docx",
+      "newName": "1-KDM-TL-095 Tehlikeli Atık Yönetimi Talimatı.docx",
+      "note": ""
+    },
+    {
+      "no": "A209",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Satınalma Müdürlüğü/Talimatlar/SAT-TL-2026-0001 Satınalma Talimat.pdf",
+      "oldName": "SAT-TL-2026-0001 Satınalma Talimat.pdf",
+      "newName": "SAT-TL-2026-0001 Satınalma Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A210",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Formlar/BOY.FR.2025.0059 Boyama Sonrası Görsel Kontrlol Formu (Rev.02).pdf",
+      "oldName": "BOY.FR.2025.0059 Boyama Sonrası Görsel Kontrlol Formu (Rev.02).pdf",
+      "newName": "BOY-FR-2025-0059 Boyama Sonrası Görsel Kontrol Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A211",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İdari İşler Müdürlüğü/Formlar/İDA-FR-2026-0009 Zimmet Tutanagı.pdf",
+      "oldName": "İDA-FR-2026-0009 Zimmet Tutanagı.pdf",
+      "newName": "İDA-FR-2026-0009 Zimmet Tutanağı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A212",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Formlar/İNS-FR-2026-0029 Eğitim İhtiyaç Analiz ve Analiz Formu.pdf",
+      "oldName": "İNS-FR-2026-0029 Eğitim İhtiyaç Analiz ve Analiz Formu.pdf",
+      "newName": "İNS-FR-2026-0029 Eğitim İhtiyaç Analiz Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A212",
+      "group": "TYPO",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Formlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/İnsan Kaynakları Müdürlüğü/Formlar/kaynak/1-İNS-FR-2026-0029 Eğitim İhtiyaç Analiz ve Analiz Formu.xlsx",
+      "oldName": "1-İNS-FR-2026-0029 Eğitim İhtiyaç Analiz ve Analiz Formu.xlsx",
+      "newName": "1-İNS-FR-2026-0029 Eğitim İhtiyaç Analiz Formu.xlsx",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar/AR--FR-2025-0003 Sipariş Teknik Yapılabilirlik Uygunluk Onay Formu.pdf",
+      "oldName": "AR--FR-2025-0003 Sipariş Teknik Yapılabilirlik Uygunluk Onay Formu.pdf",
+      "newName": "AR-FR-2025-0003 Sipariş Teknik Yapılabilirlik Uygunluk Onay Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar/AR--FR-2025-0009 Sonlu Elemanlar Analiz ve  Test Formu.pdf",
+      "oldName": "AR--FR-2025-0009 Sonlu Elemanlar Analiz ve  Test Formu.pdf",
+      "newName": "AR-FR-2025-0009 Sonlu Elemanlar Analiz ve Test Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar/AR--FR-2025-0010 Proje Geliştirme Formu.pdf",
+      "oldName": "AR--FR-2025-0010 Proje Geliştirme Formu.pdf",
+      "newName": "AR-FR-2025-0010 Proje Geliştirme Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar/AR--FR-2025-0013 Benchmark Takip Formu.pdf",
+      "oldName": "AR--FR-2025-0013 Benchmark Takip Formu.pdf",
+      "newName": "AR-FR-2025-0013 Benchmark Takip Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Formlar/AR--FR-2025-0014 DFMEA Takip Formu.pdf",
+      "oldName": "AR--FR-2025-0014 DFMEA Takip Formu.pdf",
+      "newName": "AR-FR-2025-0014 DFMEA Takip Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/AR--TL-2025-0001 Karakteristik Özellikler Belirleme Talimatı.pdf",
+      "oldName": "AR--TL-2025-0001 Karakteristik Özellikler Belirleme Talimatı.pdf",
+      "newName": "AR-TL-2025-0001 Karakteristik Özellikler Belirleme Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/AR--TL-2025-0002 Vakumlu Yol Süpürme Aracı Görsel Etiket Talimatı.pdf",
+      "oldName": "AR--TL-2025-0002 Vakumlu Yol Süpürme Aracı Görsel Etiket Talimatı.pdf",
+      "newName": "AR-TL-2025-0002 Vakumlu Yol Süpürme Aracı Görsel Etiket Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak/1-AR--TL-2025-0001 Karakteristik Özellikler Belirleme Talimatı.doc",
+      "oldName": "1-AR--TL-2025-0001 Karakteristik Özellikler Belirleme Talimatı.doc",
+      "newName": "1-AR-TL-2025-0001 Karakteristik Özellikler Belirleme Talimatı.doc",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak/1-AR--TL-2025-0002 Vakumlu Yol Süpürme Aracı Görsel Etiket Talimatı.docx",
+      "oldName": "1-AR--TL-2025-0002 Vakumlu Yol Süpürme Aracı Görsel Etiket Talimatı.docx",
+      "newName": "1-AR-TL-2025-0002 Vakumlu Yol Süpürme Aracı Görsel Etiket Talimatı.docx",
+      "note": ""
+    },
+    {
+      "no": "A201",
+      "group": "ARDASH",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Ar-Ge Direktörlüğü/Talimatlar/kaynak/1-AR--TL-2025-0003 Hidrolik Çöp Sıkıştıma Görsel Etiket Talimatı.docx",
+      "oldName": "1-AR--TL-2025-0003 Hidrolik Çöp Sıkıştıma Görsel Etiket Talimatı.docx",
+      "newName": "1-AR-TL-2025-0003 Hidrolik Çöp Sıkıştıma Görsel Etiket Talimatı.docx",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Görev Tanımları",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Görev Tanımları/KAL-GT-2025-0003  Fabrika Müdürü Görev Tanımı.pdf",
+      "oldName": "KAL-GT-2025-0003  Fabrika Müdürü Görev Tanımı.pdf",
+      "newName": "KAL-GT-2025-0003 Fabrika Müdürü Görev Tanımı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Görev Tanımları",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Görev Tanımları/KAL-GT-2025-0005  Montajhane Sorumlu Mühendisi Görev Tanımı Formu.pdf",
+      "oldName": "KAL-GT-2025-0005  Montajhane Sorumlu Mühendisi Görev Tanımı Formu.pdf",
+      "newName": "KAL-GT-2025-0005 Montajhane Sorumlu Mühendisi Görev Tanımı Formu.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Görev Tanımları",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Görev Tanımları/KAL-GT-2025-0016  Montaj Operatörü ( Kabin ) Görev Tanımı.pdf",
+      "oldName": "KAL-GT-2025-0016  Montaj Operatörü ( Kabin ) Görev Tanımı.pdf",
+      "newName": "KAL-GT-2025-0016 Montaj Operatörü ( Kabin ) Görev Tanımı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Prosedürler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Prosedürler/KAL-PR-2025-0001  Dokümanların Kontrolü Prosedürü.pdf",
+      "oldName": "KAL-PR-2025-0001  Dokümanların Kontrolü Prosedürü.pdf",
+      "newName": "KAL-PR-2025-0001 Dokümanların Kontrolü Prosedürü.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Prosedürler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Prosedürler/KAL-PR-2025-0002  Kalite Kayıtlarının Kontrolü Prosedürü.pdf",
+      "oldName": "KAL-PR-2025-0002  Kalite Kayıtlarının Kontrolü Prosedürü.pdf",
+      "newName": "KAL-PR-2025-0002 Kalite Kayıtlarının Kontrolü Prosedürü.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Kalite Müdürlüğü/Talimatlar/KAL-TL-2026-0002  Fikstür Yönetimi Ve Doğrulama Talimatı.pdf",
+      "oldName": "KAL-TL-2026-0002  Fikstür Yönetimi Ve Doğrulama Talimatı.pdf",
+      "newName": "KAL-TL-2026-0002 Fikstür Yönetimi Ve Doğrulama Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Prosedürler",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Prosedürler/KAL.PR.2025.0010  BOYA VE KAPLAMA ÖLÇÜM KONTROLLERİ PROSEDÜRÜ.pdf",
+      "oldName": "KAL.PR.2025.0010  BOYA VE KAPLAMA ÖLÇÜM KONTROLLERİ PROSEDÜRÜ.pdf",
+      "newName": "KAL.PR.2025.0010 BOYA VE KAPLAMA ÖLÇÜM KONTROLLERİ PROSEDÜRÜ.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/BAK-TL-2025-0002  Kaynak Makinesi Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "oldName": "BAK-TL-2025-0002  Kaynak Makinesi Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "newName": "BAK-TL-2025-0002 Kaynak Makinesi Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/BAK-TL-2025-0003  Kılavuz Çekme Makinesi Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "oldName": "BAK-TL-2025-0003  Kılavuz Çekme Makinesi Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "newName": "BAK-TL-2025-0003 Kılavuz Çekme Makinesi Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/BAK-TL-2025-0007 Lazer kesim Aylık  bakım talimatı.pdf",
+      "oldName": "BAK-TL-2025-0007 Lazer kesim Aylık  bakım talimatı.pdf",
+      "newName": "BAK-TL-2025-0007 Lazer kesim Aylık bakım talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/ÜRE-TL-2025-0002  Universal Torna Tezgahı Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "oldName": "ÜRE-TL-2025-0002  Universal Torna Tezgahı Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "newName": "ÜRE-TL-2025-0002 Universal Torna Tezgahı Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "note": ""
+    },
+    {
+      "no": "A200",
+      "group": "DBLSPACE",
+      "dir": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "src": "/Users/atakanbattal/Desktop/KademeQMS_Dokumanlar/Üretim Müdürlüğü (Üst Yapı)/Talimatlar/ÜRE-TL-2025-0004  Ford Araç Şasi Tadilat Talimatı.pdf",
+      "oldName": "ÜRE-TL-2025-0004  Ford Araç Şasi Tadilat Talimatı.pdf",
+      "newName": "ÜRE-TL-2025-0004 Ford Araç Şasi Tadilat Talimatı.pdf",
+      "note": ""
+    }
+  ],
+  "skipped": [
+    {
+      "no": "A084",
+      "reason": "tip kararı gerekli (SOP şablonu form mu talimat mı)"
+    },
+    {
+      "no": "A104",
+      "reason": "A066 sahiplik kararı bekliyor (İK'ya devir önerisi)"
+    },
+    {
+      "no": "A111",
+      "reason": "A067 sahiplik kararı bekliyor (Depo önerisi)"
+    }
+  ],
+  "conflicts": [],
+  "newMappings": [
+    {
+      "old": "HSCK 8+1",
+      "neu": "KAL-FR-2026-0028",
+      "folder": "Kalite Müdürlüğü/Formlar",
+      "oldFile": "HSCK 8+1.pdf",
+      "newFile": "KAL-FR-2026-0028 HSCK 8+1.pdf",
+      "note": "A074"
+    },
+    {
+      "old": "Kaynakhane Parametre Doğrulama Formu",
+      "neu": "KAL-FR-2026-0030",
+      "folder": "Kalite Müdürlüğü/Formlar",
+      "oldFile": "Kaynakhane Parametre Doğrulama Formu.pdf",
+      "newFile": "KAL-FR-2026-0030 Kaynakhane Parametre Doğrulama Formu.pdf",
+      "note": "A075"
+    },
+    {
+      "old": "Sapma Yönetimi Talimatı",
+      "neu": "KAL-TL-2026-0016",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "Sapma Yönetimi Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0016 Sapma Yönetimi Talimatı.pdf",
+      "note": "A076"
+    },
+    {
+      "old": "crosscut",
+      "neu": "KAL-TL-2026-0010",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "crosscut.pdf",
+      "newFile": "KAL-TL-2026-0010 crosscut.pdf",
+      "note": "A077"
+    },
+    {
+      "old": "ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.drawio",
+      "neu": "KAL-SM-2026-0005",
+      "folder": "Kalite Müdürlüğü/Şemalar",
+      "oldFile": "ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.drawio.pdf",
+      "newFile": "KAL-SM-2026-0005 ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.pdf",
+      "note": "A078"
+    },
+    {
+      "old": "Organizasyon Şeması R4",
+      "neu": "KAL-SM-2026-0006",
+      "folder": "Kalite Müdürlüğü/Şemalar",
+      "oldFile": "Organizasyon Şeması R4.pdf",
+      "newFile": "KAL-SM-2026-0006 Organizasyon Şeması.pdf",
+      "note": "A079"
+    },
+    {
+      "old": "Satınalma Süreci İş Akışı",
+      "neu": "SAT-SM-2026-0002",
+      "folder": "Satınalma Müdürlüğü/Şemalar",
+      "oldFile": "Satınalma Süreci İş Akışı.pdf",
+      "newFile": "SAT-SM-2026-0002 Satınalma Süreci İş Akışı.pdf",
+      "note": "A080"
+    },
+    {
+      "old": "DIŞ HİZMET & TAMİRAT FORMU",
+      "neu": "BAK-FR-2026-0001",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Formlar",
+      "oldFile": "DIŞ HİZMET & TAMİRAT FORMU.pdf",
+      "newFile": "BAK-FR-2026-0001 DIŞ HİZMET & TAMİRAT FORMU.pdf",
+      "note": "A081"
+    },
+    {
+      "old": "Boya Kalınlık Ölçüm Talimatı",
+      "neu": "ÜRE-TL-2026-0030",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "Boya Kalınlık Ölçüm Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0030 Boya Kalınlık Ölçüm Talimatı.pdf",
+      "note": "A082"
+    },
+    {
+      "old": "Kaynaklı Operasyon Talimatı",
+      "neu": "ÜRE-TL-2026-0028",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "Kaynaklı Operasyon Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0028 Kaynaklı Operasyon Talimatı.pdf",
+      "note": "A083"
+    },
+    {
+      "old": "Süreç Akış Şeması_03062026",
+      "neu": "ÜRE-SM-2026-0004",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Şemalar",
+      "oldFile": "Süreç Akış Şeması_03062026.pdf",
+      "newFile": "ÜRE-SM-2026-0004 Süreç Akış Şeması.pdf",
+      "note": "A085"
+    },
+    {
+      "old": "ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU",
+      "neu": "ÜRE-FR-2026-0027",
+      "folder": "Üretim Planlama Müdürlüğü/Formlar",
+      "oldFile": "ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.pdf",
+      "newFile": "ÜRE-FR-2026-0027 ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.pdf",
+      "note": "A086"
+    },
+    {
+      "old": "Kumlama Ve Boyahane Çalışma Talimatı",
+      "neu": "ÜRE-TL-2026-0020",
+      "folder": "Üretim Planlama Müdürlüğü/Talimatlar",
+      "oldFile": "Kumlama Ve Boyahane Çalışma Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0020 Kumlama Ve Boyahane Çalışma Talimatı.pdf",
+      "note": "A087"
+    },
+    {
+      "old": "İSG-FR-2026-0001 KURUL TOPLANTI",
+      "neu": "İSG-FR-2026-0001",
+      "folder": "İdari İşler Müdürlüğü/Formlar",
+      "oldFile": "İSG-FR-2026-0001 KURUL TOPLANTI.pdf",
+      "newFile": "İSG-FR-2026-0001 İSG Kurul Toplantı Tutanağı Formu.pdf",
+      "note": "A088"
+    },
+    {
+      "old": "DIŞ BAKIM TALİMATI",
+      "neu": "İDA-TL-2026-0003",
+      "folder": "İdari İşler Müdürlüğü/Talimatlar",
+      "oldFile": "DIŞ BAKIM TALİMATI.pdf",
+      "newFile": "İDA-TL-2026-0003 DIŞ BAKIM TALİMATI.pdf",
+      "note": "A089"
+    },
+    {
+      "old": "KDM.YN.01Disiplin Yönetmenliği",
+      "neu": "İNS-YN-2026-0001",
+      "folder": "İnsan Kaynakları Müdürlüğü/Yönetmelikler",
+      "oldFile": "KDM.YN.01Disiplin Yönetmenliği.pdf",
+      "newFile": "İNS-YN-2026-0001 Disiplin Yönetmeliği.pdf",
+      "note": "A090"
+    },
+    {
+      "old": "KDM-TL-036",
+      "neu": "AR-TL-2026-0011",
+      "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+      "oldFile": "KDM-TL-036 Hidrolik Çöp Sıkıştıma Görsel Etiket Talimatı.pdf",
+      "newFile": "AR-TL-2026-0011 Hidrolik Çöp Sıkıştırma Görsel Etiket Talimatı.pdf",
+      "note": "A091"
+    },
+    {
+      "old": "KDM-TL-100",
+      "neu": "AR-TL-2026-0012",
+      "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+      "oldFile": "KDM-TL-100 Mühendislik Değişiklik İsteği Talimatı.pdf",
+      "newFile": "AR-TL-2026-0012 Mühendislik Değişiklik İsteği Talimatı.pdf",
+      "note": "A092"
+    },
+    {
+      "old": "KDM-TL-142",
+      "neu": "AR-TL-2026-0013",
+      "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+      "oldFile": "KDM-TL-142 Fizibilite Raporu Talep Formu Doldurma Talimatı.pdf",
+      "newFile": "AR-TL-2026-0013 Fizibilite Raporu Talep Formu Doldurma Talimatı.pdf",
+      "note": "A093"
+    },
+    {
+      "old": "KDM-TL-143",
+      "neu": "AR-TL-2026-0014",
+      "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+      "oldFile": "KDM-TL-143 Fizibilite Raporu Oluşturma Talimatı.pdf",
+      "newFile": "AR-TL-2026-0014 Fizibilite Raporu Oluşturma Talimatı.pdf",
+      "note": "A094"
+    },
+    {
+      "old": "KDM-TL-072",
+      "neu": "DEP-TL-2026-0001",
+      "folder": "Depo Şefliği/Talimatlar",
+      "oldFile": "KDM-TL-072 Araç Teslim Alma Talimatı.pdf",
+      "newFile": "DEP-TL-2026-0001 Araç Teslim Alma Talimatı.pdf",
+      "note": "A095"
+    },
+    {
+      "old": "KDM.FRM.177",
+      "neu": "KAL-FR-2026-0031",
+      "folder": "Kalite Müdürlüğü/Formlar",
+      "oldFile": "KDM.FRM.177 Kompost Makinesi Final Kalite Kontrol Formu (Rev.02).pdf",
+      "newFile": "KAL-FR-2026-0031 Kompost Makinesi Final Kalite Kontrol Formu.pdf",
+      "note": "A096"
+    },
+    {
+      "old": "KDM.PLN.001",
+      "neu": "KAL-PL-2026-0002",
+      "folder": "Kalite Müdürlüğü/Planlar",
+      "oldFile": "KDM.PLN.001 Girdi Kalite Kontrol Planı (Rev.00).pdf",
+      "newFile": "KAL-PL-2026-0002 Girdi Kalite Kontrol Planı.pdf",
+      "note": "A097"
+    },
+    {
+      "old": "KDM.TBL.001",
+      "neu": "KAL-TB-2026-0004",
+      "folder": "Kalite Müdürlüğü/Tablolar",
+      "oldFile": "KDM.TBL.001 FMEA Değerlendirme Tablosu (Rev.00).pdf",
+      "newFile": "KAL-TB-2026-0004 FMEA Değerlendirme Tablosu.pdf",
+      "note": "A098"
+    },
+    {
+      "old": "KDM.TBL.006",
+      "neu": "KAL-TB-2026-0005",
+      "folder": "Kalite Müdürlüğü/Tablolar",
+      "oldFile": "KDM.TBL.006 Personel Yetkinlik Matris Tablosu (Rev (1).pdf",
+      "newFile": "KAL-TB-2026-0005 Personel Yetkinlik Matris Tablosu.pdf",
+      "note": "A099"
+    },
+    {
+      "old": "KDM-TL-051",
+      "neu": "KAL-TL-2026-0022",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-051 Araç Bekleme, Temizlik ve Koruma Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0022 Araç Bekleme, Temizlik ve Koruma Talimatı.pdf",
+      "note": "A100"
+    },
+    {
+      "old": "KDM-TL-088",
+      "neu": "KAL-TL-2026-0023",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-088 Fikstür-Kalıp Tanımlama ve Dogrulama Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0023 Fikstür-Kalıp Tanımlama ve Doğrulama Talimatı.pdf",
+      "note": "A101"
+    },
+    {
+      "old": "KDM-TL-108",
+      "neu": "KAL-TL-2026-0024",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-108 İNKR Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0024 İNKR Talimatı.pdf",
+      "note": "A102"
+    },
+    {
+      "old": "KDM-TL-127",
+      "neu": "KAL-TL-2026-0025",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-127 Ret Alanı  Karantina Alanı Yönetim Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0025 Ret Alanı Karantina Alanı Yönetim Talimatı.pdf",
+      "note": "A103"
+    },
+    {
+      "old": "KDM-TL-130",
+      "neu": "KAL-TL-2026-0026",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-130 Fanlar İçin Dinamik Balans Kontrolü Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0026 Fanlar İçin Dinamik Balans Kontrolü Talimatı.pdf",
+      "note": "A105"
+    },
+    {
+      "old": "KDM-TL-132",
+      "neu": "KAL-TL-2026-0027",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-132 Hidrolik Hortum Seçim Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0027 Hidrolik Hortum Seçim Talimatı.pdf",
+      "note": "A106"
+    },
+    {
+      "old": "KDM-TL-135",
+      "neu": "KAL-TL-2026-0028",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-135 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0028 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.pdf",
+      "note": "A107"
+    },
+    {
+      "old": "KDM-TL-137",
+      "neu": "KAL-TL-2026-0029",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-137 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0029 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.pdf",
+      "note": "A108"
+    },
+    {
+      "old": "KDM-TL-141",
+      "neu": "KAL-TL-2026-0030",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-141 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0030 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.pdf",
+      "note": "A109"
+    },
+    {
+      "old": "KDM-TL-144",
+      "neu": "KAL-TL-2026-0031",
+      "folder": "Kalite Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-144 Hurda Komisyonu Talimatı.pdf",
+      "newFile": "KAL-TL-2026-0031 Hurda Komisyonu Talimatı.pdf",
+      "note": "A110"
+    },
+    {
+      "old": "KDM.ŞRT.008",
+      "neu": "SAT-ST-2026-0002",
+      "folder": "Satınalma Müdürlüğü/Şartnameler",
+      "oldFile": "KDM.ŞRT.008 HSCK Teknik Satınalma Ve İmalat Şartnamesi.pdf",
+      "newFile": "SAT-ST-2026-0002 HSCK Teknik Satınalma Ve İmalat Şartnamesi.pdf",
+      "note": "A112"
+    },
+    {
+      "old": "KDM-TL-120",
+      "neu": "SSH-TL-2026-0001",
+      "folder": "Satış Sonrası Hizmetler Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-120 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.pdf",
+      "newFile": "SSH-TL-2026-0001 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.pdf",
+      "note": "A113"
+    },
+    {
+      "old": "KDM.FRM.312",
+      "neu": "ÜRE-FR-2026-0028",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Formlar",
+      "oldFile": "KDM.FRM.312 Boyahane Fırın Haftalık Bakım Kontrol Formu.pdf",
+      "newFile": "ÜRE-FR-2026-0028 Boyahane Fırın Haftalık Bakım Kontrol Formu.pdf",
+      "note": "A114"
+    },
+    {
+      "old": "KDM-TL-003",
+      "neu": "ÜRE-TL-2026-0031",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "KDM-TL-003 Giyotin Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0031 Giyotin Güvenli Kullanma ve Bakım Talimatı.pdf",
+      "note": "A115"
+    },
+    {
+      "old": "KDM-TL-030",
+      "neu": "ÜRE-TL-2026-0032",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "KDM-TL-030 BOYAHANE PERİYODİK BAKIM TALİMATI.pdf",
+      "newFile": "ÜRE-TL-2026-0032 BOYAHANE PERİYODİK BAKIM TALİMATI.pdf",
+      "note": "A116"
+    },
+    {
+      "old": "KDM-TL-081",
+      "neu": "ÜRE-TL-2026-0033",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "KDM-TL-081 Abkant Pres Bakım Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0033 Abkant Pres Bakım Talimatı.pdf",
+      "note": "A117"
+    },
+    {
+      "old": "KDM-TL-097",
+      "neu": "ÜRE-TL-2026-0034",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "KDM-TL-097 Korozyon Testi Uygulama Talimatı (Rev.02).pdf",
+      "newFile": "ÜRE-TL-2026-0034 Korozyon Testi Uygulama Talimatı.pdf",
+      "note": "A118"
+    },
+    {
+      "old": "KDM-TL-138",
+      "neu": "ÜRE-TL-2026-0035",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "KDM-TL-138 Hidrolik Pres Kullanım Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0035 Hidrolik Pres Kullanım Talimatı.pdf",
+      "note": "A119"
+    },
+    {
+      "old": "KDM-TL-139",
+      "neu": "ÜRE-TL-2026-0036",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "KDM-TL-139 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0036 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.pdf",
+      "note": "A120"
+    },
+    {
+      "old": "KDM-TL-140",
+      "neu": "ÜRE-TL-2026-0037",
+      "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+      "oldFile": "KDM-TL-140 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.pdf",
+      "newFile": "ÜRE-TL-2026-0037 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.pdf",
+      "note": "A121"
+    },
+    {
+      "old": "KDM.FRM.232",
+      "neu": "PLA-FR-2026-0001",
+      "folder": "Üretim Planlama Müdürlüğü/Formlar",
+      "oldFile": "KDM.FRM.232 Malzeme Talep Formu.pdf",
+      "newFile": "PLA-FR-2026-0001 Malzeme Talep Formu.pdf",
+      "note": "A122"
+    },
+    {
+      "old": "KDM-TL-114",
+      "neu": "PLA-TL-2026-0001",
+      "folder": "Üretim Planlama Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-114 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.pdf",
+      "newFile": "PLA-TL-2026-0001 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.pdf",
+      "note": "A123"
+    },
+    {
+      "old": "KDM-TL-136",
+      "neu": "PLA-TL-2026-0002",
+      "folder": "Üretim Planlama Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-136 Ürün Ağacı Hazırlama Talimatı.pdf",
+      "newFile": "PLA-TL-2026-0002 Ürün Ağacı Hazırlama Talimatı.pdf",
+      "note": "A124"
+    },
+    {
+      "old": "KDM-TL-145",
+      "neu": "İDA-TL-2026-0004",
+      "folder": "İdari İşler Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-145 Su Sebili Temizleme Talimatı.pdf",
+      "newFile": "İDA-TL-2026-0004 Su Sebili Temizleme Talimatı.pdf",
+      "note": "A125"
+    },
+    {
+      "old": "KDM.SÖZ.002",
+      "neu": "İNS-SZ-2026-0002",
+      "folder": "İnsan Kaynakları Müdürlüğü/Sözleşmeler",
+      "oldFile": "KDM.SÖZ.002 Gizlilik Sözleşmesi (Rev.00).pdf",
+      "newFile": "İNS-SZ-2026-0002 Gizlilik Sözleşmesi.pdf",
+      "note": "A126"
+    },
+    {
+      "old": "KDM-TL-105",
+      "neu": "İNS-TL-2026-0003",
+      "folder": "İnsan Kaynakları Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-105 Polivalans Değerlendirme Talimatı.pdf",
+      "newFile": "İNS-TL-2026-0003 Polivalans Değerlendirme Talimatı.pdf",
+      "note": "A127"
+    },
+    {
+      "old": "KDM-TL-118",
+      "neu": "İNS-TL-2026-0004",
+      "folder": "İnsan Kaynakları Müdürlüğü/Talimatlar",
+      "oldFile": "KDM-TL-118 Polivalans Tablosu Hazırlama Talimatı.pdf",
+      "newFile": "İNS-TL-2026-0004 Polivalans Tablosu Hazırlama Talimatı.pdf",
+      "note": "A128"
+    }
+  ]
+}

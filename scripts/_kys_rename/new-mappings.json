@@ -1,0 +1,418 @@
+[
+  {
+    "old": "HSCK 8+1",
+    "neu": "KAL-FR-2026-0028",
+    "folder": "Kalite Müdürlüğü/Formlar",
+    "oldFile": "HSCK 8+1.pdf",
+    "newFile": "KAL-FR-2026-0028 HSCK 8+1.pdf",
+    "note": "A074"
+  },
+  {
+    "old": "Kaynakhane Parametre Doğrulama Formu",
+    "neu": "KAL-FR-2026-0030",
+    "folder": "Kalite Müdürlüğü/Formlar",
+    "oldFile": "Kaynakhane Parametre Doğrulama Formu.pdf",
+    "newFile": "KAL-FR-2026-0030 Kaynakhane Parametre Doğrulama Formu.pdf",
+    "note": "A075"
+  },
+  {
+    "old": "Sapma Yönetimi Talimatı",
+    "neu": "KAL-TL-2026-0016",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "Sapma Yönetimi Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0016 Sapma Yönetimi Talimatı.pdf",
+    "note": "A076"
+  },
+  {
+    "old": "crosscut",
+    "neu": "KAL-TL-2026-0010",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "crosscut.pdf",
+    "newFile": "KAL-TL-2026-0010 crosscut.pdf",
+    "note": "A077"
+  },
+  {
+    "old": "ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.drawio",
+    "neu": "KAL-SM-2026-0005",
+    "folder": "Kalite Müdürlüğü/Şemalar",
+    "oldFile": "ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.drawio.pdf",
+    "newFile": "KAL-SM-2026-0005 ARAÇ TAKİP DOSYASI AKIŞ ŞEMASI.pdf",
+    "note": "A078"
+  },
+  {
+    "old": "Organizasyon Şeması R4",
+    "neu": "KAL-SM-2026-0006",
+    "folder": "Kalite Müdürlüğü/Şemalar",
+    "oldFile": "Organizasyon Şeması R4.pdf",
+    "newFile": "KAL-SM-2026-0006 Organizasyon Şeması.pdf",
+    "note": "A079"
+  },
+  {
+    "old": "Satınalma Süreci İş Akışı",
+    "neu": "SAT-SM-2026-0002",
+    "folder": "Satınalma Müdürlüğü/Şemalar",
+    "oldFile": "Satınalma Süreci İş Akışı.pdf",
+    "newFile": "SAT-SM-2026-0002 Satınalma Süreci İş Akışı.pdf",
+    "note": "A080"
+  },
+  {
+    "old": "DIŞ HİZMET & TAMİRAT FORMU",
+    "neu": "BAK-FR-2026-0001",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Formlar",
+    "oldFile": "DIŞ HİZMET & TAMİRAT FORMU.pdf",
+    "newFile": "BAK-FR-2026-0001 DIŞ HİZMET & TAMİRAT FORMU.pdf",
+    "note": "A081"
+  },
+  {
+    "old": "Boya Kalınlık Ölçüm Talimatı",
+    "neu": "ÜRE-TL-2026-0030",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "Boya Kalınlık Ölçüm Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0030 Boya Kalınlık Ölçüm Talimatı.pdf",
+    "note": "A082"
+  },
+  {
+    "old": "Kaynaklı Operasyon Talimatı",
+    "neu": "ÜRE-TL-2026-0028",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "Kaynaklı Operasyon Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0028 Kaynaklı Operasyon Talimatı.pdf",
+    "note": "A083"
+  },
+  {
+    "old": "Süreç Akış Şeması_03062026",
+    "neu": "ÜRE-SM-2026-0004",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Şemalar",
+    "oldFile": "Süreç Akış Şeması_03062026.pdf",
+    "newFile": "ÜRE-SM-2026-0004 Süreç Akış Şeması.pdf",
+    "note": "A085"
+  },
+  {
+    "old": "ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU",
+    "neu": "ÜRE-FR-2026-0027",
+    "folder": "Üretim Planlama Müdürlüğü/Formlar",
+    "oldFile": "ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.pdf",
+    "newFile": "ÜRE-FR-2026-0027 ÜRETİM HATALARI ÖNCESİ - SONRASI FORMU.pdf",
+    "note": "A086"
+  },
+  {
+    "old": "Kumlama Ve Boyahane Çalışma Talimatı",
+    "neu": "ÜRE-TL-2026-0020",
+    "folder": "Üretim Planlama Müdürlüğü/Talimatlar",
+    "oldFile": "Kumlama Ve Boyahane Çalışma Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0020 Kumlama Ve Boyahane Çalışma Talimatı.pdf",
+    "note": "A087"
+  },
+  {
+    "old": "İSG-FR-2026-0001 KURUL TOPLANTI",
+    "neu": "İSG-FR-2026-0001",
+    "folder": "İdari İşler Müdürlüğü/Formlar",
+    "oldFile": "İSG-FR-2026-0001 KURUL TOPLANTI.pdf",
+    "newFile": "İSG-FR-2026-0001 İSG Kurul Toplantı Tutanağı Formu.pdf",
+    "note": "A088"
+  },
+  {
+    "old": "DIŞ BAKIM TALİMATI",
+    "neu": "İDA-TL-2026-0003",
+    "folder": "İdari İşler Müdürlüğü/Talimatlar",
+    "oldFile": "DIŞ BAKIM TALİMATI.pdf",
+    "newFile": "İDA-TL-2026-0003 DIŞ BAKIM TALİMATI.pdf",
+    "note": "A089"
+  },
+  {
+    "old": "KDM.YN.01Disiplin Yönetmenliği",
+    "neu": "İNS-YN-2026-0001",
+    "folder": "İnsan Kaynakları Müdürlüğü/Yönetmelikler",
+    "oldFile": "KDM.YN.01Disiplin Yönetmenliği.pdf",
+    "newFile": "İNS-YN-2026-0001 Disiplin Yönetmeliği.pdf",
+    "note": "A090"
+  },
+  {
+    "old": "KDM-TL-036",
+    "neu": "AR-TL-2026-0011",
+    "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+    "oldFile": "KDM-TL-036 Hidrolik Çöp Sıkıştıma Görsel Etiket Talimatı.pdf",
+    "newFile": "AR-TL-2026-0011 Hidrolik Çöp Sıkıştırma Görsel Etiket Talimatı.pdf",
+    "note": "A091"
+  },
+  {
+    "old": "KDM-TL-100",
+    "neu": "AR-TL-2026-0012",
+    "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+    "oldFile": "KDM-TL-100 Mühendislik Değişiklik İsteği Talimatı.pdf",
+    "newFile": "AR-TL-2026-0012 Mühendislik Değişiklik İsteği Talimatı.pdf",
+    "note": "A092"
+  },
+  {
+    "old": "KDM-TL-142",
+    "neu": "AR-TL-2026-0013",
+    "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+    "oldFile": "KDM-TL-142 Fizibilite Raporu Talep Formu Doldurma Talimatı.pdf",
+    "newFile": "AR-TL-2026-0013 Fizibilite Raporu Talep Formu Doldurma Talimatı.pdf",
+    "note": "A093"
+  },
+  {
+    "old": "KDM-TL-143",
+    "neu": "AR-TL-2026-0014",
+    "folder": "Ar-Ge Direktörlüğü/Talimatlar",
+    "oldFile": "KDM-TL-143 Fizibilite Raporu Oluşturma Talimatı.pdf",
+    "newFile": "AR-TL-2026-0014 Fizibilite Raporu Oluşturma Talimatı.pdf",
+    "note": "A094"
+  },
+  {
+    "old": "KDM-TL-072",
+    "neu": "DEP-TL-2026-0001",
+    "folder": "Depo Şefliği/Talimatlar",
+    "oldFile": "KDM-TL-072 Araç Teslim Alma Talimatı.pdf",
+    "newFile": "DEP-TL-2026-0001 Araç Teslim Alma Talimatı.pdf",
+    "note": "A095"
+  },
+  {
+    "old": "KDM.FRM.177",
+    "neu": "KAL-FR-2026-0031",
+    "folder": "Kalite Müdürlüğü/Formlar",
+    "oldFile": "KDM.FRM.177 Kompost Makinesi Final Kalite Kontrol Formu (Rev.02).pdf",
+    "newFile": "KAL-FR-2026-0031 Kompost Makinesi Final Kalite Kontrol Formu.pdf",
+    "note": "A096"
+  },
+  {
+    "old": "KDM.PLN.001",
+    "neu": "KAL-PL-2026-0002",
+    "folder": "Kalite Müdürlüğü/Planlar",
+    "oldFile": "KDM.PLN.001 Girdi Kalite Kontrol Planı (Rev.00).pdf",
+    "newFile": "KAL-PL-2026-0002 Girdi Kalite Kontrol Planı.pdf",
+    "note": "A097"
+  },
+  {
+    "old": "KDM.TBL.001",
+    "neu": "KAL-TB-2026-0004",
+    "folder": "Kalite Müdürlüğü/Tablolar",
+    "oldFile": "KDM.TBL.001 FMEA Değerlendirme Tablosu (Rev.00).pdf",
+    "newFile": "KAL-TB-2026-0004 FMEA Değerlendirme Tablosu.pdf",
+    "note": "A098"
+  },
+  {
+    "old": "KDM.TBL.006",
+    "neu": "KAL-TB-2026-0005",
+    "folder": "Kalite Müdürlüğü/Tablolar",
+    "oldFile": "KDM.TBL.006 Personel Yetkinlik Matris Tablosu (Rev (1).pdf",
+    "newFile": "KAL-TB-2026-0005 Personel Yetkinlik Matris Tablosu.pdf",
+    "note": "A099"
+  },
+  {
+    "old": "KDM-TL-051",
+    "neu": "KAL-TL-2026-0022",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-051 Araç Bekleme, Temizlik ve Koruma Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0022 Araç Bekleme, Temizlik ve Koruma Talimatı.pdf",
+    "note": "A100"
+  },
+  {
+    "old": "KDM-TL-088",
+    "neu": "KAL-TL-2026-0023",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-088 Fikstür-Kalıp Tanımlama ve Dogrulama Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0023 Fikstür-Kalıp Tanımlama ve Doğrulama Talimatı.pdf",
+    "note": "A101"
+  },
+  {
+    "old": "KDM-TL-108",
+    "neu": "KAL-TL-2026-0024",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-108 İNKR Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0024 İNKR Talimatı.pdf",
+    "note": "A102"
+  },
+  {
+    "old": "KDM-TL-127",
+    "neu": "KAL-TL-2026-0025",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-127 Ret Alanı  Karantina Alanı Yönetim Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0025 Ret Alanı Karantina Alanı Yönetim Talimatı.pdf",
+    "note": "A103"
+  },
+  {
+    "old": "KDM-TL-130",
+    "neu": "KAL-TL-2026-0026",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-130 Fanlar İçin Dinamik Balans Kontrolü Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0026 Fanlar İçin Dinamik Balans Kontrolü Talimatı.pdf",
+    "note": "A105"
+  },
+  {
+    "old": "KDM-TL-132",
+    "neu": "KAL-TL-2026-0027",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-132 Hidrolik Hortum Seçim Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0027 Hidrolik Hortum Seçim Talimatı.pdf",
+    "note": "A106"
+  },
+  {
+    "old": "KDM-TL-135",
+    "neu": "KAL-TL-2026-0028",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-135 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0028 Üst Yapı Ses Seviyesi Ölçüm Test Talimatı.pdf",
+    "note": "A107"
+  },
+  {
+    "old": "KDM-TL-137",
+    "neu": "KAL-TL-2026-0029",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-137 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0029 Anemometre İle Hava Hızının ve Hacminin Ölçülmesi Talimatı.pdf",
+    "note": "A108"
+  },
+  {
+    "old": "KDM-TL-141",
+    "neu": "KAL-TL-2026-0030",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-141 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0030 Lazer Kesim Tezgahında Proses Kontrol ve Ölçüm Talimatı.pdf",
+    "note": "A109"
+  },
+  {
+    "old": "KDM-TL-144",
+    "neu": "KAL-TL-2026-0031",
+    "folder": "Kalite Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-144 Hurda Komisyonu Talimatı.pdf",
+    "newFile": "KAL-TL-2026-0031 Hurda Komisyonu Talimatı.pdf",
+    "note": "A110"
+  },
+  {
+    "old": "KDM.ŞRT.008",
+    "neu": "SAT-ST-2026-0002",
+    "folder": "Satınalma Müdürlüğü/Şartnameler",
+    "oldFile": "KDM.ŞRT.008 HSCK Teknik Satınalma Ve İmalat Şartnamesi.pdf",
+    "newFile": "SAT-ST-2026-0002 HSCK Teknik Satınalma Ve İmalat Şartnamesi.pdf",
+    "note": "A112"
+  },
+  {
+    "old": "KDM-TL-120",
+    "neu": "SSH-TL-2026-0001",
+    "folder": "Satış Sonrası Hizmetler Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-120 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.pdf",
+    "newFile": "SSH-TL-2026-0001 Müşteri Memnuniyet Anketleri ve Döf Açma Kriterleri Talimatı.pdf",
+    "note": "A113"
+  },
+  {
+    "old": "KDM.FRM.312",
+    "neu": "ÜRE-FR-2026-0028",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Formlar",
+    "oldFile": "KDM.FRM.312 Boyahane Fırın Haftalık Bakım Kontrol Formu.pdf",
+    "newFile": "ÜRE-FR-2026-0028 Boyahane Fırın Haftalık Bakım Kontrol Formu.pdf",
+    "note": "A114"
+  },
+  {
+    "old": "KDM-TL-003",
+    "neu": "ÜRE-TL-2026-0031",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "KDM-TL-003 Giyotin Güvenli Kullanma ve Bakım Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0031 Giyotin Güvenli Kullanma ve Bakım Talimatı.pdf",
+    "note": "A115"
+  },
+  {
+    "old": "KDM-TL-030",
+    "neu": "ÜRE-TL-2026-0032",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "KDM-TL-030 BOYAHANE PERİYODİK BAKIM TALİMATI.pdf",
+    "newFile": "ÜRE-TL-2026-0032 BOYAHANE PERİYODİK BAKIM TALİMATI.pdf",
+    "note": "A116"
+  },
+  {
+    "old": "KDM-TL-081",
+    "neu": "ÜRE-TL-2026-0033",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "KDM-TL-081 Abkant Pres Bakım Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0033 Abkant Pres Bakım Talimatı.pdf",
+    "note": "A117"
+  },
+  {
+    "old": "KDM-TL-097",
+    "neu": "ÜRE-TL-2026-0034",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "KDM-TL-097 Korozyon Testi Uygulama Talimatı (Rev.02).pdf",
+    "newFile": "ÜRE-TL-2026-0034 Korozyon Testi Uygulama Talimatı.pdf",
+    "note": "A118"
+  },
+  {
+    "old": "KDM-TL-138",
+    "neu": "ÜRE-TL-2026-0035",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "KDM-TL-138 Hidrolik Pres Kullanım Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0035 Hidrolik Pres Kullanım Talimatı.pdf",
+    "note": "A119"
+  },
+  {
+    "old": "KDM-TL-139",
+    "neu": "ÜRE-TL-2026-0036",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "KDM-TL-139 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0036 Üst Yapı Araçların Elektrik Tesisatı Sabitleme Talimatı.pdf",
+    "note": "A120"
+  },
+  {
+    "old": "KDM-TL-140",
+    "neu": "ÜRE-TL-2026-0037",
+    "folder": "Üretim Müdürlüğü (Üst Yapı)/Talimatlar",
+    "oldFile": "KDM-TL-140 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.pdf",
+    "newFile": "ÜRE-TL-2026-0037 Kamyon Üstü Kaynak İşlemleri Koruma Talimatı.pdf",
+    "note": "A121"
+  },
+  {
+    "old": "KDM.FRM.232",
+    "neu": "PLA-FR-2026-0001",
+    "folder": "Üretim Planlama Müdürlüğü/Formlar",
+    "oldFile": "KDM.FRM.232 Malzeme Talep Formu.pdf",
+    "newFile": "PLA-FR-2026-0001 Malzeme Talep Formu.pdf",
+    "note": "A122"
+  },
+  {
+    "old": "KDM-TL-114",
+    "neu": "PLA-TL-2026-0001",
+    "folder": "Üretim Planlama Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-114 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.pdf",
+    "newFile": "PLA-TL-2026-0001 Müşteri Talebi Değerlendirme Formu Kullanım Talimatı.pdf",
+    "note": "A123"
+  },
+  {
+    "old": "KDM-TL-136",
+    "neu": "PLA-TL-2026-0002",
+    "folder": "Üretim Planlama Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-136 Ürün Ağacı Hazırlama Talimatı.pdf",
+    "newFile": "PLA-TL-2026-0002 Ürün Ağacı Hazırlama Talimatı.pdf",
+    "note": "A124"
+  },
+  {
+    "old": "KDM-TL-145",
+    "neu": "İDA-TL-2026-0004",
+    "folder": "İdari İşler Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-145 Su Sebili Temizleme Talimatı.pdf",
+    "newFile": "İDA-TL-2026-0004 Su Sebili Temizleme Talimatı.pdf",
+    "note": "A125"
+  },
+  {
+    "old": "KDM.SÖZ.002",
+    "neu": "İNS-SZ-2026-0002",
+    "folder": "İnsan Kaynakları Müdürlüğü/Sözleşmeler",
+    "oldFile": "KDM.SÖZ.002 Gizlilik Sözleşmesi (Rev.00).pdf",
+    "newFile": "İNS-SZ-2026-0002 Gizlilik Sözleşmesi.pdf",
+    "note": "A126"
+  },
+  {
+    "old": "KDM-TL-105",
+    "neu": "İNS-TL-2026-0003",
+    "folder": "İnsan Kaynakları Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-105 Polivalans Değerlendirme Talimatı.pdf",
+    "newFile": "İNS-TL-2026-0003 Polivalans Değerlendirme Talimatı.pdf",
+    "note": "A127"
+  },
+  {
+    "old": "KDM-TL-118",
+    "neu": "İNS-TL-2026-0004",
+    "folder": "İnsan Kaynakları Müdürlüğü/Talimatlar",
+    "oldFile": "KDM-TL-118 Polivalans Tablosu Hazırlama Talimatı.pdf",
+    "newFile": "İNS-TL-2026-0004 Polivalans Tablosu Hazırlama Talimatı.pdf",
+    "note": "A128"
+  }
+]

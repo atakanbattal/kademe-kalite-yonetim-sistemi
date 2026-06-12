@@ -12,6 +12,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
     import { v4 as uuidv4 } from 'uuid';
     import { sanitizeFileName } from '@/lib/utils';
     import { getPublishedAttachment, getSourceAttachments, SOURCE_FILE_ACCEPT } from '@/lib/documentRevisionAttachments';
+    import { hasRevisionInFileName } from '@/lib/documentCompliance';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
 
@@ -208,17 +209,30 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
             }
         }, [isOpen, effectiveDocument, isEditMode, preselectedCategory, profile, isRevisionMode]);
 
+        const warnRevisionInFileName = useCallback((fileName) => {
+            if (hasRevisionInFileName(fileName)) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Dosya adı kuralı',
+                    description: 'Revizyon bilgisi dosya adında olmamalıdır (KYS A010). Lütfen "(Rev.xx)" ifadesini kaldırın; revizyon yalnızca antet ve ana listede tutulur.',
+                });
+            }
+        }, [toast]);
+
         const onDrop = useCallback(acceptedFiles => {
             if (acceptedFiles.length > 0) {
-                setFile(acceptedFiles[0]);
+                const picked = acceptedFiles[0];
+                warnRevisionInFileName(picked.name);
+                setFile(picked);
             }
-        }, []);
+        }, [warnRevisionInFileName]);
 
         const onDropSource = useCallback((acceptedFiles) => {
             if (acceptedFiles.length > 0) {
+                acceptedFiles.forEach((f) => warnRevisionInFileName(f.name));
                 setNewSourceFiles((prev) => [...prev, ...acceptedFiles].slice(0, 25));
             }
-        }, []);
+        }, [warnRevisionInFileName]);
 
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
             onDrop,

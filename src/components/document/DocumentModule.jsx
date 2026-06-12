@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical } from 'lucide-react';
+import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, AlertTriangle, BookOpen, Link2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import DocumentCodeMappingModal from '@/components/document/DocumentCodeMappingModal';
+import { analyzeDocumentCompliance, summarizeCompliance } from '@/lib/documentCompliance';
 
 /** İNS-FR-2026-0031 gibi kodlarda yıl + sıra; FR/PR karışımında araya girme hatası olmaz. */
 function parseDocumentNumberSortKey(documentNumber) {
@@ -249,6 +251,7 @@ const DocumentModule = () => {
     const [isFolderDownloadModalOpen, setIsFolderDownloadModalOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [documentPendingDelete, setDocumentPendingDelete] = useState(null);
+    const [isCodeMappingOpen, setIsCodeMappingOpen] = useState(false);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
     const preparedDocuments = useMemo(() => {
@@ -284,6 +287,11 @@ const DocumentModule = () => {
     const normalizedSearchTerm = useMemo(
         () => normalizeTurkishForSearch(deferredSearchTerm.trim()),
         [deferredSearchTerm]
+    );
+
+    const complianceSummary = useMemo(
+        () => summarizeCompliance(preparedDocuments),
+        [preparedDocuments]
     );
 
     const filteredDocuments = useMemo(() => {
@@ -472,6 +480,19 @@ const DocumentModule = () => {
                 categories={DOCUMENT_CATEGORIES.map(c => c.value)}
                 unitCostSettings={unitCostSettings || []}
             />
+            <DocumentCodeMappingModal
+                isOpen={isCodeMappingOpen}
+                setIsOpen={setIsCodeMappingOpen}
+                documents={preparedDocuments}
+                onFindDocument={(doc, code) => {
+                    setActiveTab('Tümü');
+                    setSearchTerm(code || doc?.document_number || '');
+                    if (doc) {
+                        setSelectedDocument(doc);
+                        setIsDetailModalOpen(true);
+                    }
+                }}
+            />
 
             <AlertDialog open={!!documentPendingDelete} onOpenChange={(open) => !open && setDocumentPendingDelete(null)}>
                 <AlertDialogContent>
@@ -504,6 +525,25 @@ const DocumentModule = () => {
                 </div>
             </div>
 
+            {(complianceSummary.duplicateGroups > 0 || complianceSummary.missingPdf > 0 || complianceSummary.missingSource > 0 || complianceSummary.revInName > 0) && (
+                <div className="rounded-lg border border-amber-300/80 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm">
+                    <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                            <p className="font-medium text-amber-900 dark:text-amber-100">KYS uyumluluk özeti</p>
+                            <p className="text-amber-800/90 dark:text-amber-200/90">
+                                {[
+                                    complianceSummary.duplicateGroups > 0 && `${complianceSummary.duplicateGroups} kod çakışması (${complianceSummary.duplicateDocuments} kayıt)`,
+                                    complianceSummary.missingPdf > 0 && `${complianceSummary.missingPdf} PDF eksik`,
+                                    complianceSummary.missingSource > 0 && `${complianceSummary.missingSource} kaynak dosya eksik`,
+                                    complianceSummary.revInName > 0 && `${complianceSummary.revInName} dosya adında revizyon bilgisi`,
+                                ].filter(Boolean).join(' · ')}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                     <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -532,6 +572,52 @@ const DocumentModule = () => {
                             >
                                 <FileDown className="w-4 h-4" />
                                 Klasör İndir
+                            </Button>
+                        )}
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsCodeMappingOpen(true)}
+                            className="flex items-center gap-2"
+                            type="button"
+                        >
+                            <Link2 className="w-4 h-4" />
+                            Kod Eşleme
+                        </Button>
+                        {activeTab === 'Tümü' && preparedDocuments.length > 0 && (
+                            <Button
+                                variant="outline"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const reportData = {
+                                        id: `master-document-list-${Date.now()}`,
+                                        items: preparedDocuments.map((doc) => {
+                                            const compliance = analyzeDocumentCompliance(doc);
+                                            return {
+                                                title: doc.title || '-',
+                                                document_number: doc.document_number || '-',
+                                                document_type: doc.document_type || '-',
+                                                department_name: doc.department?.unit_name || doc.personnel?.full_name || '-',
+                                                revision_number: doc.document_revisions?.revision_number || '1',
+                                                publish_date: doc.document_revisions?.publish_date || doc.created_at,
+                                                revision_date: doc.document_revisions?.revision_date || doc.document_revisions?.created_at || doc.updated_at,
+                                                valid_until: doc.valid_until,
+                                                status: doc.status || 'Yayınlandı',
+                                                has_pdf: compliance.hasPdf ? 'Evet' : 'Hayır',
+                                                has_source: compliance.hasSource ? 'Evet' : 'Hayır',
+                                                compliance_note: compliance.issues.join(', ') || 'Uygun',
+                                            };
+                                        }),
+                                        categoryName: 'Ana Doküman Listesi',
+                                        title: 'Ana Doküman Listesi (Master List)',
+                                    };
+                                    openPrintableReport(reportData, 'master_document_list', true);
+                                }}
+                                className="flex items-center gap-2"
+                                type="button"
+                            >
+                                <BookOpen className="w-4 h-4" />
+                                Ana Doküman Listesi
                             </Button>
                         )}
                         {filteredDocuments.length > 0 && (

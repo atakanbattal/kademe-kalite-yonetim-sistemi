@@ -167,7 +167,7 @@ const openPrintableReport = async (record, type, useUrlParams = false, preOpened
 	const normalizedRecord = normalizeRecord(record);
 
 	// Liste tipleri için özel ID kontrolü (id olmasa da devam et)
-	const isListType = type.endsWith('_list') || type === 'document_list';
+	const isListType = type.endsWith('_list') || type === 'document_list' || type === 'master_document_list' || type === 'code_mapping_list';
 	const hasValidId = normalizedRecord.id || normalizedRecord.delivery_note_number;
 
 	if (!isListType && !hasValidId) {
@@ -344,7 +344,7 @@ const openPrintableReport = async (record, type, useUrlParams = false, preOpened
 			console.error("Error storing report data:", error);
 
 			// Fallback: Liste tipleri için hata, diğerleri için database fetch
-			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list', 'fixture_list', 'leak_test_list', 'process_inspection_list', 'kpi_list', 'fmea_project_list'].includes(type);
+			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'master_document_list', 'code_mapping_list', 'nonconformity_record_list', 'fixture_list', 'leak_test_list', 'process_inspection_list', 'kpi_list', 'fmea_project_list'].includes(type);
 			if (isListTypeFallback) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
 				try {
@@ -481,6 +481,10 @@ const getReportTitle = (record, type) => {
 			return record.categoryName
 				? `${record.categoryName} Listesi`
 				: 'Doküman Listesi Raporu';
+		case 'master_document_list':
+			return record.title || 'Ana Doküman Listesi (Master List)';
+		case 'code_mapping_list':
+			return record.title || 'Kod Eşleme Tablosu';
 		case 'kpi_list':
 			return record.title || 'KPI Performans Raporu';
 		case 'leak_test_list':
@@ -2397,6 +2401,45 @@ const generateListReportHtml = (record, type) => {
 			${record.filterInfo ? `<p><strong>Filtre:</strong> ${escapeHtml(record.filterInfo)}</p>` : ''}
 			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
 			${criticalitySummary ? `<p><strong>Sınıf Dağılımı:</strong> ${criticalitySummary}</p>` : ''}
+		`;
+	} else if (type === 'master_document_list') {
+		title = record.title || 'Ana Doküman Listesi (Master List)';
+		headers = ['Doküman No', 'Doküman Adı', 'Tip', 'Birim', 'Rev', 'Yayın', 'Rev.', 'PDF', 'Kaynak', 'Uyumluluk'];
+		rowsHtml = record.items.map(item => `
+			<tr>
+				<td class="col-code">${escapeHtml(item.document_number)}</td>
+				<td class="col-title">${escapeHtml(item.title)}</td>
+				<td class="col-type">${escapeHtml(item.document_type)}</td>
+				<td class="col-dept">${escapeHtml(item.department_name)}</td>
+				<td class="col-rev">${escapeHtml(item.revision_number || '1')}</td>
+				<td class="col-date">${escapeHtml(formatDate(item.publish_date))}</td>
+				<td class="col-date">${escapeHtml(formatDate(item.revision_date))}</td>
+				<td class="col-flag">${escapeHtml(item.has_pdf)}</td>
+				<td class="col-flag">${escapeHtml(item.has_source)}</td>
+				<td class="col-note">${escapeHtml(item.compliance_note || 'Uygun')}</td>
+			</tr>
+		`).join('');
+		summaryHtml = `
+			<p><strong>Toplam Doküman:</strong> ${totalCount}</p>
+			<p><strong>Liste türü:</strong> Ana Doküman Listesi — kod, revizyon, birim, PDF/kaynak eşleşmesi</p>
+		`;
+	} else if (type === 'code_mapping_list') {
+		title = record.title || 'Kod Eşleme Tablosu';
+		headers = ['Eski Kod', 'Yeni Kod', 'Klasör', 'EKYS', 'Eski Kaynak', 'Yeni PDF', 'Not'];
+		rowsHtml = (record.items || []).map(item => `
+			<tr>
+				<td class="col-code">${escapeHtml(item.old_code)}</td>
+				<td class="col-code">${escapeHtml(item.new_code)}</td>
+				<td class="col-folder">${escapeHtml(item.folder)}</td>
+				<td class="col-flag">${escapeHtml(item.ekys_status || '-')}</td>
+				<td class="col-file">${escapeHtml(item.old_source_file)}</td>
+				<td class="col-file">${escapeHtml(item.new_pdf)}</td>
+				<td class="col-note">${escapeHtml(item.notes)}</td>
+			</tr>
+		`).join('');
+		summaryHtml = `
+			<p><strong>Toplam Eşleme:</strong> ${totalCount}</p>
+			<p><strong>Kaynak:</strong> KDM → BÖLÜM-TİP-YIL-SIRA resmi çapraz referans tablosu</p>
 		`;
 	} else if (type === 'document_list') {
 		title = record.categoryName || 'Doküman Listesi Raporu';
@@ -7563,7 +7606,7 @@ const generatePrintableReportHtml = async (record, type) => {
 	</div>
 </div>
 `;
-	} else if (type === 'document_list' || type === 'equipment_list' || type === 'deviation_list' || type === 'nonconformity_record_list' || type === 'fixture_list' || type === 'kpi_list' || type === 'leak_test_list' || type === 'process_inspection_list') {
+	} else if (type === 'document_list' || type === 'master_document_list' || type === 'code_mapping_list' || type === 'equipment_list' || type === 'deviation_list' || type === 'nonconformity_record_list' || type === 'fixture_list' || type === 'kpi_list' || type === 'leak_test_list' || type === 'process_inspection_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 		if (type === 'fixture_list') {
 			cssOverrides = `
@@ -7623,6 +7666,67 @@ const generatePrintableReportHtml = async (record, type) => {
 		width: 100% !important;
 		margin: 0 !important;
 		box-shadow: none !important;
+	}
+}
+`;
+		} else if (type === 'master_document_list' || type === 'code_mapping_list') {
+			cssOverrides = `
+.page-container {
+	width: 297mm !important;
+	min-height: 210mm !important;
+}
+.report-wrapper {
+	padding: 6mm !important;
+}
+.list-summary {
+	margin-bottom: 8px !important;
+	font-size: 11px !important;
+}
+.results-table {
+	table-layout: fixed !important;
+	width: 100% !important;
+}
+.results-table th,
+.results-table td {
+	font-size: 8px !important;
+	padding: 4px 5px !important;
+	vertical-align: top !important;
+	word-wrap: break-word !important;
+	overflow-wrap: anywhere !important;
+	line-height: 1.25 !important;
+}
+.results-table th {
+	white-space: normal !important;
+	font-size: 7.5px !important;
+}
+.results-table .col-code { width: 9%; font-family: ui-monospace, monospace; }
+.results-table .col-title { width: 14%; }
+.results-table .col-type { width: 7%; }
+.results-table .col-dept { width: 10%; }
+.results-table .col-rev { width: 4%; text-align: center; }
+.results-table .col-date { width: 7%; white-space: nowrap; }
+.results-table .col-flag { width: 4%; text-align: center; }
+.results-table .col-note { width: 12%; }
+.results-table .col-folder { width: 11%; }
+.results-table .col-file { width: 14%; }
+@media print {
+	@page {
+		size: A4 landscape;
+		margin: 6mm;
+	}
+	body {
+		background-color: #fff !important;
+	}
+	.page-container {
+		width: 100% !important;
+		margin: 0 !important;
+		box-shadow: none !important;
+	}
+	.results-table thead {
+		display: table-header-group;
+	}
+	.results-table tr {
+		page-break-inside: avoid;
 	}
 }
 `;
