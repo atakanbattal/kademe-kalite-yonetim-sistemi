@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Archive, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, AlertTriangle, BookOpen, RotateCcw } from 'lucide-react';
+import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Archive, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, BookOpen, RotateCcw } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { analyzeDocumentCompliance, summarizeCompliance } from '@/lib/documentCompliance';
+import { analyzeDocumentCompliance } from '@/lib/documentCompliance';
 
 /** İNS-FR-2026-0031 gibi kodlarda yıl + sıra; FR/PR karışımında araya girme hatası olmaz. */
 function parseDocumentNumberSortKey(documentNumber) {
@@ -318,11 +318,6 @@ const DocumentModule = () => {
         [preparedDocuments]
     );
 
-    const complianceSummary = useMemo(
-        () => summarizeCompliance(activeDocuments),
-        [activeDocuments]
-    );
-
     const filteredDocuments = useMemo(() => {
         let docs = preparedDocuments;
 
@@ -585,25 +580,6 @@ const DocumentModule = () => {
                     <p className="text-muted-foreground">Şirket içi kalite dokümanlarınızı tek bir yerden yönetin. İptal edilen dokümanlar silinmez; numarası korunarak arşive alınır.</p>
                 </div>
             </div>
-
-            {(complianceSummary.duplicateGroups > 0 || complianceSummary.missingPdf > 0 || complianceSummary.missingSource > 0 || complianceSummary.revInName > 0) && (
-                <div className="rounded-lg border border-amber-300/80 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm">
-                    <div className="flex items-start gap-2">
-                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                            <p className="font-medium text-amber-900 dark:text-amber-100">KYS uyumluluk özeti</p>
-                            <p className="text-amber-800/90 dark:text-amber-200/90">
-                                {[
-                                    complianceSummary.duplicateGroups > 0 && `${complianceSummary.duplicateGroups} kod çakışması (${complianceSummary.duplicateDocuments} kayıt)`,
-                                    complianceSummary.missingPdf > 0 && `${complianceSummary.missingPdf} PDF eksik`,
-                                    complianceSummary.missingSource > 0 && `${complianceSummary.missingSource} kaynak dosya eksik`,
-                                    complianceSummary.revInName > 0 && `${complianceSummary.revInName} dosya adında revizyon bilgisi`,
-                                ].filter(Boolean).join(' · ')}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
