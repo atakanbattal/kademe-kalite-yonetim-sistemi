@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Archive, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, AlertTriangle, BookOpen, Link2, RotateCcw } from 'lucide-react';
+import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Archive, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, AlertTriangle, BookOpen, RotateCcw } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import DocumentCodeMappingModal from '@/components/document/DocumentCodeMappingModal';
 import { analyzeDocumentCompliance, summarizeCompliance } from '@/lib/documentCompliance';
 
 /** İNS-FR-2026-0031 gibi kodlarda yıl + sıra; FR/PR karışımında araya girme hatası olmaz. */
@@ -277,7 +276,6 @@ const DocumentModule = () => {
     const [documentPendingArchive, setDocumentPendingArchive] = useState(null);
     const [archiveReason, setArchiveReason] = useState('');
     const [lifecycleFilter, setLifecycleFilter] = useState('active');
-    const [isCodeMappingOpen, setIsCodeMappingOpen] = useState(false);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
     const preparedDocuments = useMemo(() => {
@@ -344,7 +342,14 @@ const DocumentModule = () => {
         }
 
         if (normalizedSearchTerm) {
-            docs = docs.filter(doc => doc.searchIndex.includes(normalizedSearchTerm));
+            docs = docs.filter((doc) => {
+                if (doc.searchIndex.includes(normalizedSearchTerm)) return true;
+                const tokens = normalizedSearchTerm.split(/\s+/).filter((token) => token.length >= 3);
+                if (tokens.length >= 2) {
+                    return tokens.every((token) => doc.searchIndex.includes(token));
+                }
+                return false;
+            });
         }
 
         return docs;
@@ -529,19 +534,6 @@ const DocumentModule = () => {
                 categories={DOCUMENT_CATEGORIES.map(c => c.value)}
                 unitCostSettings={unitCostSettings || []}
             />
-            <DocumentCodeMappingModal
-                isOpen={isCodeMappingOpen}
-                setIsOpen={setIsCodeMappingOpen}
-                documents={preparedDocuments}
-                onFindDocument={(doc, code) => {
-                    setActiveTab('Tümü');
-                    setSearchTerm(code || doc?.document_number || '');
-                    if (doc) {
-                        setSelectedDocument(doc);
-                        setIsDetailModalOpen(true);
-                    }
-                }}
-            />
 
             <AlertDialog
                 open={!!documentPendingArchive}
@@ -643,15 +635,6 @@ const DocumentModule = () => {
                                 Klasör İndir
                             </Button>
                         )}
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsCodeMappingOpen(true)}
-                            className="flex items-center gap-2"
-                            type="button"
-                        >
-                            <Link2 className="w-4 h-4" />
-                            Kod Eşleme
-                        </Button>
                         {activeTab === 'Tümü' && activeDocuments.length > 0 && (
                             <Button
                                 variant="outline"
