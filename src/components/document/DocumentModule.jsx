@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, AlertTriangle, BookOpen, Link2 } from 'lucide-react';
+import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Archive, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, AlertTriangle, BookOpen, Link2, RotateCcw } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useData } from '@/contexts/DataContext';
@@ -16,7 +18,7 @@ import DocumentDetailModal from '@/components/document/DocumentDetailModal';
 import FolderDownloadModal from '@/components/document/FolderDownloadModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
-import { getPublishedAttachment, getSourceAttachments, collectAttachmentPaths } from '@/lib/documentRevisionAttachments';
+import { getPublishedAttachment, getSourceAttachments } from '@/lib/documentRevisionAttachments';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -206,6 +208,21 @@ const normalizeDocumentPath = (path, documentType) => {
 
 const validityBadgeClass = 'text-xs font-medium px-2 py-0 h-6 shrink-0';
 
+const isDocumentArchived = (doc) => doc?.is_archived === true;
+
+const DocumentLifecycleStatus = ({ doc }) => {
+    if (isDocumentArchived(doc)) {
+        if (doc.status === 'İptal') {
+            return <Badge variant="destructive" className={validityBadgeClass}>İptal</Badge>;
+        }
+        if (doc.status === 'Arşivlendi') {
+            return <Badge variant="secondary" className={validityBadgeClass}>Arşiv</Badge>;
+        }
+        return <Badge variant="secondary" className={validityBadgeClass}>Arşiv</Badge>;
+    }
+    return <Badge variant="success" className={`bg-green-600 text-white ${validityBadgeClass}`}>Aktif</Badge>;
+};
+
 const ValidityStatus = ({ validUntil }) => {
     if (!validUntil) {
         return <Badge variant="secondary" className={validityBadgeClass}>Süresiz</Badge>;
@@ -237,8 +254,15 @@ const ValidityStatus = ({ validUntil }) => {
     }
 };
 
+const LIFECYCLE_FILTERS = [
+    { value: 'active', label: 'Aktif' },
+    { value: 'archived', label: 'Arşiv / İptal' },
+    { value: 'all', label: 'Tümü' },
+];
+
 const DocumentModule = () => {
     const { toast } = useToast();
+    const { user } = useAuth();
     const { documents, personnel, loading, refreshData, unitCostSettings } = useData();
     const [isUploadModalOpen, setUploadModalOpen] = useState(false);
     const [editingDocument, setEditingDocument] = useState(null);
@@ -250,7 +274,9 @@ const DocumentModule = () => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isFolderDownloadModalOpen, setIsFolderDownloadModalOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
-    const [documentPendingDelete, setDocumentPendingDelete] = useState(null);
+    const [documentPendingArchive, setDocumentPendingArchive] = useState(null);
+    const [archiveReason, setArchiveReason] = useState('');
+    const [lifecycleFilter, setLifecycleFilter] = useState('active');
     const [isCodeMappingOpen, setIsCodeMappingOpen] = useState(false);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
@@ -289,13 +315,24 @@ const DocumentModule = () => {
         [deferredSearchTerm]
     );
 
-    const complianceSummary = useMemo(
-        () => summarizeCompliance(preparedDocuments),
+    const activeDocuments = useMemo(
+        () => preparedDocuments.filter((doc) => !isDocumentArchived(doc)),
         [preparedDocuments]
+    );
+
+    const complianceSummary = useMemo(
+        () => summarizeCompliance(activeDocuments),
+        [activeDocuments]
     );
 
     const filteredDocuments = useMemo(() => {
         let docs = preparedDocuments;
+
+        if (lifecycleFilter === 'active') {
+            docs = docs.filter((doc) => !isDocumentArchived(doc));
+        } else if (lifecycleFilter === 'archived') {
+            docs = docs.filter((doc) => isDocumentArchived(doc));
+        }
 
         if (activeTab !== 'Tümü') {
             const validTypes = DOCUMENT_TYPE_MAPPING[activeTab] || [activeTab];
@@ -311,7 +348,7 @@ const DocumentModule = () => {
         }
 
         return docs;
-    }, [preparedDocuments, activeTab, normalizedSearchTerm, selectedDepartmentId]);
+    }, [preparedDocuments, lifecycleFilter, activeTab, normalizedSearchTerm, selectedDepartmentId]);
 
     const downloadPdf = async (revision, docTitle, documentType, originalFileName) => {
         const pub = getPublishedAttachment(revision?.attachments);
@@ -374,20 +411,32 @@ const DocumentModule = () => {
         document.body.removeChild(a);
     };
 
-    const deleteDocument = async (doc) => {
-        const { data: allRevs } = await supabase
-            .from('document_revisions')
-            .select('attachments')
-            .eq('document_id', doc.id);
-        const paths = [...new Set((allRevs || []).flatMap((r) => collectAttachmentPaths(r.attachments)))];
-        if (paths.length > 0) {
-            await supabase.storage.from(BUCKET_NAME).remove(paths);
-        }
-        const { error: dbError } = await supabase.from('documents').delete().eq('id', doc.id);
-        if (dbError) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Veritabanından doküman kaydı silinemedi.' });
+    const archiveDocument = async (doc, reason = '') => {
+        const { error } = await supabase.rpc('archive_internal_document', {
+            p_document_id: doc.id,
+            p_reason: reason?.trim() || null,
+            p_archived_by: user?.id || null,
+            p_status: 'İptal',
+        });
+        if (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Doküman arşive alınamadı.' });
         } else {
-            toast({ title: 'Başarılı', description: 'Doküman başarıyla silindi.' });
+            toast({
+                title: 'Arşive alındı',
+                description: 'Doküman numarası korunarak iptal edildi. Kayıt arşiv listesinde görüntülenebilir.',
+            });
+            refreshData();
+        }
+    };
+
+    const restoreDocument = async (doc) => {
+        const { error } = await supabase.rpc('restore_internal_document', {
+            p_document_id: doc.id,
+        });
+        if (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Doküman geri yüklenemedi.' });
+        } else {
+            toast({ title: 'Geri yüklendi', description: 'Doküman tekrar aktif listeye alındı.' });
             refreshData();
         }
     };
@@ -476,7 +525,7 @@ const DocumentModule = () => {
             <FolderDownloadModal
                 isOpen={isFolderDownloadModalOpen}
                 setIsOpen={setIsFolderDownloadModalOpen}
-                documents={preparedDocuments}
+                documents={activeDocuments}
                 categories={DOCUMENT_CATEGORIES.map(c => c.value)}
                 unitCostSettings={unitCostSettings || []}
             />
@@ -494,26 +543,46 @@ const DocumentModule = () => {
                 }}
             />
 
-            <AlertDialog open={!!documentPendingDelete} onOpenChange={(open) => !open && setDocumentPendingDelete(null)}>
+            <AlertDialog
+                open={!!documentPendingArchive}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDocumentPendingArchive(null);
+                        setArchiveReason('');
+                    }
+                }}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Dokümanı silmek istiyor musunuz?</AlertDialogTitle>
+                        <AlertDialogTitle>Dokümanı arşive al / iptal et</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Bu işlem geri alınamaz. Dokümana ait tüm revizyon dosyaları depolamadan kaldırılır.
+                            Doküman silinmez; numarası korunur ve arşiv listesine taşınır. Dosyalar ve revizyon geçmişi saklanır.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <div className="py-2">
+                        <Label htmlFor="archive-reason">İptal gerekçesi (isteğe bağlı)</Label>
+                        <Textarea
+                            id="archive-reason"
+                            value={archiveReason}
+                            onChange={(e) => setArchiveReason(e.target.value)}
+                            rows={3}
+                            placeholder="Örn. Yanlış oluşturuldu, yerine yeni doküman yayınlandı..."
+                            className="mt-2"
+                        />
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Vazgeç</AlertDialogCancel>
                         <AlertDialogAction
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => {
-                                if (documentPendingDelete) {
-                                    deleteDocument(documentPendingDelete);
-                                    setDocumentPendingDelete(null);
+                                if (documentPendingArchive) {
+                                    archiveDocument(documentPendingArchive, archiveReason);
+                                    setDocumentPendingArchive(null);
+                                    setArchiveReason('');
                                 }
                             }}
                         >
-                            Sil
+                            Arşive Al
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -521,7 +590,7 @@ const DocumentModule = () => {
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <p className="text-muted-foreground">Şirket içi kalite dokümanlarınızı tek bir yerden yönetin.</p>
+                    <p className="text-muted-foreground">Şirket içi kalite dokümanlarınızı tek bir yerden yönetin. İptal edilen dokümanlar silinmez; numarası korunarak arşive alınır.</p>
                 </div>
             </div>
 
@@ -583,7 +652,7 @@ const DocumentModule = () => {
                             <Link2 className="w-4 h-4" />
                             Kod Eşleme
                         </Button>
-                        {activeTab === 'Tümü' && preparedDocuments.length > 0 && (
+                        {activeTab === 'Tümü' && activeDocuments.length > 0 && (
                             <Button
                                 variant="outline"
                                 onClick={(e) => {
@@ -591,7 +660,7 @@ const DocumentModule = () => {
                                     e.stopPropagation();
                                     const reportData = {
                                         id: `master-document-list-${Date.now()}`,
-                                        items: preparedDocuments.map((doc) => {
+                                        items: activeDocuments.map((doc) => {
                                             const compliance = analyzeDocumentCompliance(doc);
                                             return {
                                                 title: doc.title || '-',
@@ -680,8 +749,18 @@ const DocumentModule = () => {
                                         </SelectContent>
                                     </Select>
                                 )}
+                                <Select value={lifecycleFilter} onValueChange={setLifecycleFilter}>
+                                    <SelectTrigger className="w-full sm:w-[180px]">
+                                        <SelectValue placeholder="Durum filtresi" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {LIFECYCLE_FILTERS.map(({ value, label }) => (
+                                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
-                            <Button onClick={() => handleOpenUploadModal()} className="w-full sm:w-auto">
+                            <Button onClick={() => handleOpenUploadModal()} className="w-full sm:w-auto" disabled={lifecycleFilter === 'archived'}>
                                 <Plus className="w-4 h-4 mr-2" /> {currentCategory?.addText || 'Yeni Doküman Ekle'}
                             </Button>
                         </div>
@@ -711,15 +790,15 @@ const DocumentModule = () => {
                                         <tr><td colSpan={documentTableColSpan} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
                                     ) : (
                                         filteredDocuments.map((doc) => {
-                                            // filteredDocuments içinde zaten revision tek bir obje olarak set edilmiş
                                             const revision = doc.document_revisions;
                                             const published = getPublishedAttachment(revision?.attachments);
                                             const sourceFiles = getSourceAttachments(revision?.attachments);
                                             const fileName = published?.name;
                                             const hasFile = !!published?.path;
+                                            const archived = isDocumentArchived(doc);
 
                                             return (
-                                                <tr key={doc.id}>
+                                                <tr key={doc.id} className={archived ? 'opacity-70' : undefined}>
                                                     <td
                                                         className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
                                                         onClick={() => {
@@ -772,7 +851,12 @@ const DocumentModule = () => {
                                                                 : 'Süresiz'}
                                                         </td>
                                                     )}
-                                                    <td><ValidityStatus validUntil={doc.valid_until} /></td>
+                                                    <td>
+                                                        <div className="flex flex-col gap-1 items-start">
+                                                            <DocumentLifecycleStatus doc={doc} />
+                                                            {showCertExpiryColumn && <ValidityStatus validUntil={doc.valid_until} />}
+                                                        </div>
+                                                    </td>
                                                     <td className="align-middle">
                                                         <div className="inline-flex items-center justify-end gap-0.5">
                                                             <Tooltip>
@@ -847,22 +931,32 @@ const DocumentModule = () => {
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end" className="w-48">
-                                                                    <DropdownMenuItem className="cursor-pointer text-sm" onClick={() => handleReviseDocument(doc)}>
-                                                                        <RefreshCw className="mr-2 h-4 w-4" />
-                                                                        Revize et
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem className="cursor-pointer text-sm" onClick={() => handleOpenUploadModal(doc)}>
-                                                                        <Edit className="mr-2 h-4 w-4" />
-                                                                        Düzenle
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem
-                                                                        className="cursor-pointer text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
-                                                                        onClick={() => setDocumentPendingDelete(doc)}
-                                                                    >
-                                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                                        Sil
-                                                                    </DropdownMenuItem>
+                                                                    {!archived && (
+                                                                        <>
+                                                                            <DropdownMenuItem className="cursor-pointer text-sm" onClick={() => handleReviseDocument(doc)}>
+                                                                                <RefreshCw className="mr-2 h-4 w-4" />
+                                                                                Revize et
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem className="cursor-pointer text-sm" onClick={() => handleOpenUploadModal(doc)}>
+                                                                                <Edit className="mr-2 h-4 w-4" />
+                                                                                Düzenle
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuSeparator />
+                                                                            <DropdownMenuItem
+                                                                                className="cursor-pointer text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                                                onClick={() => setDocumentPendingArchive(doc)}
+                                                                            >
+                                                                                <Archive className="mr-2 h-4 w-4" />
+                                                                                Arşive al / İptal
+                                                                            </DropdownMenuItem>
+                                                                        </>
+                                                                    )}
+                                                                    {archived && (
+                                                                        <DropdownMenuItem className="cursor-pointer text-sm" onClick={() => restoreDocument(doc)}>
+                                                                            <RotateCcw className="mr-2 h-4 w-4" />
+                                                                            Geri yükle
+                                                                        </DropdownMenuItem>
+                                                                    )}
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
                                                         </div>

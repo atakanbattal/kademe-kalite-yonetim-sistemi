@@ -256,6 +256,28 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                             <p className="text-sm font-medium text-muted-foreground">Geçerlilik Tarihi</p>
                                             <p className="text-sm font-semibold">{document.valid_until ? formatDateOnly(document.valid_until) : 'Süresiz'}</p>
                                         </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground">Durum</p>
+                                            <p className="text-sm font-semibold">
+                                                {document.is_archived
+                                                    ? (document.status === 'İptal' ? 'İptal (Arşiv)' : (document.status || 'Arşiv'))
+                                                    : (document.status || 'Yayınlandı')}
+                                            </p>
+                                        </div>
+                                        {document.is_archived && (
+                                            <>
+                                                <div>
+                                                    <p className="text-sm font-medium text-muted-foreground">Arşiv Tarihi</p>
+                                                    <p className="text-sm font-semibold">{formatDate(document.archived_at)}</p>
+                                                </div>
+                                                {document.archive_reason && (
+                                                    <div className="col-span-2">
+                                                        <p className="text-sm font-medium text-muted-foreground">İptal / Arşiv Gerekçesi</p>
+                                                        <p className="text-sm font-semibold whitespace-pre-wrap">{document.archive_reason}</p>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
