@@ -36,6 +36,23 @@ import RiskyStockAlert from './RiskyStockAlert';
         attachments: [],
     };
 
+    const INCOMING_INSPECTION_DB_FIELDS = [
+        'inspection_date',
+        'supplier_id',
+        'delivery_note_number',
+        'part_name',
+        'part_code',
+        'production_batch',
+        'quantity_received',
+        'unit',
+        'decision',
+        'quantity_accepted',
+        'quantity_conditional',
+        'quantity_rejected',
+        'notes',
+        'deviation_approval_url',
+    ];
+
     /**
      * Karakteristik özelliğe göre gerekli ölçüm sayısını hesaplar
      * - Emniyet: %100 (her parça)
@@ -191,72 +208,6 @@ setShowRiskyStockAlert(false);
                 event.preventDefault();
             }
         }, []);
-
-        // Load existing inspection data when modal opens
-        // ÖNEMLİ: Sadece existingInspection değiştiğinde çalış, isOpen her değişiminde değil
-        useEffect(() => {
-            if (!isOpen) {
-                // Modal kapandığında hiçbir şey yapma - veriler korunmalı
-                return;
-            }
-            
-            if (existingInspection) {
-                // Düzenleme modu: Mevcut kayıt verilerini yükle
-                console.log('📝 Düzenleme modu: Kayıt yükleniyor...', existingInspection.id);
-                setFormData({
-                    inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
-                    supplier_id: existingInspection.supplier_id || '',
-                    delivery_note_number: existingInspection.delivery_note_number || '',
-                    part_name: existingInspection.part_name || '',
-                    part_code: existingInspection.part_code || '',
-                    production_batch: existingInspection.production_batch || '',
-                    quantity_received: existingInspection.quantity_received || 0,
-                    unit: existingInspection.unit || 'Adet',
-                    decision: existingInspection.decision || 'Beklemede',
-                    quantity_accepted: existingInspection.quantity_accepted || 0,
-                    quantity_conditional: existingInspection.quantity_conditional || 0,
-                    quantity_rejected: existingInspection.quantity_rejected || 0,
-                    attachments: existingInspection.attachments || [],
-                });
-                
-                // Load measurement results - veritabanı ve kod arasındaki alan adı farklılıklarını düzelt
-                if (existingInspection.results && Array.isArray(existingInspection.results)) {
-                    // Veritabanı alanlarını kod alanlarına dönüştür:
-                    // feature -> characteristic_name (eski kayıtlarda characteristic_name null olabilir)
-                    // actual_value -> measured_value (eski kayıtlarda measured_value null olabilir)
-                    const normalizedResults = existingInspection.results.map(r => ({
-                        ...r,
-                        characteristic_name: r.characteristic_name || r.feature || '',
-                        measured_value: r.measured_value || r.actual_value || '',
-                    }));
-                    setResults(normalizedResults);
-                    console.log('✅ Ölçüm sonuçları yüklendi:', normalizedResults.length);
-                    if (normalizedResults.length > 0) {
-                        console.log('📊 İlk sonuç örneği:', {
-                            characteristic_name: normalizedResults[0].characteristic_name,
-                            measured_value: normalizedResults[0].measured_value,
-                            control_plan_item_id: normalizedResults[0].control_plan_item_id,
-                        });
-                    }
-                }
-                
-                // Load defects
-                if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
-                    setDefects(existingInspection.defects);
-                    console.log('✅ Hatalar yüklendi:', existingInspection.defects.length);
-                }
-                
-                // Load existing attachments
-                if (existingInspection.attachments && Array.isArray(existingInspection.attachments)) {
-                    setExistingAttachments(existingInspection.attachments);
-                    console.log('✅ Ekler yüklendi:', existingInspection.attachments.length);
-                }
-            } else if (isOpen) {
-                // Yeni kayıt modu: Sadece modal YENİ açıldığında formu sıfırla
-                console.log('➕ Yeni kayıt modu: Form sıfırlanıyor...');
-                resetForm();
-            }
-        }, [existingInspection, isOpen, resetForm]);
 
         const quantityTotal = useMemo(() => {
             return (Number(formData.quantity_accepted) || 0) + (Number(formData.quantity_conditional) || 0) + (Number(formData.quantity_rejected) || 0);
@@ -553,12 +504,14 @@ setShowRiskyStockAlert(false);
             generateResultsFromPlan();
         }, [formData.quantity_received, controlPlan, characteristics, equipment, existingInspection, results.length]);
 
-        const handlePartCodeChange = useCallback(async (partCode) => {
+        const handlePartCodeChange = useCallback(async (partCode, { preserveResults = false } = {}) => {
             const trimmedPartCode = partCode?.trim();
             setFormData(prev => ({ ...prev, part_code: trimmedPartCode, part_name: '' }));
             setWarnings({ inkr: null, plan: null });
             setControlPlan(null);
-            setResults([]);
+            if (!preserveResults) {
+                setResults([]);
+            }
             setPartHistory([]);
 
             if (!trimmedPartCode) return;
@@ -620,46 +573,63 @@ setShowRiskyStockAlert(false);
                  toast({ variant: 'destructive', title: 'Hata', description: `Veri çekilirken hata: ${error.message}` });
             }
         }, [toast]);
-        
+
+        // Modal açıldığında formu bir kez yükle (çift useEffect yarışını önler)
         useEffect(() => {
+            if (!isOpen) return;
+
+            let cancelled = false;
+
             const initializeForm = async () => {
-                resetForm();
                 if (existingInspection) {
-                    const { supplier, defects: existingDefects, attachments: existingAttachmentsData, results: existingResultsData, ...rest } = existingInspection;
-                    
+                    const {
+                        supplier: _supplier,
+                        defects: existingDefects,
+                        attachments: existingAttachmentsData,
+                        results: existingResultsData,
+                        non_conformity: _nonConformity,
+                        ...rest
+                    } = existingInspection;
+
                     setFormData({
                         ...INITIAL_FORM_STATE,
                         ...rest,
+                        delivery_note_number: rest.delivery_note_number || '',
+                        supplier_id: rest.supplier_id || '',
+                        inspection_date: rest.inspection_date
+                            ? new Date(rest.inspection_date).toISOString().split('T')[0]
+                            : INITIAL_FORM_STATE.inspection_date,
                         quantity_received: Number(rest.quantity_received) || 0,
                         quantity_accepted: Number(rest.quantity_accepted) || 0,
                         quantity_conditional: Number(rest.quantity_conditional) || 0,
                         quantity_rejected: Number(rest.quantity_rejected) || 0,
-                        supplier_id: rest.supplier_id || '',
-                        inspection_date: new Date(rest.inspection_date).toISOString().split('T')[0],
                     });
 
                     if (rest.part_code) {
-                        await handlePartCodeChange(rest.part_code);
+                        await handlePartCodeChange(rest.part_code, { preserveResults: true });
                     }
-                    
+
+                    if (cancelled) return;
+
                     setDefects(existingDefects || []);
-                    if (existingResultsData && existingResultsData.length > 0) {
-                         setResults(existingResultsData.map(r => ({
+                    setExistingAttachments(existingAttachmentsData || []);
+
+                    if (existingResultsData?.length) {
+                        setResults(existingResultsData.map((r) => ({
                             ...r,
-                            id: uuidv4(),
-                            characteristic_name: r.feature,
-                            measured_value: r.actual_value,
+                            characteristic_name: r.characteristic_name || r.feature || '',
+                            measured_value: r.measured_value ?? r.actual_value ?? '',
                         })));
                     }
-                    setExistingAttachments(existingAttachmentsData || []);
-                    
                 } else {
-                    setFormData(INITIAL_FORM_STATE);
+                    resetForm();
                 }
             };
-            if (isOpen) initializeForm();
-        }, [isOpen, existingInspection, resetForm, handlePartCodeChange]);
 
+            initializeForm();
+            return () => { cancelled = true; };
+        }, [isOpen, existingInspection?.id, resetForm, handlePartCodeChange]);
+        
         const handleRiskyStockCheck = async () => {
             const hasRejectedOrConditional = 
                 (formData.quantity_rejected && parseInt(formData.quantity_rejected, 10) > 0) ||
@@ -825,33 +795,49 @@ setShowRiskyStockAlert(false);
             if (isViewMode) return;
             if (isQuantityMismatch) { toast({ variant: 'destructive', title: 'Hata', description: 'Miktar toplamı, gelen miktar ile eşleşmiyor.' }); return; }
             setIsSubmitting(true);
-            
-            const { id, ...dataToSubmit } = formData;
-            if (!dataToSubmit.supplier_id) dataToSubmit.supplier_id = null;
-            dataToSubmit.part_name = dataToSubmit.part_name || dataToSubmit.part_code;
-            const fieldsToDelete = ['created_at', 'updated_at', 'record_no', 'is_first_sample', 'non_conformity', 'supplier', 'defects', 'results', 'attachments'];
-            fieldsToDelete.forEach(field => delete dataToSubmit[field]);
 
-            // Undefined key'leri ve geçersiz kolonları temizle
             const cleanedData = {};
-            for (const key in dataToSubmit) {
-                if (dataToSubmit[key] !== undefined && key !== 'undefined') {
-                    cleanedData[key] = dataToSubmit[key];
+            for (const key of INCOMING_INSPECTION_DB_FIELDS) {
+                if (formData[key] !== undefined) {
+                    cleanedData[key] = formData[key];
                 }
+            }
+            if (!cleanedData.supplier_id) cleanedData.supplier_id = null;
+            cleanedData.part_name = cleanedData.part_name || cleanedData.part_code;
+            if (cleanedData.delivery_note_number === '') {
+                cleanedData.delivery_note_number = null;
             }
 
             let error, inspectionRecord;
             if (existingInspection) {
-                const { data, error: updateError } = await supabase.from('incoming_inspections').update(cleanedData).eq('id', existingInspection.id).select().single();
+                const { data, error: updateError } = await supabase
+                    .from('incoming_inspections')
+                    .update(cleanedData)
+                    .eq('id', existingInspection.id)
+                    .select()
+                    .maybeSingle();
                 error = updateError;
-                inspectionRecord = data;
+                inspectionRecord = data || { ...existingInspection, ...cleanedData, id: existingInspection.id };
             } else {
-                 const { data, error: insertError } = await supabase.from('incoming_inspections').insert(cleanedData).select().single();
+                const { data, error: insertError } = await supabase
+                    .from('incoming_inspections')
+                    .insert(cleanedData)
+                    .select()
+                    .maybeSingle();
                 error = insertError;
                 inspectionRecord = data;
             }
 
-            if (error || !inspectionRecord) { toast({ variant: 'destructive', title: 'Hata', description: `Kayıt başarısız: ${error?.message}` }); setIsSubmitting(false); return; }
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: `Kayıt başarısız: ${error.message}` });
+                setIsSubmitting(false);
+                return;
+            }
+            if (!inspectionRecord?.id) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Kayıt başarısız: Sunucu yanıt vermedi.' });
+                setIsSubmitting(false);
+                return;
+            }
             const inspectionId = inspectionRecord.id;
             
             await supabase.from('incoming_inspection_results').delete().eq('inspection_id', inspectionId);
@@ -885,8 +871,8 @@ setShowRiskyStockAlert(false);
                     inspection_id: inspectionId,
                     defect_description: d.defect_description,
                     quantity: d.quantity,
-                    part_code: dataToSubmit.part_code,
-                    part_name: dataToSubmit.part_name,
+                    part_code: cleanedData.part_code,
+                    part_name: cleanedData.part_name,
                 }));
                 await supabase.from('incoming_inspection_defects').insert(defectsToInsert);
             }
@@ -903,7 +889,7 @@ setShowRiskyStockAlert(false);
                     const attachmentsToInsert = await Promise.all(attachmentPromises);
                     await supabase.from('incoming_inspection_attachments').insert(attachmentsToInsert);
 
-                    const partCodeForInkr = String(dataToSubmit.part_code || inspectionRecord.part_code || '').trim();
+                    const partCodeForInkr = String(cleanedData.part_code || inspectionRecord.part_code || '').trim();
                     if (partCodeForInkr) {
                         const { data: inkrRow, error: inkrLookupError } = await supabase
                             .from('inkr_reports')
@@ -1149,7 +1135,7 @@ setShowRiskyStockAlert(false);
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
                         <div><Label>Kontrol Tarihi</Label><Input type="date" name="inspection_date" value={formData.inspection_date} onChange={handleInputChange} required disabled={isViewMode} /></div>
                         <div><Label>Tedarikçi</Label><Select name="supplier_id" value={formData.supplier_id || ''} onValueChange={(v) => handleSelectChange('supplier_id', v)} disabled={isViewMode}><SelectTrigger><SelectValue placeholder="Tedarikçi Seçin" /></SelectTrigger><SelectContent>{(suppliers || []).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
-                        <div><Label>İrsaliye No</Label><Input name="delivery_note_number" value={formData.delivery_note_number || ''} onChange={handleInputChange} placeholder="İrsaliye No" disabled={isViewMode} /></div>
+                        <div><Label>İrsaliye No</Label><Input name="delivery_note_number" value={formData.delivery_note_number || ''} onChange={handleInputChange} placeholder="İrsaliye No" autoFormat={false} disabled={isViewMode} /></div>
                         <div><Label>Parça Kodu</Label><Input name="part_code" value={formData.part_code || ''} onChange={(e) => handlePartCodeChange(e.target.value)} placeholder="Parça Kodu Girin..." required disabled={isViewMode || !!existingInspection} /></div>
                         <div className="md:col-span-2"><Label>Parça Adı</Label><Input name="part_name" value={formData.part_name} onChange={handleInputChange} placeholder="Parça Adı" required disabled={isViewMode || !!controlPlan}/></div>
                         <div><Label>Üretim Partisi/Lot No</Label><Input name="production_batch" value={formData.production_batch || ''} onChange={handleInputChange} placeholder="Üretim partisi/lot numarası" disabled={isViewMode} /></div>

@@ -113,6 +113,54 @@ export async function fetchProducedVehiclesMerged({ limit = DEFAULT_LIMIT } = {}
 /**
  * İcra / A3 raporları için: dönem içindeki tüm kalite muayeneleri (context’teki 250 kayıt sınırını aşar).
  */
+/** Rapor / süre analizi: context’teki 250 kayıt sınırını aşmadan tüm araçları timeline ile çeker. */
+export async function fetchAllProducedVehiclesMerged() {
+    const allInspections = [];
+    let from = 0;
+    const pageSize = 1000;
+
+    for (;;) {
+        const { data, error } = await supabase
+            .from('quality_inspections')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .range(from, from + pageSize - 1);
+
+        if (error) return { data: [], error };
+        if (!data?.length) break;
+        allInspections.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+    }
+
+    if (!allInspections.length) return { data: [], error: null };
+
+    const merged = await mergeInspectionsWithFaults(allInspections);
+    if (merged.error) return { data: [], error: merged.error };
+    return { data: merged.data, error: null };
+}
+
+export function indexTimelinesByInspectionId(vehicles) {
+    const timelineBy = {};
+    (vehicles || []).forEach((vehicle) => {
+        const key = inspectionKey(vehicle.id);
+        if (vehicle.vehicle_timeline_events?.length) {
+            timelineBy[key] = vehicle.vehicle_timeline_events;
+        }
+    });
+    return timelineBy;
+}
+
+/** Filtrelenmiş araç listesine tam timeline verisini bağlar (eksik iç içe select önlenir). */
+export function attachTimelinesToVehicles(vehicles, sourceVehicles) {
+    const timelineBy = indexTimelinesByInspectionId(sourceVehicles);
+    return (vehicles || []).map((vehicle) => ({
+        ...vehicle,
+        vehicle_timeline_events:
+            timelineBy[inspectionKey(vehicle.id)] || vehicle.vehicle_timeline_events || [],
+    }));
+}
+
 export async function fetchProducedVehiclesMergedByDateRange({ startDate, endDate }) {
     const startISO = startDate.toISOString();
     const endISO = endDate.toISOString();
