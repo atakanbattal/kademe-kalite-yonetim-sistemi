@@ -532,10 +532,17 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 
                 const sourceMetas = [];
                 let docxContentPatched = false;
+                const revisionAttachments = effectiveDocument?.document_revisions?.attachments
+                    || effectiveDocument?.allDocumentRevisions?.flatMap?.((r) => r.attachments || [])
+                    || [];
                 const extraCodeSources = [
                     ...keptExistingSources.map((s) => s.name),
+                    ...keptExistingSources.map((s) => s.path),
                     ...newSourceFiles.map((f) => f.name),
                     effectiveDocument?.document_number,
+                    ...(Array.isArray(revisionAttachments)
+                        ? revisionAttachments.flatMap((a) => [a?.name, a?.path].filter(Boolean))
+                        : []),
                 ].filter(Boolean);
 
                 const buildSourceStoragePath = (sanitizedSourceName) => {

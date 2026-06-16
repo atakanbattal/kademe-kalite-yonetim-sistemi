@@ -84,6 +84,33 @@ function allFormatVariants(parsed) {
     return [...variants];
 }
 
+function decodeXmlEntities(text) {
+    return String(text)
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
+}
+
+/** w:p içindeki w:t metinlerini birleştirir (Word run bölünmesi için). */
+function extractParagraphTextsFromXml(xml) {
+    const paragraphs = [];
+    const paragraphRegex = /<w:p\b[\s\S]*?<\/w:p>/g;
+    let paragraphMatch;
+    while ((paragraphMatch = paragraphRegex.exec(xml)) !== null) {
+        const paragraph = paragraphMatch[0];
+        const runRegex = /<w:t(\s+xml:space="preserve")?>([^<]*)<\/w:t>/g;
+        const parts = [];
+        let runMatch;
+        while ((runMatch = runRegex.exec(paragraph)) !== null) {
+            parts.push(decodeXmlEntities(runMatch[2]));
+        }
+        if (parts.length) paragraphs.push(parts.join(''));
+    }
+    return paragraphs;
+}
+
 function collectCodesFromText(text, bucket) {
     const source = String(text || '');
     for (const pattern of CODE_PATTERNS) {
@@ -93,6 +120,12 @@ function collectCodesFromText(text, bucket) {
             const parsed = parseStandardDocumentCode(match[0]);
             if (parsed) bucket.add(parsed.canonical);
         }
+    }
+}
+
+function collectCodesFromWordXml(xml, bucket) {
+    for (const paragraphText of extractParagraphTextsFromXml(xml)) {
+        collectCodesFromText(paragraphText, bucket);
     }
 }
 
@@ -116,7 +149,7 @@ export async function extractDocumentCodesFromDocx(input) {
     zip.forEach((relativePath, file) => {
         if (file.dir || !shouldProcessWordXml(relativePath)) return;
         tasks.push(
-            file.async('string').then((content) => collectCodesFromText(content, found))
+            file.async('string').then((content) => collectCodesFromWordXml(content, found))
         );
     });
 
