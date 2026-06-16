@@ -99,6 +99,48 @@ export function allFormatVariants(parsed) {
     return [...variants];
 }
 
+export function escapeRegExp(text) {
+    return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Tekrarlanan sonekleri düzeltir: IK-YT-2026-0001-0001-0001 → IK-YT-2026-0001 */
+export function collapseDuplicatedDocumentCode(text, targetParsed) {
+    if (!targetParsed || !text) return text;
+
+    const canonical = formatVariant(targetParsed, 'hyphen');
+    const { dept, type, year, seq } = targetParsed;
+    let result = String(text);
+
+    const canonicalDup = new RegExp(`(${escapeRegExp(canonical)})(?:-${seq})+`, 'giu');
+    result = result.replace(canonicalDup, canonical);
+
+    const prefixDup = new RegExp(
+        `(${escapeRegExp(dept)}[-.]${escapeRegExp(type)}[-.]${year}[-.]${seq})(?:[-.]${seq})+`,
+        'giu'
+    );
+    result = result.replace(prefixDup, canonical);
+
+    // Kısmi kod değişiminden kalan yabancı sonek: KAL-GT-2026-0010-0004 → KAL-GT-2026-0010
+    const orphanSuffix = new RegExp(`${escapeRegExp(canonical)}-(\\d{4})(?!\\d)`, 'giu');
+    result = result.replace(orphanSuffix, canonical);
+
+    return result;
+}
+
+function isLegacyThreePartToken(raw) {
+    const match = String(raw || '').trim().match(/^([A-ZÇĞİÖŞÜ0-9]{2,4})-([A-ZÇĞİÖŞÜ]{2,3})-(\d{1,4})$/iu);
+    if (!match) return true;
+    // DEPT-TYPE-YEAR (ör. IK-YT-2026) legacy sayılmasın — yıl soneki tekrar üretir
+    return !/^(19|20)\d{2}$/.test(match[3]);
+}
+
+function isUnsafePrefixReplacement(from, to) {
+    const f = String(from || '').trim();
+    const t = String(to || '').trim();
+    if (!f || !t || f === t) return true;
+    return t.startsWith(`${f}-`) || t.startsWith(`${f}.`) || t.startsWith(`${f} `);
+}
+
 export function normalizeLooseCode(text) {
     return String(text || '').trim().replace(/\s+/g, ' ');
 }
@@ -170,7 +212,8 @@ export function collectCodesFromText(text, bucket) {
         let legacyMatch;
         while ((legacyMatch = pattern.exec(source)) !== null) {
             const raw = String(legacyMatch[0] || '').trim();
-            if (raw) bucket.add(raw);
+            if (!raw || !isLegacyThreePartToken(raw)) continue;
+            bucket.add(raw);
         }
     }
 }
@@ -181,6 +224,7 @@ export function buildReplacementPairsFromSources(sourceCanonicals, newParsed) {
         const f = String(from || '').trim();
         const t = String(to || '').trim();
         if (!f || !t || f === t || f.length < 3) return;
+        if (isUnsafePrefixReplacement(f, t)) return;
         const existing = pairs.get(f);
         if (!existing || (t.includes('-') && !existing.includes('-'))) {
             pairs.set(f, t);
@@ -234,12 +278,25 @@ export function buildReplacementPairsFromSources(sourceCanonicals, newParsed) {
         .sort((a, b) => b[0].length - a[0].length);
 }
 
-export function applyReplacements(text, replacements) {
-    let result = text;
-    for (const [from, to] of replacements) {
-        if (result.includes(from)) {
-            result = result.split(from).join(to);
-        }
+export function applyReplacements(text, replacements, targetParsed = null) {
+    let result = String(text || '');
+    if (targetParsed) {
+        result = collapseDuplicatedDocumentCode(result, targetParsed);
     }
+
+    for (const [from, to] of replacements) {
+        if (!from || from === to || !result.includes(from)) continue;
+        if (isUnsafePrefixReplacement(from, to)) continue;
+
+        const escaped = escapeRegExp(from);
+        // Tam kod sınırı: ardından -/. ve rakam geliyorsa (uzun kod devamı) eşleme
+        const re = new RegExp(`${escaped}(?![-.\\s]\\d)`, 'gu');
+        result = result.replace(re, to);
+    }
+
+    if (targetParsed) {
+        result = collapseDuplicatedDocumentCode(result, targetParsed);
+    }
+
     return result;
 }

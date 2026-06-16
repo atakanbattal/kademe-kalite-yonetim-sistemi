@@ -109,7 +109,7 @@ export async function extractDocumentCodesFromXlsx(input) {
     return [...found];
 }
 
-function replaceInTextRunsXml(blockXml, replacements, tagName = 't') {
+function replaceInTextRunsXml(blockXml, replacements, tagName = 't', targetParsed = null) {
     const runRegex = new RegExp(`<${tagName}(\\s+xml:space="preserve")?>([^<]*)<\\/${tagName}>`, 'g');
     const runs = [];
     let match;
@@ -118,7 +118,7 @@ function replaceInTextRunsXml(blockXml, replacements, tagName = 't') {
     }
     if (!runs.length) return blockXml;
     const combined = runs.map((run) => run.text).join('');
-    const updated = applyReplacements(combined, replacements);
+    const updated = applyReplacements(combined, replacements, targetParsed);
     if (updated === combined) return blockXml;
     let result = blockXml;
     for (let i = runs.length - 1; i >= 0; i -= 1) {
@@ -131,11 +131,11 @@ function replaceInTextRunsXml(blockXml, replacements, tagName = 't') {
     return result;
 }
 
-function replaceInXlsxXmlContent(xml, replacements) {
-    if (!replacements?.length) return xml;
-    let updated = applyReplacements(xml, replacements);
-    updated = updated.replace(/<si\b[\s\S]*?<\/si>/g, (item) => replaceInTextRunsXml(item, replacements, 't'));
-    updated = updated.replace(/<is\b[\s\S]*?<\/is>/g, (inlineStr) => replaceInTextRunsXml(inlineStr, replacements, 't'));
+function replaceInXlsxXmlContent(xml, replacements, targetParsed = null) {
+    if (!replacements?.length && !targetParsed) return xml;
+    let updated = applyReplacements(xml, replacements, targetParsed);
+    updated = updated.replace(/<si\b[\s\S]*?<\/si>/g, (item) => replaceInTextRunsXml(item, replacements, 't', targetParsed));
+    updated = updated.replace(/<is\b[\s\S]*?<\/is>/g, (inlineStr) => replaceInTextRunsXml(inlineStr, replacements, 't', targetParsed));
     return updated;
 }
 
@@ -210,8 +210,8 @@ export async function replaceDocumentCodeInXlsx(input, replacements, targetNumbe
     let sharedXml = sharedFile ? await sharedFile.async('string') : null;
     let sharedEntries = sharedXml ? parseSharedStringsXml(sharedXml) : [];
 
-    if (sharedXml && replacements?.length) {
-        const next = replaceInXlsxXmlContent(sharedXml, replacements);
+    if (sharedXml && (replacements?.length || targetParsed)) {
+        const next = replaceInXlsxXmlContent(sharedXml, replacements, targetParsed);
         if (next !== sharedXml) {
             sharedXml = next;
             sharedEntries = parseSharedStringsXml(sharedXml);
@@ -221,8 +221,8 @@ export async function replaceDocumentCodeInXlsx(input, replacements, targetNumbe
     const sheetPaths = Object.keys(zip.files).filter((p) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(p));
     for (const sheetPath of sheetPaths) {
         let sheetXml = await zip.file(sheetPath).async('string');
-        if (replacements?.length) {
-            sheetXml = replaceInXlsxXmlContent(sheetXml, replacements);
+        if (replacements?.length || targetParsed) {
+            sheetXml = replaceInXlsxXmlContent(sheetXml, replacements, targetParsed);
         }
         if (targetHyphen && targetParsed && sharedEntries.length) {
             injectDocumentCodeInSheet(sharedEntries, sheetXml, targetHyphen, targetParsed);
@@ -241,7 +241,7 @@ export async function replaceDocumentCodeInXlsx(input, replacements, targetNumbe
         if (/^xl\/worksheets\/sheet\d+\.xml$/i.test(relativePath)) return;
         otherTasks.push(
             file.async('string').then((content) => {
-                const next = replaceInXlsxXmlContent(content, replacements);
+                const next = replaceInXlsxXmlContent(content, replacements, targetParsed);
                 if (next !== content) zip.file(relativePath, next);
             })
         );

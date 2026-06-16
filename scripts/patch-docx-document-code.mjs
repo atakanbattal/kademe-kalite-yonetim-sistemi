@@ -27,10 +27,13 @@ function loadEnvLocal() {
 
 loadEnvLocal();
 
-const url = process.env.VITE_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY;
-if (!url || !key) {
-    console.error('VITE_SUPABASE_URL ve SUPABASE_SERVICE_ROLE_KEY gerekli (.env.local)');
+const url = process.env.VITE_SUPABASE_URL || 'https://rqnvoatirfczpklaamhf.supabase.co';
+const key =
+    process.env.SUPABASE_SERVICE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.VITE_SUPABASE_SERVICE_KEY;
+if (!key) {
+    console.error('SUPABASE_SERVICE_ROLE_KEY veya SUPABASE_SERVICE_KEY gerekli');
     process.exit(1);
 }
 
@@ -74,7 +77,7 @@ const replacements = await buildDocumentCodeReplacementsForTarget(doc.document_n
 console.log('Değiştirme çiftleri:', replacements.length);
 replacements.slice(0, 12).forEach(([from, to]) => console.log(`  ${from} → ${to}`));
 
-const patched = await replaceDocumentCodeInDocx(buf, replacements);
+const patched = await replaceDocumentCodeInDocx(buf, replacements, doc.document_number);
 const patchedBuf = patched instanceof Blob ? await patched.arrayBuffer() : patched;
 
 const displayName = `${doc.document_number} - ${doc.title}.docx`;

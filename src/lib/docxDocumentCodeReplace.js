@@ -133,7 +133,7 @@ export function buildDocumentCodeReplacements(oldNumber, newNumber, extraTextSou
     return buildReplacementPairsFromSources(sources, newParsed);
 }
 
-function replaceInParagraphXml(paragraphXml, replacements) {
+function replaceInParagraphXml(paragraphXml, replacements, targetParsed = null) {
     const runRegex = /<w:t(\s+xml:space="preserve")?>([^<]*)<\/w:t>/g;
     const runs = [];
     let match;
@@ -148,7 +148,7 @@ function replaceInParagraphXml(paragraphXml, replacements) {
     if (runs.length === 0) return paragraphXml;
 
     const combined = runs.map((run) => run.text).join('');
-    const updated = applyReplacements(combined, replacements);
+    const updated = applyReplacements(combined, replacements, targetParsed);
     if (updated === combined) return paragraphXml;
 
     let result = paragraphXml;
@@ -222,9 +222,10 @@ function injectDocumentCodeInWordXml(xml, targetHyphen) {
 }
 
 function replaceInXmlContent(xml, replacements, targetHyphen) {
-    let updated = applyReplacements(xml, replacements);
+    const targetParsed = parseStandardDocumentCode(targetHyphen);
+    let updated = applyReplacements(xml, replacements, targetParsed);
     updated = updated.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (paragraph) => (
-        replaceInParagraphXml(paragraph, replacements)
+        replaceInParagraphXml(paragraph, replacements, targetParsed)
     ));
     if (targetHyphen) {
         updated = injectDocumentCodeInWordXml(updated, targetHyphen);
