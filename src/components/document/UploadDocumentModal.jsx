@@ -19,7 +19,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
     } from '@/lib/documentRevisionAttachments';
     import { hasRevisionInFileName } from '@/lib/documentCompliance';
     import {
-        buildDocumentCodeReplacements,
+        buildDocumentCodeReplacementsForTarget,
         isDocxAttachment,
         replaceDocumentCodeInDocx,
     } from '@/lib/docxDocumentCodeReplace';
@@ -531,17 +531,12 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 }
 
                 const sourceMetas = [];
-                const codeReplacements = isEditMode && isReclassifying && originalClassification?.document_number && documentNumber
-                    ? buildDocumentCodeReplacements(
-                        originalClassification.document_number,
-                        documentNumber,
-                        [
-                            ...keptExistingSources.map((s) => s.name),
-                            ...newSourceFiles.map((f) => f.name),
-                        ]
-                    )
-                    : [];
                 let docxContentPatched = false;
+                const extraCodeSources = [
+                    ...keptExistingSources.map((s) => s.name),
+                    ...newSourceFiles.map((f) => f.name),
+                    effectiveDocument?.document_number,
+                ].filter(Boolean);
 
                 const buildSourceStoragePath = (sanitizedSourceName) => {
                     const shortId = uuidv4().slice(0, 8);
@@ -557,11 +552,17 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 };
 
                 const prepareSourceBlob = async (blob, fileName, mimeType) => {
-                    if (!codeReplacements.length || !isDocxAttachment(fileName, mimeType)) {
+                    if (!isEditMode || !documentNumber || !isDocxAttachment(fileName, mimeType)) {
                         return blob;
                     }
+                    const replacements = await buildDocumentCodeReplacementsForTarget(documentNumber, {
+                        oldNumber: originalClassification?.document_number || effectiveDocument?.document_number,
+                        extraTextSources: extraCodeSources,
+                        docxBlob: blob,
+                    });
+                    if (!replacements.length) return blob;
                     docxContentPatched = true;
-                    return replaceDocumentCodeInDocx(blob, codeReplacements);
+                    return replaceDocumentCodeInDocx(blob, replacements);
                 };
 
                 for (let index = 0; index < keptExistingSources.length; index += 1) {
@@ -574,7 +575,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     let uploadSize = source.size;
                     let uploadType = source.type || 'application/octet-stream';
 
-                    if (codeReplacements.length && isDocxAttachment(source.name, source.type)) {
+                    if (isEditMode && documentNumber && isDocxAttachment(source.name, source.type)) {
                         const { data, error: downloadError } = await supabase.storage.from(BUCKET_NAME).download(source.path);
                         if (downloadError) throw downloadError;
                         const patchedBlob = await prepareSourceBlob(data, source.name, source.type);
@@ -610,7 +611,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     const sanitizedSourceName = sanitizeFileName(displayName);
                     const srcPath = buildSourceStoragePath(sanitizedSourceName);
                     let uploadBlob = srcFile;
-                    if (codeReplacements.length && isDocxAttachment(srcFile.name, srcFile.type)) {
+                    if (isEditMode && documentNumber && isDocxAttachment(srcFile.name, srcFile.type)) {
                         uploadBlob = await prepareSourceBlob(srcFile, srcFile.name, srcFile.type);
                     }
                     const { error: srcErr } = await supabase.storage.from(BUCKET_NAME).upload(srcPath, uploadBlob, {
