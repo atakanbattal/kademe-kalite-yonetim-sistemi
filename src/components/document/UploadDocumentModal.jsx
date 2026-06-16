@@ -81,11 +81,85 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
         const [isSubmitting, setIsSubmitting] = useState(false);
         /** PDF olmadan oluşturulan taslak — modal kapanmadan dosya yüklenebilir */
         const [draftDocument, setDraftDocument] = useState(null);
+        /** Düzenlemede açılış anındaki birim/kategori (yeniden sınıflandırma tespiti) */
+        const [originalClassification, setOriginalClassification] = useState(null);
+        const [previewDocumentNumber, setPreviewDocumentNumber] = useState('');
+        const [isLoadingPreviewNumber, setIsLoadingPreviewNumber] = useState(false);
 
         const effectiveDocument = existingDocument || draftDocument;
         const isEditMode = !!effectiveDocument && !isRevisionMode;
 
         const initialLoadRef = useRef(true);
+
+        const isReclassifying = useMemo(() => {
+            if (!isEditMode || !originalClassification) return false;
+            const deptChanged = (formData.department_id || null) !== (originalClassification.department_id || null);
+            const typeChanged = (formData.document_type || '') !== (originalClassification.document_type || '');
+            return deptChanged || typeChanged;
+        }, [isEditMode, originalClassification, formData.department_id, formData.document_type]);
+
+        const displayDocumentNumber = isReclassifying && previewDocumentNumber
+            ? previewDocumentNumber
+            : (formData.document_number || '');
+
+        useEffect(() => {
+            if (!isOpen || !isEditMode || !originalClassification) {
+                setPreviewDocumentNumber('');
+                return;
+            }
+
+            const deptChanged = (formData.department_id || null) !== (originalClassification.department_id || null);
+            const typeChanged = (formData.document_type || '') !== (originalClassification.document_type || '');
+            if (!deptChanged && !typeChanged) {
+                setPreviewDocumentNumber('');
+                return;
+            }
+
+            const rawDept = formData.department_id;
+            const deptStr = rawDept == null ? '' : String(rawDept).trim();
+            const needsDepartment = CATEGORIES_REQUIRING_DEPARTMENT.includes(formData.document_type);
+            if (needsDepartment && (!deptStr || !UUID_RE.test(deptStr) || !validCostSettingIds.has(deptStr))) {
+                setPreviewDocumentNumber('');
+                return;
+            }
+            if (!formData.document_type) {
+                setPreviewDocumentNumber('');
+                return;
+            }
+
+            let cancelled = false;
+            setIsLoadingPreviewNumber(true);
+
+            supabase
+                .rpc('generate_document_number', {
+                    p_department_id: needsDepartment ? deptStr : null,
+                    p_document_type: formData.document_type,
+                    p_document_subcategory: null,
+                })
+                .then(({ data, error }) => {
+                    if (cancelled) return;
+                    if (error) {
+                        console.error('Yeni doküman numarası önizlenemedi:', error);
+                        setPreviewDocumentNumber('');
+                        return;
+                    }
+                    setPreviewDocumentNumber(data || '');
+                })
+                .finally(() => {
+                    if (!cancelled) setIsLoadingPreviewNumber(false);
+                });
+
+            return () => {
+                cancelled = true;
+            };
+        }, [
+            isOpen,
+            isEditMode,
+            originalClassification,
+            formData.department_id,
+            formData.document_type,
+            validCostSettingIds,
+        ]);
 
         // Revizyon modunda tüm revizyonları çek ve en yüksek numarayı bul, ilk yayın tarihini al
         useEffect(() => {
@@ -196,12 +270,24 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                             file_name: getPublishedAttachment(revision?.attachments)?.name,
                             department_id: effectiveDocument.department_id || null,
                          });
+                         if (isEditMode) {
+                            setOriginalClassification({
+                                department_id: effectiveDocument.department_id || null,
+                                document_type: effectiveDocument.document_type || '',
+                                document_number: effectiveDocument.document_number || '',
+                            });
+                         } else {
+                            setOriginalClassification(null);
+                         }
+                         setPreviewDocumentNumber('');
                          setKeptExistingSources(getSourceAttachments(revision?.attachments || []));
                          setNewSourceFiles([]);
                     } else {
                         setFormData(initialData);
                         setKeptExistingSources([]);
                         setNewSourceFiles([]);
+                        setOriginalClassification(null);
+                        setPreviewDocumentNumber('');
                     }
                     setFile(null);
                     initialLoadRef.current = false;
@@ -211,6 +297,8 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 setKeptExistingSources([]);
                 setNewSourceFiles([]);
                 setDraftDocument(null);
+                setOriginalClassification(null);
+                setPreviewDocumentNumber('');
             }
         }, [isOpen, effectiveDocument, isEditMode, preselectedCategory, profile, isRevisionMode]);
 
@@ -316,6 +404,20 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 const wasNewInsert = !isRevisionMode && !isEditMode;
                 let documentId = (isEditMode || isRevisionMode) ? effectiveDocument.id : (effectiveDocument?.id || uuidv4());
                 let documentNumber = formData.document_number || effectiveDocument?.document_number || '';
+
+                if (isEditMode && isReclassifying) {
+                    const needsDepartment = CATEGORIES_REQUIRING_DEPARTMENT.includes(formData.document_type);
+                    if (needsDepartment && !resolvedDepartmentId) {
+                        throw new Error('Yeniden sınıflandırma için birim seçilmelidir.');
+                    }
+                    const { data: newNum, error: numError } = await supabase.rpc('generate_document_number', {
+                        p_department_id: needsDepartment ? resolvedDepartmentId : null,
+                        p_document_type: formData.document_type,
+                        p_document_subcategory: null,
+                    });
+                    if (numError) throw numError;
+                    documentNumber = newNum || documentNumber;
+                }
                 let currentRevisionId = effectiveDocument?.current_revision_id || null;
                 const folderName = getDocumentFolder(formData.document_type);
 
@@ -534,8 +636,9 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
         };
 
         const previewSourceFileName = (originalName, index) => {
-            if (!formData.document_number) return originalName;
-            return buildEditableSourceFileName(formData.document_number, formData.title, originalName, index);
+            const num = displayDocumentNumber;
+            if (!num) return originalName;
+            return buildEditableSourceFileName(num, formData.title, originalName, index);
         };
 
         return (
@@ -547,15 +650,25 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                             {isRevisionMode 
                                 ? 'Yayın PDF’ini ve isteğe bağlı olarak Word/Excel kaynaklarını yükleyin. Kaynaklar bu revizyonla birlikte saklanır; sonraki düzenlemeler için indirilebilir.' 
                                 : (isEditMode
-                                    ? 'Önce bilgileri kaydedip doküman numarasını alın; ardından PDF ve Word/Excel kaynaklarını yükleyin.'
+                                    ? 'Birim veya kategori değiştirirken doküman yeni numara alır; eski gruptaki sıra bozulmaz. Kaynak dosya adları yeni numara ve güncel adla kaydedilir.'
                                     : 'Önce zorunlu alanları doldurup kaydedin (doküman numarası oluşur); sonra PDF ve kaynak dosyalarını ekleyin.')}
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                        {formData.document_number && (
-                            <div className="md:col-span-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Doküman numarası</p>
-                                <p className="text-lg font-semibold font-mono text-primary">{formData.document_number}</p>
+                        {displayDocumentNumber && (
+                            <div className={`md:col-span-2 rounded-lg border px-4 py-3 ${isReclassifying ? 'border-amber-500/40 bg-amber-500/10' : 'border-primary/30 bg-primary/5'}`}>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                    {isReclassifying ? 'Yeni doküman numarası' : 'Doküman numarası'}
+                                </p>
+                                <p className="text-lg font-semibold font-mono text-primary">
+                                    {isLoadingPreviewNumber && isReclassifying ? 'Hesaplanıyor…' : displayDocumentNumber}
+                                </p>
+                                {isReclassifying && originalClassification?.document_number && (
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        Birim veya kategori değişti. Eski numara ({originalClassification.document_number}) korunur;
+                                        kaynak dosya adları yeni numara ve güncel doküman adıyla kaydedilir.
+                                    </p>
+                                )}
                             </div>
                         )}
                         <div className="md:col-span-2">
