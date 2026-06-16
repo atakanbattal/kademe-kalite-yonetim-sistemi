@@ -18,6 +18,11 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
         SOURCE_FILE_ACCEPT,
     } from '@/lib/documentRevisionAttachments';
     import { hasRevisionInFileName } from '@/lib/documentCompliance';
+    import {
+        buildDocumentCodeReplacements,
+        isDocxAttachment,
+        replaceDocumentCodeInDocx,
+    } from '@/lib/docxDocumentCodeReplace';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
 
@@ -525,15 +530,72 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     }
                 }
 
-                const sourceMetas = keptExistingSources.map((source, index) => ({
-                    path: source.path,
-                    name: documentNumber
+                const sourceMetas = [];
+                const codeReplacements = isEditMode && isReclassifying && originalClassification?.document_number && documentNumber
+                    ? buildDocumentCodeReplacements(
+                        originalClassification.document_number,
+                        documentNumber,
+                        [
+                            ...keptExistingSources.map((s) => s.name),
+                            ...newSourceFiles.map((f) => f.name),
+                        ]
+                    )
+                    : [];
+                let docxContentPatched = false;
+
+                const buildSourceStoragePath = (sanitizedSourceName) => {
+                    const shortId = uuidv4().slice(0, 8);
+                    if (isRevisionMode) {
+                        const revisionNumber = formData.revision_number || '1';
+                        return `${folderName}/${documentId}-rev${revisionNumber}-src-${shortId}-${sanitizedSourceName}`;
+                    }
+                    if (isEditMode || currentRevisionId) {
+                        const rev = String(formData.revision_number || '1');
+                        return `${folderName}/${documentId}-rev${rev}-src-${shortId}-${sanitizedSourceName}`;
+                    }
+                    return `${folderName}/${documentId}-src-${shortId}-${sanitizedSourceName}`;
+                };
+
+                const prepareSourceBlob = async (blob, fileName, mimeType) => {
+                    if (!codeReplacements.length || !isDocxAttachment(fileName, mimeType)) {
+                        return blob;
+                    }
+                    docxContentPatched = true;
+                    return replaceDocumentCodeInDocx(blob, codeReplacements);
+                };
+
+                for (let index = 0; index < keptExistingSources.length; index += 1) {
+                    const source = keptExistingSources[index];
+                    const displayName = documentNumber
                         ? buildEditableSourceFileName(documentNumber, documentTitle, source.name, index)
-                        : source.name,
-                    size: source.size,
-                    type: source.type || 'application/octet-stream',
-                    role: 'source',
-                }));
+                        : source.name;
+                    const sanitizedSourceName = sanitizeFileName(displayName);
+                    let uploadPath = source.path;
+                    let uploadSize = source.size;
+                    let uploadType = source.type || 'application/octet-stream';
+
+                    if (codeReplacements.length && isDocxAttachment(source.name, source.type)) {
+                        const { data, error: downloadError } = await supabase.storage.from(BUCKET_NAME).download(source.path);
+                        if (downloadError) throw downloadError;
+                        const patchedBlob = await prepareSourceBlob(data, source.name, source.type);
+                        uploadPath = buildSourceStoragePath(sanitizedSourceName);
+                        uploadSize = patchedBlob.size;
+                        uploadType = source.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(uploadPath, patchedBlob, {
+                            upsert: true,
+                            contentType: uploadType,
+                        });
+                        if (uploadError) throw uploadError;
+                    }
+
+                    sourceMetas.push({
+                        path: uploadPath,
+                        name: displayName,
+                        size: uploadSize,
+                        type: uploadType,
+                        role: 'source',
+                    });
+                }
 
                 for (let sourceIndex = 0; sourceIndex < newSourceFiles.length; sourceIndex += 1) {
                     const srcFile = newSourceFiles[sourceIndex];
@@ -546,26 +608,21 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         )
                         : srcFile.name;
                     const sanitizedSourceName = sanitizeFileName(displayName);
-                    const shortId = uuidv4().slice(0, 8);
-                    let srcPath;
-                    if (isRevisionMode) {
-                        const revisionNumber = formData.revision_number || '1';
-                        srcPath = `${folderName}/${documentId}-rev${revisionNumber}-src-${shortId}-${sanitizedSourceName}`;
-                    } else if (isEditMode || currentRevisionId) {
-                        const rev = String(formData.revision_number || '1');
-                        srcPath = `${folderName}/${documentId}-rev${rev}-src-${shortId}-${sanitizedSourceName}`;
-                    } else {
-                        srcPath = `${folderName}/${documentId}-src-${shortId}-${sanitizedSourceName}`;
+                    const srcPath = buildSourceStoragePath(sanitizedSourceName);
+                    let uploadBlob = srcFile;
+                    if (codeReplacements.length && isDocxAttachment(srcFile.name, srcFile.type)) {
+                        uploadBlob = await prepareSourceBlob(srcFile, srcFile.name, srcFile.type);
                     }
-                    const { error: srcErr } = await supabase.storage.from(BUCKET_NAME).upload(srcPath, srcFile, {
-                        upsert: true
+                    const { error: srcErr } = await supabase.storage.from(BUCKET_NAME).upload(srcPath, uploadBlob, {
+                        upsert: true,
+                        contentType: srcFile.type || uploadBlob.type || 'application/octet-stream',
                     });
                     if (srcErr) throw srcErr;
                     sourceMetas.push({
                         path: srcPath,
                         name: displayName,
-                        size: srcFile.size,
-                        type: srcFile.type || 'application/octet-stream',
+                        size: uploadBlob.size,
+                        type: srcFile.type || uploadBlob.type || 'application/octet-stream',
                         role: 'source',
                     });
                 }
@@ -623,7 +680,12 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     return;
                 }
 
-                toast({ title: 'Başarılı!', description: `Doküman başarıyla ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}.` });
+                toast({
+                    title: 'Başarılı!',
+                    description: docxContentPatched
+                        ? `Doküman ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}. Word kaynak dosyalarındaki doküman kodu da güncellendi.`
+                        : `Doküman başarıyla ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}.`,
+                });
                 refreshDocuments();
                 setIsOpen(false);
                 setDraftDocument(null);
@@ -650,7 +712,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                             {isRevisionMode 
                                 ? 'Yayın PDF’ini ve isteğe bağlı olarak Word/Excel kaynaklarını yükleyin. Kaynaklar bu revizyonla birlikte saklanır; sonraki düzenlemeler için indirilebilir.' 
                                 : (isEditMode
-                                    ? 'Birim veya kategori değiştirirken doküman yeni numara alır; eski gruptaki sıra bozulmaz. Kaynak dosya adları yeni numara ve güncel adla kaydedilir.'
+                                    ? 'Birim veya kategori değiştirirken doküman yeni numara alır; Word kaynak dosyasındaki antet kodu da otomatik güncellenir.'
                                     : 'Önce zorunlu alanları doldurup kaydedin (doküman numarası oluşur); sonra PDF ve kaynak dosyalarını ekleyin.')}
                         </DialogDescription>
                     </DialogHeader>
@@ -665,8 +727,8 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                                 </p>
                                 {isReclassifying && originalClassification?.document_number && (
                                     <p className="mt-2 text-xs text-muted-foreground">
-                                        Birim veya kategori değişti. Eski numara ({originalClassification.document_number}) korunur;
-                                        kaynak dosya adları yeni numara ve güncel doküman adıyla kaydedilir.
+                                        Birim veya kategori değişti. Eski numara ({originalClassification.document_number}) korunur.
+                                        Word (.docx) kaynak dosyalarındaki kod ve dosya adı yeni numara ile güncellenir.
                                     </p>
                                 )}
                             </div>
