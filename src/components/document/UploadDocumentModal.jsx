@@ -19,10 +19,9 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
     } from '@/lib/documentRevisionAttachments';
     import { hasRevisionInFileName } from '@/lib/documentCompliance';
     import {
-        buildDocumentCodeReplacementsForTarget,
-        isDocxAttachment,
-        replaceDocumentCodeInDocx,
-    } from '@/lib/docxDocumentCodeReplace';
+        isEditableOfficeSource,
+        patchEditableSourceBlob,
+    } from '@/lib/editableSourceCodePatch';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
 
@@ -558,18 +557,22 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     return `${folderName}/${documentId}-src-${shortId}-${sanitizedSourceName}`;
                 };
 
+                const shouldPatchOfficeSource = (fileName, mimeType) => (
+                    !!documentNumber && isEditableOfficeSource(fileName, mimeType)
+                );
+
                 const prepareSourceBlob = async (blob, fileName, mimeType) => {
-                    if (!isEditMode || !documentNumber || !isDocxAttachment(fileName, mimeType)) {
+                    if (!shouldPatchOfficeSource(fileName, mimeType)) {
                         return blob;
                     }
-                    const replacements = await buildDocumentCodeReplacementsForTarget(documentNumber, {
+                    const { blob: patchedBlob, patched } = await patchEditableSourceBlob(blob, documentNumber, {
                         oldNumber: originalClassification?.document_number || effectiveDocument?.document_number,
                         extraTextSources: extraCodeSources,
-                        docxBlob: blob,
+                        fileName,
+                        mimeType,
                     });
-                    if (!replacements.length) return blob;
-                    docxContentPatched = true;
-                    return replaceDocumentCodeInDocx(blob, replacements);
+                    if (patched) docxContentPatched = true;
+                    return patchedBlob;
                 };
 
                 for (let index = 0; index < keptExistingSources.length; index += 1) {
@@ -582,7 +585,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     let uploadSize = source.size;
                     let uploadType = source.type || 'application/octet-stream';
 
-                    if (isEditMode && documentNumber && isDocxAttachment(source.name, source.type)) {
+                    if (shouldPatchOfficeSource(source.name, source.type)) {
                         const { data, error: downloadError } = await supabase.storage.from(BUCKET_NAME).download(source.path);
                         if (downloadError) throw downloadError;
                         const patchedBlob = await prepareSourceBlob(data, source.name, source.type);
@@ -618,7 +621,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     const sanitizedSourceName = sanitizeFileName(displayName);
                     const srcPath = buildSourceStoragePath(sanitizedSourceName);
                     let uploadBlob = srcFile;
-                    if (isEditMode && documentNumber && isDocxAttachment(srcFile.name, srcFile.type)) {
+                    if (shouldPatchOfficeSource(srcFile.name, srcFile.type)) {
                         uploadBlob = await prepareSourceBlob(srcFile, srcFile.name, srcFile.type);
                     }
                     const { error: srcErr } = await supabase.storage.from(BUCKET_NAME).upload(srcPath, uploadBlob, {

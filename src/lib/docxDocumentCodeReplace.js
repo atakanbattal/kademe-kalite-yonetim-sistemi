@@ -1,96 +1,26 @@
 import JSZip from 'jszip';
+import {
+    applyReplacements,
+    buildReplacementPairsFromSources,
+    collectCodesFromText,
+    decodeXmlEntities,
+    escapeXmlText,
+    formatVariant,
+    isCodeSlotValue,
+    isDocumentNumberLabel,
+    isPlaceholderCodeValue,
+    looksLikeDocumentCode,
+    parseStandardDocumentCode,
+    textMatchesTargetCode,
+    allFormatVariants,
+} from './documentCodeUtils.js';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const CODE_SEGMENT = '[A-ZÇĞİÖŞÜ0-9]{2,4}';
-const CODE_TYPE = '[A-ZÇĞİÖŞÜ]{2}';
-const CODE_YEAR = '\\d{4}';
-const CODE_SEQ = '\\d{4}';
-
-const CODE_PATTERNS = [
-    new RegExp(`${CODE_SEGMENT}-${CODE_TYPE}-${CODE_YEAR}-${CODE_SEQ}`, 'giu'),
-    new RegExp(`${CODE_SEGMENT}\\.${CODE_TYPE}\\.${CODE_YEAR}\\.${CODE_SEQ}`, 'giu'),
-    new RegExp(`${CODE_SEGMENT}\\s+${CODE_TYPE}\\s+${CODE_YEAR}\\s+${CODE_SEQ}`, 'giu'),
-];
-
 const SKIP_WORD_XML = /^word\/(styles|fontTable|settings|webSettings|numbering|theme)\b/i;
+const INJECT_PRIORITY = /^word\/(header|footer)\d+\.xml$/i;
 
-function escapeXmlText(text) {
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
-function foldTurkishAscii(text) {
-    return String(text)
-        .replace(/Ü/g, 'U')
-        .replace(/ü/g, 'u')
-        .replace(/İ/g, 'I')
-        .replace(/ı/g, 'i')
-        .replace(/Ö/g, 'O')
-        .replace(/ö/g, 'o')
-        .replace(/Ş/g, 'S')
-        .replace(/ş/g, 's')
-        .replace(/Ç/g, 'C')
-        .replace(/ç/g, 'c')
-        .replace(/Ğ/g, 'G')
-        .replace(/ğ/g, 'g');
-}
-
-/** @returns {{ dept: string, type: string, year: string, seq: string, canonical: string } | null} */
-export function parseStandardDocumentCode(raw) {
-    const normalized = String(raw || '').trim().replace(/\s+/g, ' ');
-    const match = normalized.match(/^([A-ZÇĞİÖŞÜ0-9]{2,4})[-.\s]+([A-ZÇĞİÖŞÜ]{2})[-.\s]+(\d{4})[-.\s]+(\d{4})$/iu);
-    if (!match) return null;
-
-    const dept = match[1].toLocaleUpperCase('tr');
-    const type = match[2].toLocaleUpperCase('tr');
-    const year = match[3];
-    const seq = match[4];
-
-    return {
-        dept,
-        type,
-        year,
-        seq,
-        canonical: `${dept}-${type}-${year}-${seq}`,
-    };
-}
-
-function formatVariant(parsed, style) {
-    const { dept, type, year, seq } = parsed;
-    if (style === 'dot') return `${dept}.${type}.${year}.${seq}`;
-    if (style === 'space') return `${dept} ${type} ${year} ${seq}`;
-    return `${dept}-${type}-${year}-${seq}`;
-}
-
-/** Aynı kodun tire, nokta, boşluk ve ASCII varyantları */
-function allFormatVariants(parsed) {
-    const styles = ['hyphen', 'dot', 'space'];
-    const variants = new Set();
-
-    for (const style of styles) {
-        variants.add(formatVariant(parsed, style));
-        const folded = parseStandardDocumentCode(formatVariant({
-            dept: foldTurkishAscii(parsed.dept),
-            type: foldTurkishAscii(parsed.type),
-            year: parsed.year,
-            seq: parsed.seq,
-            canonical: '',
-        }, style));
-        if (folded) variants.add(formatVariant(folded, style));
-    }
-
-    return [...variants];
-}
-
-function decodeXmlEntities(text) {
-    return String(text)
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'");
+function shouldProcessWordXml(path) {
+    return /^word\/.+\.xml$/i.test(path) && !SKIP_WORD_XML.test(path);
 }
 
 /** w:p içindeki w:t metinlerini birleştirir (Word run bölünmesi için). */
@@ -111,26 +41,20 @@ function extractParagraphTextsFromXml(xml) {
     return paragraphs;
 }
 
-function collectCodesFromText(text, bucket) {
-    const source = String(text || '');
-    for (const pattern of CODE_PATTERNS) {
-        pattern.lastIndex = 0;
-        let match;
-        while ((match = pattern.exec(source)) !== null) {
-            const parsed = parseStandardDocumentCode(match[0]);
-            if (parsed) bucket.add(parsed.canonical);
-        }
+function extractTextFromXmlBlock(blockXml) {
+    const runRegex = /<w:t(\s+xml:space="preserve")?>([^<]*)<\/w:t>/g;
+    const parts = [];
+    let runMatch;
+    while ((runMatch = runRegex.exec(blockXml)) !== null) {
+        parts.push(decodeXmlEntities(runMatch[2]));
     }
+    return parts.join('');
 }
 
 function collectCodesFromWordXml(xml, bucket) {
     for (const paragraphText of extractParagraphTextsFromXml(xml)) {
         collectCodesFromText(paragraphText, bucket);
     }
-}
-
-function shouldProcessWordXml(path) {
-    return /^word\/.+\.xml$/i.test(path) && !SKIP_WORD_XML.test(path);
 }
 
 /** .docx kaynak dosyası mı */
@@ -140,7 +64,7 @@ export function isDocxAttachment(fileName, mimeType = '') {
     return name.endsWith('.docx') || type === DOCX_MIME;
 }
 
-/** Word XML parçalarından standart doküman kodlarını çıkarır */
+/** Word XML parçalarından doküman kodlarını çıkarır */
 export async function extractDocumentCodesFromDocx(input) {
     const zip = await JSZip.loadAsync(input);
     const found = new Set();
@@ -157,10 +81,45 @@ export async function extractDocumentCodesFromDocx(input) {
     return [...found];
 }
 
-/**
- * Eski → yeni doküman kodu için Word içinde aranacak metin çiftleri.
- * @deprecated buildDocumentCodeReplacementsForTarget tercih edilir
- */
+export {
+    buildReplacementPairsFromSources,
+    collectCodesFromText,
+    parseStandardDocumentCode,
+};
+
+/** Hedef numaraya göre değiştirme çiftleri — docx/xlsx içeriğini tarayarak eski kodları bulur. */
+export async function buildDocumentCodeReplacementsForTarget(newNumber, {
+    oldNumber,
+    extraTextSources = [],
+    docxBlob,
+    xlsxBlob,
+} = {}) {
+    const newParsed = parseStandardDocumentCode(newNumber);
+    if (!newParsed) return [];
+
+    const sources = new Set();
+    const oldParsed = parseStandardDocumentCode(oldNumber);
+    if (oldParsed) {
+        sources.add(oldParsed.canonical);
+        allFormatVariants(oldParsed).forEach((v) => sources.add(v));
+    }
+
+    for (const text of extraTextSources) collectCodesFromText(text, sources);
+
+    if (docxBlob) {
+        const inDocx = await extractDocumentCodesFromDocx(docxBlob);
+        inDocx.forEach((code) => sources.add(code));
+    }
+    if (xlsxBlob) {
+        const { extractDocumentCodesFromXlsx } = await import('./xlsxDocumentCodeReplace.js');
+        const inXlsx = await extractDocumentCodesFromXlsx(xlsxBlob);
+        inXlsx.forEach((code) => sources.add(code));
+    }
+
+    return buildReplacementPairsFromSources(sources, newParsed);
+}
+
+/** @deprecated buildDocumentCodeReplacementsForTarget tercih edilir */
 export function buildDocumentCodeReplacements(oldNumber, newNumber, extraTextSources = []) {
     const newParsed = parseStandardDocumentCode(newNumber);
     if (!newParsed) return [];
@@ -174,80 +133,6 @@ export function buildDocumentCodeReplacements(oldNumber, newNumber, extraTextSou
     return buildReplacementPairsFromSources(sources, newParsed);
 }
 
-function buildReplacementPairsFromSources(sourceCanonicals, newParsed) {
-    const pairs = new Map();
-    const addPair = (from, to) => {
-        const f = String(from || '').trim();
-        const t = String(to || '').trim();
-        if (f && t && f !== t && f.length >= 5) pairs.set(f, t);
-    };
-
-    const newVariants = allFormatVariants(newParsed);
-    const styleKeys = ['hyphen', 'dot', 'space'];
-
-    for (const sourceCanonical of sourceCanonicals) {
-        if (sourceCanonical === newParsed.canonical) continue;
-        const sourceParsed = parseStandardDocumentCode(sourceCanonical);
-        if (!sourceParsed) continue;
-
-        for (let i = 0; i < styleKeys.length; i += 1) {
-            const style = styleKeys[i];
-            addPair(formatVariant(sourceParsed, style), formatVariant(newParsed, style));
-        }
-
-        addPair(`1-${formatVariant(sourceParsed, 'hyphen')}`, `1-${formatVariant(newParsed, 'hyphen')}`);
-        addPair(`1-${formatVariant(sourceParsed, 'dot')}`, `1-${formatVariant(newParsed, 'dot')}`);
-
-        for (const from of allFormatVariants(sourceParsed)) {
-            for (const to of newVariants) {
-                if (from.includes('-') && to.includes('-')) addPair(from, to);
-                else if (from.includes('.') && to.includes('.')) addPair(from, to);
-                else if (from.includes(' ') && to.includes(' ')) addPair(from, to);
-            }
-        }
-    }
-
-    return [...pairs.entries()]
-        .map(([from, to]) => [from, to])
-        .sort((a, b) => b[0].length - a[0].length);
-}
-
-/**
- * Hedef numaraya göre değiştirme çiftleri — docx içeriğini tarayarak eski kodları bulur.
- */
-export async function buildDocumentCodeReplacementsForTarget(newNumber, {
-    oldNumber,
-    extraTextSources = [],
-    docxBlob,
-} = {}) {
-    const newParsed = parseStandardDocumentCode(newNumber);
-    if (!newParsed) return [];
-
-    const sources = new Set();
-    const oldParsed = parseStandardDocumentCode(oldNumber);
-    if (oldParsed) sources.add(oldParsed.canonical);
-
-    for (const text of extraTextSources) collectCodesFromText(text, sources);
-
-    if (docxBlob) {
-        const inDocx = await extractDocumentCodesFromDocx(docxBlob);
-        inDocx.forEach((code) => sources.add(code));
-    }
-
-    return buildReplacementPairsFromSources(sources, newParsed);
-}
-
-function applyReplacements(text, replacements) {
-    let result = text;
-    for (const [from, to] of replacements) {
-        if (result.includes(from)) {
-            result = result.split(from).join(to);
-        }
-    }
-    return result;
-}
-
-/** Word paragrafındaki w:t birleşiminde kod değiştirir (parçalı run desteği). */
 function replaceInParagraphXml(paragraphXml, replacements) {
     const runRegex = /<w:t(\s+xml:space="preserve")?>([^<]*)<\/w:t>/g;
     const runs = [];
@@ -278,38 +163,139 @@ function replaceInParagraphXml(paragraphXml, replacements) {
     return result;
 }
 
-function replaceInXmlContent(xml, replacements) {
+function setParagraphText(paragraphXml, newText) {
+    const pPrMatch = paragraphXml.match(/<w:pPr\b[\s\S]*?<\/w:pPr>/);
+    const pPr = pPrMatch ? pPrMatch[0] : '';
+    const rPrMatch = paragraphXml.match(/<w:rPr\b[\s\S]*?<\/w:rPr>/);
+    const rPr = rPrMatch ? rPrMatch[0] : '<w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>';
+    return `<w:p>${pPr}<w:r>${rPr}<w:t>${escapeXmlText(newText)}</w:t></w:r></w:p>`;
+}
+
+function setCellText(cellXml, newText) {
+    const paragraphRegex = /<w:p\b[\s\S]*?<\/w:p>/;
+    if (!paragraphRegex.test(cellXml)) return cellXml;
+    let replaced = false;
+    return cellXml.replace(paragraphRegex, (paragraph) => {
+        if (replaced) return paragraph;
+        replaced = true;
+        return setParagraphText(paragraph, newText);
+    });
+}
+
+function injectDocumentCodeInTableRow(rowXml, targetHyphen, targetParsed) {
+    const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/g;
+    const cells = [...rowXml.matchAll(cellRegex)].map((m) => m[0]);
+    if (cells.length < 2) return rowXml;
+
+    for (let i = 0; i < cells.length; i += 1) {
+        const labelText = extractTextFromXmlBlock(cells[i]);
+        if (!isDocumentNumberLabel(labelText)) continue;
+
+        for (let j = i + 1; j < cells.length; j += 1) {
+            const valueText = extractTextFromXmlBlock(cells[j]);
+            if (textMatchesTargetCode(valueText, targetParsed)) return rowXml;
+            if (isCodeSlotValue(valueText, targetParsed) || looksLikeDocumentCode(valueText) || isPlaceholderCodeValue(valueText)) {
+                const updatedCell = setCellText(cells[j], targetHyphen);
+                return rowXml.replace(cells[j], updatedCell);
+            }
+        }
+    }
+
+    return rowXml;
+}
+
+function injectDocumentCodeInWordXml(xml, targetHyphen) {
+    const targetParsed = parseStandardDocumentCode(targetHyphen);
+    if (!targetParsed) return xml;
+
+    let updated = xml.replace(/<w:tr\b[\s\S]*?<\/w:tr>/g, (row) => (
+        injectDocumentCodeInTableRow(row, targetHyphen, targetParsed)
+    ));
+
+    updated = updated.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (paragraph) => {
+        const text = extractTextFromXmlBlock(paragraph);
+        if (!isDocumentNumberLabel(text)) return paragraph;
+        return paragraph;
+    });
+
+    return updated;
+}
+
+function replaceInXmlContent(xml, replacements, targetHyphen) {
     let updated = applyReplacements(xml, replacements);
     updated = updated.replace(/<w:p\b[\s\S]*?<\/w:p>/g, (paragraph) => (
         replaceInParagraphXml(paragraph, replacements)
     ));
+    if (targetHyphen) {
+        updated = injectDocumentCodeInWordXml(updated, targetHyphen);
+    }
     return updated;
+}
+
+function docHasTargetCode(xml, targetParsed) {
+    return extractParagraphTextsFromXml(xml).some((text) => textMatchesTargetCode(text, targetParsed));
 }
 
 /**
  * .docx içindeki antet/gövde/üst-alt bilgi XML parçalarında doküman kodunu günceller.
+ * Kod yoksa "Doküman No" satırına yazar.
  * @returns {Promise<Blob>}
  */
-export async function replaceDocumentCodeInDocx(input, replacements) {
-    if (!replacements?.length) {
-        if (input instanceof Blob) return input;
-        return new Blob([input], { type: DOCX_MIME });
-    }
+export async function replaceDocumentCodeInDocx(input, replacements, targetNumber = null) {
+    const targetParsed = parseStandardDocumentCode(targetNumber);
+    const targetHyphen = targetParsed ? formatVariant(targetParsed, 'hyphen') : null;
 
     const zip = await JSZip.loadAsync(input);
     const tasks = [];
+    const paths = [];
 
     zip.forEach((relativePath, file) => {
         if (file.dir || !shouldProcessWordXml(relativePath)) return;
+        paths.push(relativePath);
+    });
+
+    paths.sort((a, b) => {
+        const aPri = INJECT_PRIORITY.test(a) ? 0 : 1;
+        const bPri = INJECT_PRIORITY.test(b) ? 0 : 1;
+        return aPri - bPri || a.localeCompare(b);
+    });
+
+    for (const relativePath of paths) {
+        const file = zip.file(relativePath);
+        if (!file) continue;
         tasks.push(
             file.async('string').then((content) => {
-                const next = replaceInXmlContent(content, replacements);
+                const next = replaceInXmlContent(
+                    content,
+                    replacements || [],
+                    targetHyphen
+                );
                 if (next !== content) zip.file(relativePath, next);
             })
         );
-    });
+    }
 
     await Promise.all(tasks);
+
+    if (targetParsed) {
+        let found = false;
+        const verifyTasks = paths.map((relativePath) => (
+            zip.file(relativePath)?.async('string').then((content) => {
+                if (docHasTargetCode(content, targetParsed)) found = true;
+            })
+        ));
+        await Promise.all(verifyTasks);
+
+        if (!found) {
+            for (const relativePath of paths.filter((p) => INJECT_PRIORITY.test(p))) {
+                const file = zip.file(relativePath);
+                if (!file) continue;
+                const content = await file.async('string');
+                const next = injectDocumentCodeInWordXml(content, targetHyphen);
+                if (next !== content) zip.file(relativePath, next);
+            }
+        }
+    }
 
     return zip.generateAsync({
         type: 'blob',
@@ -317,4 +303,8 @@ export async function replaceDocumentCodeInDocx(input, replacements) {
         compression: 'DEFLATE',
         compressionOptions: { level: 6 },
     });
+}
+
+export async function ensureDocumentCodeInDocx(input, targetNumber) {
+    return replaceDocumentCodeInDocx(input, [], targetNumber);
 }

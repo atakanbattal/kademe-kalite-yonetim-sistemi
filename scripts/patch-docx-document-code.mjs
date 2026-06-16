@@ -77,10 +77,9 @@ replacements.slice(0, 12).forEach(([from, to]) => console.log(`  ${from} → ${t
 const patched = await replaceDocumentCodeInDocx(buf, replacements);
 const patchedBuf = patched instanceof Blob ? await patched.arrayBuffer() : patched;
 
-const newPath = source.path.replace(/[^/]+$/, `${doc.id}-rev1-src-patched-${Date.now()}-${path.basename(source.path).split('/').pop()}`);
 const displayName = `${doc.document_number} - ${doc.title}.docx`;
 
-const { error: upErr } = await supabase.storage.from(BUCKET).upload(newPath, patchedBuf, {
+const { error: upErr } = await supabase.storage.from(BUCKET).upload(source.path, patchedBuf, {
     upsert: true,
     contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 });
@@ -90,7 +89,6 @@ const nextAttachments = attachments.map((a) => (
     a.path === source.path
         ? {
             ...a,
-            path: newPath,
             name: displayName,
             size: patchedBuf.byteLength,
         }
@@ -104,4 +102,4 @@ const { error: updErr } = await supabase
 if (updErr) throw updErr;
 
 console.log('Güncellendi:', displayName);
-console.log('Yeni path:', newPath);
+console.log('Path:', source.path);

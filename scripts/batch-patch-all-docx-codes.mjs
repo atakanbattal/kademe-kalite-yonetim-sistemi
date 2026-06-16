@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 /**
- * Tüm iç doküman .docx kaynaklarında antet/gövde kodlarını güncel document_number ile eşitler.
+ * Tüm iç doküman Word/Excel kaynaklarında kodları günceller ve güncel adla storage'a yazar.
  * Kullanım: node scripts/batch-patch-all-docx-codes.mjs [--dry-run]
  */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
-import {
-    buildDocumentCodeReplacementsForTarget,
-    extractDocumentCodesFromDocx,
-    isDocxAttachment,
-    replaceDocumentCodeInDocx,
-} from '../src/lib/docxDocumentCodeReplace.js';
+import { createClient } from '@supabase/supabase-js';
+import { isDocxAttachment } from '../src/lib/docxDocumentCodeReplace.js';
+import { isXlsxAttachment } from '../src/lib/xlsxDocumentCodeReplace.js';
+import { patchEditableSourceBlob, isEditableOfficeSource } from '../src/lib/editableSourceCodePatch.js';
 import { buildEditableSourceFileName } from '../src/lib/documentRevisionAttachments.js';
 import { sanitizeFileName } from '../src/lib/utils.js';
 
@@ -48,19 +45,34 @@ if (!supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-function buffersEqual(a, b) {
-    const aa = new Uint8Array(a);
-    const bb = new Uint8Array(b);
-    if (aa.byteLength !== bb.byteLength) return false;
-    for (let i = 0; i < aa.byteLength; i += 1) {
-        if (aa[i] !== bb[i]) return false;
-    }
-    return true;
+function buildSourceStoragePath(doc, sanitizedSourceName) {
+    return `${BUCKET}/${doc.id}-rev${doc.revision_number}-src-${randomUUID().slice(0, 8)}-${sanitizedSourceName}`;
 }
 
-function getDocxSources(attachments) {
+function storageDownloadPaths(attachmentPath) {
+    const normalized = String(attachmentPath || '').replace(/^\/+/, '');
+    const variants = [normalized];
+    if (normalized.startsWith(`${BUCKET}/`)) {
+        variants.push(normalized.slice(BUCKET.length + 1));
+    } else {
+        variants.push(`${BUCKET}/${normalized}`);
+    }
+    return [...new Set(variants)];
+}
+
+async function downloadSourceFile(attachmentPath) {
+    let lastError = null;
+    for (const candidate of storageDownloadPaths(attachmentPath)) {
+        const { data, error } = await supabase.storage.from(BUCKET).download(candidate);
+        if (!error && data) return { data, resolvedPath: candidate };
+        lastError = error;
+    }
+    throw new Error(`İndirme hatası (${attachmentPath}): ${lastError?.message || 'bulunamadı'}`);
+}
+
+function getEditableSources(attachments) {
     if (!Array.isArray(attachments)) return [];
-    return attachments.filter((a) => isDocxAttachment(a?.name, a?.type));
+    return attachments.filter((a) => a.role === 'source' && isEditableOfficeSource(a?.name, a?.type));
 }
 
 async function fetchAllDocuments() {
@@ -71,9 +83,10 @@ async function fetchAllDocuments() {
     while (true) {
         const { data, error } = await supabase
             .from('documents')
-            .select('id, title, document_number, current_revision_id, document_revisions!documents_current_revision_id_fkey(id, revision_number, attachments)')
+            .select('id, title, document_number, is_archived, current_revision_id, document_revisions!documents_current_revision_id_fkey(id, revision_number, attachments)')
             .not('document_number', 'is', null)
             .not('current_revision_id', 'is', null)
+            .eq('is_archived', false)
             .range(from, from + pageSize - 1);
 
         if (error) throw error;
@@ -81,7 +94,7 @@ async function fetchAllDocuments() {
 
         for (const doc of data) {
             const rev = doc.document_revisions;
-            const sources = getDocxSources(rev?.attachments);
+            const sources = getEditableSources(rev?.attachments);
             if (!sources.length || !doc.document_number) continue;
             rows.push({
                 id: doc.id,
@@ -105,27 +118,23 @@ async function patchOneDoc(doc) {
     const extraTextSources = (doc.attachments || []).flatMap((a) => [a.name, a.path].filter(Boolean));
     let attachmentsChanged = false;
     let nextAttachments = [...(doc.attachments || [])];
+    const oldPathsToRemove = [];
 
     for (let sourceIndex = 0; sourceIndex < doc.sources.length; sourceIndex += 1) {
         const source = doc.sources[sourceIndex];
-        const { data, error: dlErr } = await supabase.storage.from(BUCKET).download(source.path);
-        if (dlErr) throw new Error(`İndirme hatası (${source.path}): ${dlErr.message}`);
+        const { data } = await downloadSourceFile(source.path);
 
         const originalBuf = await data.arrayBuffer();
-        const replacements = await buildDocumentCodeReplacementsForTarget(doc.document_number, {
+        const { blob: patchedBlob, patched } = await patchEditableSourceBlob(originalBuf, doc.document_number, {
             oldNumber: doc.document_number,
             extraTextSources,
-            docxBlob: originalBuf,
+            fileName: source.name,
+            mimeType: source.type,
         });
 
-        if (!replacements.length) continue;
-
-        const patchedBlob = await replaceDocumentCodeInDocx(originalBuf, replacements);
         const patchedBuf = patchedBlob instanceof Blob
             ? await patchedBlob.arrayBuffer()
             : patchedBlob;
-
-        if (buffersEqual(originalBuf, patchedBuf)) continue;
 
         const displayName = buildEditableSourceFileName(
             doc.document_number,
@@ -134,18 +143,30 @@ async function patchOneDoc(doc) {
             sourceIndex
         );
         const sanitizedSourceName = sanitizeFileName(displayName);
-        const folderPrefix = String(source.path).includes('/')
-            ? String(source.path).slice(0, String(source.path).lastIndexOf('/') + 1)
-            : `${BUCKET}/`;
-        const shortId = randomUUID().slice(0, 8);
-        const newPath = `${folderPrefix}${doc.id}-rev${doc.revision_number}-src-${shortId}-${sanitizedSourceName}`;
+        const newPath = buildSourceStoragePath(doc, sanitizedSourceName);
+        const contentType = source.type
+            || (isDocxAttachment(source.name, source.type)
+                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        const contentChanged = !buffersEqual(originalBuf, patchedBuf);
+        const nameChanged = displayName !== source.name;
+        const pathNeedsUpdate = source.path !== newPath;
+
+        if (!contentChanged && !nameChanged && !pathNeedsUpdate) continue;
 
         if (!DRY_RUN) {
             const { error: upErr } = await supabase.storage.from(BUCKET).upload(newPath, patchedBuf, {
                 upsert: true,
-                contentType: source.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                contentType,
             });
             if (upErr) throw new Error(`Yükleme hatası: ${upErr.message}`);
+        }
+
+        if (!DRY_RUN && source.path && source.path !== newPath) {
+            for (const oldKey of storageDownloadPaths(source.path)) {
+                oldPathsToRemove.push(oldKey);
+            }
         }
 
         nextAttachments = nextAttachments.map((a) => (
@@ -155,10 +176,15 @@ async function patchOneDoc(doc) {
                     path: newPath,
                     name: displayName,
                     size: patchedBuf.byteLength,
+                    type: contentType,
                 }
                 : a
         ));
         attachmentsChanged = true;
+
+        if (patched || contentChanged) {
+            // logged at caller
+        }
     }
 
     if (attachmentsChanged && !DRY_RUN) {
@@ -167,13 +193,29 @@ async function patchOneDoc(doc) {
             .update({ attachments: nextAttachments })
             .eq('id', doc.revision_id);
         if (updErr) throw updErr;
+
+        if (oldPathsToRemove.length) {
+            await supabase.storage.from(BUCKET).remove(oldPathsToRemove);
+        }
     }
 
     return attachmentsChanged;
 }
 
+function buffersEqual(a, b) {
+    const aa = new Uint8Array(a);
+    const bb = new Uint8Array(b);
+    if (aa.byteLength !== bb.byteLength) return false;
+    for (let i = 0; i < aa.byteLength; i += 1) {
+        if (aa[i] !== bb[i]) return false;
+    }
+    return true;
+}
+
 const docs = await fetchAllDocuments();
-console.log(`Toplam docx kaynaklı doküman: ${docs.length}${DRY_RUN ? ' (dry-run)' : ''}`);
+const docxCount = docs.filter((d) => d.sources.some((s) => isDocxAttachment(s.name, s.type))).length;
+const xlsxCount = docs.filter((d) => d.sources.some((s) => isXlsxAttachment(s.name, s.type))).length;
+console.log(`Toplam düzenlenebilir kaynak: ${docs.length} (Word: ${docxCount}, Excel: ${xlsxCount})${DRY_RUN ? ' (dry-run)' : ''}`);
 
 let patched = 0;
 let skipped = 0;
