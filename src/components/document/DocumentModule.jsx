@@ -18,7 +18,7 @@ import DocumentDetailModal from '@/components/document/DocumentDetailModal';
 import FolderDownloadModal from '@/components/document/FolderDownloadModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
-import { getPublishedAttachment, getSourceAttachments } from '@/lib/documentRevisionAttachments';
+import { getPublishedAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -387,7 +387,7 @@ const DocumentModule = () => {
         document.body.removeChild(a);
     };
 
-    const downloadEditableSource = async (revision, documentType, attachment) => {
+    const downloadEditableSource = async (revision, documentType, attachment, doc) => {
         let filePath = attachment?.path;
         if (!filePath) {
             toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
@@ -399,7 +399,7 @@ const DocumentModule = () => {
             toast({ variant: 'destructive', title: 'Hata', description: `Dosya indirilemedi: ${error.message}` });
             return;
         }
-        const downloadName = attachment.name || 'kaynak';
+        const downloadName = resolveEditableSourceDownloadName(attachment, doc?.document_number, doc?.title);
         const blob = new Blob([data], { type: attachment.type || 'application/octet-stream' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -869,9 +869,9 @@ const DocumentModule = () => {
                                                                             <DropdownMenuItem
                                                                                 key={s.path}
                                                                                 className="cursor-pointer text-xs"
-                                                                                onClick={() => downloadEditableSource(revision, doc.document_type, s)}
+                                                                                onClick={() => downloadEditableSource(revision, doc.document_type, s, doc)}
                                                                             >
-                                                                                <span className="truncate">{s.name}</span>
+                                                                                <span className="truncate">{resolveEditableSourceDownloadName(s, doc.document_number, doc.title)}</span>
                                                                             </DropdownMenuItem>
                                                                         ))}
                                                                     </DropdownMenuContent>

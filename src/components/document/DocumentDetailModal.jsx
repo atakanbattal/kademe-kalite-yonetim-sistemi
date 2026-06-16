@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
-import { getPublishedAttachment, getSourceAttachments } from '@/lib/documentRevisionAttachments';
+import { getPublishedAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
 
 const detailDocumentFolder = (documentType) => {
     const folderMap = {
@@ -151,7 +151,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
             const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = blobUrl;
-            a.download = attachment.name || 'kaynak';
+            a.download = resolveEditableSourceDownloadName(attachment, document?.document_number, document?.title);
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(blobUrl);
@@ -340,7 +340,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                                                         onClick={() => handleDownloadSource(revision, document.document_type, s)}
                                                                     >
                                                                         <FileEdit className="w-4 h-4 mr-1" />
-                                                                        <span className="max-w-[140px] truncate">{s.name}</span>
+                                                                        <span className="max-w-[140px] truncate">{resolveEditableSourceDownloadName(s, document.document_number, document.title)}</span>
                                                                     </Button>
                                                                 ))}
                                                             </div>

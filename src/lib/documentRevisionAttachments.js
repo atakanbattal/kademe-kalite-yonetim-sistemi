@@ -47,3 +47,35 @@ export function collectAttachmentPaths(attachments) {
     if (!Array.isArray(attachments)) return [];
     return attachments.map((a) => a.path).filter(Boolean);
 }
+
+export function getFileExtension(fileName) {
+    if (!fileName) return '';
+    const match = String(fileName).match(/(\.[^./\\]+)$/i);
+    return match ? match[1] : '';
+}
+
+/** Düzenlenebilir kaynak dosya adı: `{kod} - {ad}{uzantı}` */
+export function buildEditableSourceFileName(documentNumber, title, originalFileName, index = 0) {
+    const ext = getFileExtension(originalFileName);
+    const parts = [documentNumber, title]
+        .map((value) => (value || '').trim())
+        .filter(Boolean);
+    const base = parts.join(' - ') || 'kaynak';
+    const suffix = index > 0 ? ` (${index + 1})` : '';
+    return `${base}${suffix}${ext}`;
+}
+
+/** İndirme / listeleme: kayıtlı ad eski formatta ise doküman kodu + ad ile birleştir */
+export function resolveEditableSourceDownloadName(attachment, documentNumber, title) {
+    const num = (documentNumber || '').trim();
+    const docTitle = (title || '').trim();
+    const currentName = attachment?.name || '';
+
+    if (!num || !docTitle) {
+        return currentName || 'kaynak';
+    }
+    if (currentName.startsWith(`${num} - `)) {
+        return currentName;
+    }
+    return buildEditableSourceFileName(num, docTitle, currentName || 'kaynak.docx', 0);
+}

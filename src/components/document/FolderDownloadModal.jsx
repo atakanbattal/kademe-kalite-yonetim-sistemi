@@ -18,7 +18,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Download, Loader2 } from 'lucide-react';
 import { sanitizeArchiveName } from '@/lib/qualityFolderDownloadUtils';
-import { getPublishedAttachment, getSourceAttachments } from '@/lib/documentRevisionAttachments';
+import { getPublishedAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const BUCKET_NAME = 'documents';
@@ -229,9 +229,10 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
 
                 for (let i = 0; i < sources.length; i++) {
                     const s = sources[i];
-                    const safeName = sanitizeArchiveName(s.name || `kaynak-${i + 1}`, 'Dosya');
-                    const zipPath = `kaynak/${i + 1}-${safeName}`;
-                    await downloadOne(s.path, zipPath, s.name);
+                    const displayName = resolveEditableSourceDownloadName(s, doc.document_number, doc.title);
+                    const safeName = sanitizeArchiveName(displayName || `kaynak-${i + 1}`, 'Dosya');
+                    const zipPath = `kaynak/${safeName}`;
+                    await downloadOne(s.path, zipPath, displayName);
                 }
             }
 

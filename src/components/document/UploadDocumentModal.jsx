@@ -11,7 +11,12 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
     import { UploadCloud, File, X, FileEdit } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
     import { sanitizeFileName } from '@/lib/utils';
-    import { getPublishedAttachment, getSourceAttachments, SOURCE_FILE_ACCEPT } from '@/lib/documentRevisionAttachments';
+    import {
+        buildEditableSourceFileName,
+        getPublishedAttachment,
+        getSourceAttachments,
+        SOURCE_FILE_ACCEPT,
+    } from '@/lib/documentRevisionAttachments';
     import { hasRevisionInFileName } from '@/lib/documentCompliance';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
@@ -303,13 +308,86 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 
             try {
                 const currentUserPersonnelRecord = personnelList.find(p => p.email === user.email);
-                // Personel kaydı bulunamazsa null olarak devam et (prepared_by_id opsiyonel)
                 if (!currentUserPersonnelRecord) {
                     console.warn(`Personel kaydı bulunamadı: ${user.email}. prepared_by_id null olarak kaydedilecek.`);
                 }
 
-                const documentId = (isEditMode || isRevisionMode) ? effectiveDocument.id : uuidv4();
+                const documentTitle = (formData.title || '').trim();
+                const wasNewInsert = !isRevisionMode && !isEditMode;
+                let documentId = (isEditMode || isRevisionMode) ? effectiveDocument.id : (effectiveDocument?.id || uuidv4());
+                let documentNumber = formData.document_number || effectiveDocument?.document_number || '';
+                let currentRevisionId = effectiveDocument?.current_revision_id || null;
                 const folderName = getDocumentFolder(formData.document_type);
+
+                const documentPayload = {
+                    title: formData.title,
+                    document_type: formData.document_type,
+                    status: 'Yayınlandı',
+                    department_id: resolvedDepartmentId,
+                    personnel_id: formData.document_type === 'Personel Sertifikaları' ? formData.personnel_id : null,
+                    valid_until: formData.valid_until || null,
+                    user_id: user.id,
+                };
+
+                const buildRevisionPayload = (attachments) => ({
+                    revision_number: parseInt(formData.revision_number, 10) || 1,
+                    revision_reason: formData.revision_reason || (isRevisionMode ? 'Revizyon' : 'İlk Yayın'),
+                    publish_date: formData.publish_date,
+                    revision_date: formData.revision_date || null,
+                    prepared_by_id: currentUserPersonnelRecord?.id || null,
+                    user_id: user.id,
+                    attachments: attachments?.length > 0 ? attachments : null,
+                });
+
+                const persistDocumentShell = async () => {
+                    const { data: docData, error: docError } = await supabase
+                        .from('documents')
+                        .insert({ ...documentPayload, id: documentId })
+                        .select('id, document_number')
+                        .single();
+                    if (docError) throw docError;
+
+                    const { data: revData, error: revError } = await supabase
+                        .from('document_revisions')
+                        .insert({ ...buildRevisionPayload(null), document_id: docData.id })
+                        .select('id')
+                        .single();
+                    if (revError) throw revError;
+
+                    const { error: updateDocError } = await supabase
+                        .from('documents')
+                        .update({ current_revision_id: revData.id })
+                        .eq('id', docData.id);
+                    if (updateDocError) throw updateDocError;
+
+                    documentId = docData.id;
+                    documentNumber = docData.document_number || '';
+                    currentRevisionId = revData.id;
+
+                    const { data: fullDoc, error: fetchErr } = await supabase
+                        .from('documents')
+                        .select('*, document_revisions(*)')
+                        .eq('id', docData.id)
+                        .single();
+                    if (!fetchErr && fullDoc) {
+                        const revs = fullDoc.document_revisions || [];
+                        const currentRev = revs.find((r) => r.id === revData.id) || revs[0];
+                        setDraftDocument({
+                            ...fullDoc,
+                            current_revision_id: revData.id,
+                            document_revisions: currentRev,
+                        });
+                        setFormData((prev) => ({
+                            ...prev,
+                            id: fullDoc.id,
+                            document_number: documentNumber,
+                        }));
+                    }
+                };
+
+                if (wasNewInsert && !documentNumber && newSourceFiles.length > 0) {
+                    await persistDocumentShell();
+                }
 
                 let publishedMeta = null;
                 if (file) {
@@ -335,8 +413,8 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         type: file.type || 'application/pdf',
                         role: 'published',
                     };
-                } else if (isEditMode || isRevisionMode) {
-                    const prev = getPublishedAttachment(effectiveDocument.document_revisions?.attachments);
+                } else if (isEditMode || isRevisionMode || currentRevisionId) {
+                    const prev = getPublishedAttachment(effectiveDocument?.document_revisions?.attachments);
                     if (prev) {
                         publishedMeta = {
                             ...prev,
@@ -345,22 +423,33 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     }
                 }
 
-                const sourceMetas = keptExistingSources.map((s) => ({
-                    path: s.path,
-                    name: s.name,
-                    size: s.size,
-                    type: s.type || 'application/octet-stream',
+                const sourceMetas = keptExistingSources.map((source, index) => ({
+                    path: source.path,
+                    name: documentNumber
+                        ? buildEditableSourceFileName(documentNumber, documentTitle, source.name, index)
+                        : source.name,
+                    size: source.size,
+                    type: source.type || 'application/octet-stream',
                     role: 'source',
                 }));
 
-                for (const srcFile of newSourceFiles) {
-                    const sanitizedSourceName = sanitizeFileName(srcFile.name);
+                for (let sourceIndex = 0; sourceIndex < newSourceFiles.length; sourceIndex += 1) {
+                    const srcFile = newSourceFiles[sourceIndex];
+                    const displayName = documentNumber
+                        ? buildEditableSourceFileName(
+                            documentNumber,
+                            documentTitle,
+                            srcFile.name,
+                            keptExistingSources.length + sourceIndex
+                        )
+                        : srcFile.name;
+                    const sanitizedSourceName = sanitizeFileName(displayName);
                     const shortId = uuidv4().slice(0, 8);
                     let srcPath;
                     if (isRevisionMode) {
                         const revisionNumber = formData.revision_number || '1';
                         srcPath = `${folderName}/${documentId}-rev${revisionNumber}-src-${shortId}-${sanitizedSourceName}`;
-                    } else if (isEditMode) {
+                    } else if (isEditMode || currentRevisionId) {
                         const rev = String(formData.revision_number || '1');
                         srcPath = `${folderName}/${documentId}-rev${rev}-src-${shortId}-${sanitizedSourceName}`;
                     } else {
@@ -372,7 +461,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     if (srcErr) throw srcErr;
                     sourceMetas.push({
                         path: srcPath,
-                        name: srcFile.name,
+                        name: displayName,
                         size: srcFile.size,
                         type: srcFile.type || 'application/octet-stream',
                         role: 'source',
@@ -384,30 +473,9 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 mergedAttachments.push(...sourceMetas);
 
                 const hasPublishedFile = !!publishedMeta;
-                const wasNewInsert = !isRevisionMode && !isEditMode;
+                const revisionPayload = buildRevisionPayload(mergedAttachments);
 
-                const documentPayload = {
-                    title: formData.title,
-                    document_type: formData.document_type,
-                    status: 'Yayınlandı',
-                    department_id: resolvedDepartmentId,
-                    personnel_id: formData.document_type === 'Personel Sertifikaları' ? formData.personnel_id : null,
-                    valid_until: formData.valid_until || null,
-                    user_id: user.id,
-                };
-
-                const revisionPayload = {
-                    revision_number: parseInt(formData.revision_number, 10) || 1,
-                    revision_reason: formData.revision_reason || (isRevisionMode ? 'Revizyon' : 'İlk Yayın'),
-                    publish_date: formData.publish_date,
-                    revision_date: formData.revision_date || null, // Revizyon tarihi manuel girilecek (yeni kayıtlarda boş olabilir)
-                    prepared_by_id: currentUserPersonnelRecord?.id || null,
-                    user_id: user.id,
-                    attachments: mergedAttachments.length > 0 ? mergedAttachments : null,
-                };
-                
                 if (isRevisionMode) {
-                    // Yeni revizyon oluştur
                     const { data: revData, error: revError } = await supabase
                         .from('document_revisions')
                         .insert({ ...revisionPayload, document_id: documentId })
@@ -415,13 +483,12 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                         .single();
                     if (revError) throw revError;
 
-                    // Dokümanı güncelle ve current_revision_id'yi yeni revizyona ayarla
                     const { error: docUpdateError } = await supabase
                         .from('documents')
                         .update({ ...documentPayload, current_revision_id: revData.id })
                         .eq('id', documentId);
                     if (docUpdateError) throw docUpdateError;
-                } else if (isEditMode) {
+                } else if (isEditMode || currentRevisionId) {
                     const { error: docUpdateError } = await supabase
                         .from('documents')
                         .update(documentPayload)
@@ -431,47 +498,16 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     const { error: revUpdateError } = await supabase
                         .from('document_revisions')
                         .update(revisionPayload)
-                        .eq('id', effectiveDocument.current_revision_id);
-                     if (revUpdateError) throw revUpdateError;
+                        .eq('id', currentRevisionId);
+                    if (revUpdateError) throw revUpdateError;
                 } else {
-                    const { data: docData, error: docError } = await supabase
-                        .from('documents')
-                        .insert({ ...documentPayload, id: documentId })
-                        .select('id, document_number, current_revision_id')
-                        .single();
-                    if (docError) throw docError;
-
-                    const { data: revData, error: revError } = await supabase
-                        .from('document_revisions')
-                        .insert({ ...revisionPayload, document_id: docData.id })
-                        .select('id')
-                        .single();
-                    if (revError) throw revError;
-
-                    const { error: updateDocError } = await supabase
-                        .from('documents')
-                        .update({ current_revision_id: revData.id })
-                        .eq('id', docData.id);
-                    if (updateDocError) throw updateDocError;
-
-                    const { data: fullDoc, error: fetchErr } = await supabase
-                        .from('documents')
-                        .select('*, document_revisions(*)')
-                        .eq('id', docData.id)
-                        .single();
-                    if (!fetchErr && fullDoc) {
-                        const revs = fullDoc.document_revisions || [];
-                        const currentRev = revs.find((r) => r.id === revData.id) || revs[0];
-                        setDraftDocument({
-                            ...fullDoc,
-                            current_revision_id: revData.id,
-                            document_revisions: currentRev,
-                        });
-                        setFormData((prev) => ({
-                            ...prev,
-                            id: fullDoc.id,
-                            document_number: fullDoc.document_number || docData.document_number || '',
-                        }));
+                    await persistDocumentShell();
+                    if (mergedAttachments.length > 0) {
+                        const { error: revUpdateError } = await supabase
+                            .from('document_revisions')
+                            .update(revisionPayload)
+                            .eq('id', currentRevisionId);
+                        if (revUpdateError) throw revUpdateError;
                     }
                 }
 
@@ -495,6 +531,11 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
             } finally {
                 setIsSubmitting(false);
             }
+        };
+
+        const previewSourceFileName = (originalName, index) => {
+            if (!formData.document_number) return originalName;
+            return buildEditableSourceFileName(formData.document_number, formData.title, originalName, index);
         };
 
         return (
@@ -649,9 +690,9 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                             </div>
                             {(keptExistingSources.length > 0 || newSourceFiles.length > 0) && (
                                 <ul className="mt-3 space-y-2">
-                                    {keptExistingSources.map((s) => (
+                                    {keptExistingSources.map((s, idx) => (
                                         <li key={s.path} className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
-                                            <span className="truncate pr-2">{s.name}</span>
+                                            <span className="truncate pr-2">{previewSourceFileName(s.name, idx)}</span>
                                             <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setKeptExistingSources((prev) => prev.filter((x) => x.path !== s.path))} aria-label="Kaldır">
                                                 <X className="h-4 w-4" />
                                             </Button>
@@ -659,7 +700,10 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                                     ))}
                                     {newSourceFiles.map((f, idx) => (
                                         <li key={`${f.name}-${idx}`} className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm">
-                                            <span className="truncate pr-2">{f.name} <span className="text-muted-foreground">(yeni)</span></span>
+                                            <span className="truncate pr-2">
+                                                {previewSourceFileName(f.name, keptExistingSources.length + idx)}
+                                                <span className="text-muted-foreground"> (yeni)</span>
+                                            </span>
                                             <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setNewSourceFiles((prev) => prev.filter((_, i) => i !== idx))} aria-label="Kaldır">
                                                 <X className="h-4 w-4" />
                                             </Button>
