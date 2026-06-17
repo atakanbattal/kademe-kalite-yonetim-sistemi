@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { v4 as uuidv4 } from 'uuid';
+import { sanitizeFileName } from '@/lib/utils';
 
 export const HURDA_DECISION = 'Hurda';
+export const QUARANTINE_FILES_BUCKET = 'quarantine_documents';
 
 export function normalizeQuarantineDecision(value) {
     return String(value ?? '').trim();
@@ -15,6 +18,49 @@ export function isPendingHurdaHistoryEntry(entry) {
     if (!entry) return false;
     if (!isHurdaDecision(entry.decision)) return false;
     return !entry.deviation_approval_url && !entry.quality_cost_id;
+}
+
+export async function fetchPendingHurdaHistoryEntries(quarantineRecordId) {
+    if (!quarantineRecordId) return [];
+
+    const { data, error } = await supabase
+        .from('quarantine_history')
+        .select('*')
+        .eq('quarantine_record_id', quarantineRecordId)
+        .order('decision_date', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).filter(isPendingHurdaHistoryEntry);
+}
+
+export async function uploadPendingHurdaTutanakPdf({ recordId, historyEntryId, file }) {
+    if (!recordId || !historyEntryId || !file) {
+        throw new Error('Kayıt, işlem satırı ve PDF dosyası gerekli.');
+    }
+
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    if (!isPdf) {
+        throw new Error('Yalnızca PDF yükleyebilirsiniz.');
+    }
+
+    const safeName = sanitizeFileName(file.name || 'hurda-tutanagi.pdf');
+    const filePath = `record_attachments/${recordId}/hurda-${uuidv4()}-${safeName}`;
+    const { error: upErr } = await supabase.storage
+        .from(QUARANTINE_FILES_BUCKET)
+        .upload(filePath, file, { contentType: file.type || 'application/pdf', upsert: false });
+    if (upErr) throw new Error(upErr.message);
+
+    const { data: pub } = supabase.storage.from(QUARANTINE_FILES_BUCKET).getPublicUrl(filePath);
+    const publicUrl = pub?.publicUrl || '';
+    if (!publicUrl) throw new Error('Dosya adresi alınamadı.');
+
+    const { error: hErr } = await supabase
+        .from('quarantine_history')
+        .update({ deviation_approval_url: publicUrl })
+        .eq('id', historyEntryId);
+    if (hErr) throw new Error(hErr.message);
+
+    return publicUrl;
 }
 
 const STATUS_BY_DECISION = {

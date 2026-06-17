@@ -9,7 +9,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink, ClipboardSignature, Upload, GitBranch, FileWarning, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink, ClipboardSignature, Upload, GitBranch, FileWarning, CheckCircle2, AlertCircle, Edit } from 'lucide-react';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeQuarantineAttachments } from '@/lib/quarantineAttachments';
 import { QUARANTINE_DECISION_TYPES } from '@/lib/quarantineDecisionCertificate';
@@ -18,6 +18,7 @@ import {
     isPendingHurdaHistoryEntry,
     saveQuarantineHistoryEntry,
     syncQuarantineRecordFromLatestHistory,
+    uploadPendingHurdaTutanakPdf,
 } from '@/lib/quarantineHurdaPending';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeFileName, getAttachmentDisplayName } from '@/lib/utils';
@@ -34,7 +35,7 @@ const DetailItem = ({ label, value }) => (
     </div>
 );
 
-const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refreshData }) => {
+const QuarantineViewModal = ({ isOpen, setIsOpen, record, onEdit, onRecordUpdated, refreshData }) => {
     const [history, setHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(true);
     const [resolvedUrls, setResolvedUrls] = useState({});
@@ -306,31 +307,15 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
 
     const handleHurdaTutanakUpload = async (historyEntry, file) => {
         if (!file || !record?.id || !historyEntry?.id) return;
-        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-        if (!isPdf) {
-            toast({ variant: 'destructive', title: 'Geçersiz dosya', description: 'Yalnızca PDF yükleyin.' });
-            return;
-        }
         setHurdaUploadingId(historyEntry.id);
         try {
-            const safeName = sanitizeFileName(file.name || 'hurda-tutanagi.pdf');
-            const filePath = `record_attachments/${record.id}/hurda-${uuidv4()}-${safeName}`;
-            const { error: upErr } = await supabase.storage
-                .from('quarantine_documents')
-                .upload(filePath, file, { contentType: file.type || 'application/pdf', upsert: false });
-            if (upErr) throw new Error(upErr.message);
-
-            const { data: pub } = supabase.storage.from('quarantine_documents').getPublicUrl(filePath);
-            const publicUrl = pub?.publicUrl || '';
-            if (!publicUrl) throw new Error('Dosya adresi alınamadı.');
-
-            const { error: hErr } = await supabase
-                .from('quarantine_history')
-                .update({ deviation_approval_url: publicUrl })
-                .eq('id', historyEntry.id);
-            if (hErr) throw new Error(hErr.message);
-
+            await uploadPendingHurdaTutanakPdf({
+                recordId: record.id,
+                historyEntryId: historyEntry.id,
+                file,
+            });
             await fetchHistory();
+            refreshData?.();
             toast({ title: 'Tutanak yüklendi', description: 'İmzalı hurda tutanağı bu işlem satırına bağlandı.' });
         } catch (err) {
             toast({ variant: 'destructive', title: 'Yükleme başarısız', description: err?.message || 'Dosya kaydedilemedi.' });
@@ -987,6 +972,19 @@ const QuarantineViewModal = ({ isOpen, setIsOpen, record, onRecordUpdated, refre
                         </Button>
                     </div>
                     <div className="flex gap-2">
+                        {onEdit && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    onEdit(record);
+                                    setIsOpen(false);
+                                }}
+                            >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Düzenle
+                            </Button>
+                        )}
                         <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>
                             Kapat
                         </Button>

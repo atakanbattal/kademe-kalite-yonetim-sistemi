@@ -15,6 +15,7 @@
     import QuarantineFormModal from '@/components/quarantine/QuarantineFormModal';
     import QuarantineDecisionModal from '@/components/quarantine/QuarantineDecisionModal';
     import QuarantineHurdaTutanagiModal from '@/components/quarantine/QuarantineHurdaTutanagiModal';
+    import QuarantinePendingTutanakModal from '@/components/quarantine/QuarantinePendingTutanakModal';
     import CreateNCFromQuarantineModal from '@/components/quarantine/CreateNCFromQuarantineModal';
     import QuarantineViewModal from '@/components/quarantine/QuarantineViewModal';
     import QuarantineAnalytics from '@/components/quarantine/QuarantineAnalytics';
@@ -52,6 +53,7 @@
       const [isViewOpen, setIsViewOpen] = useState(false);
       const [isReportFilterOpen, setIsReportFilterOpen] = useState(false);
       const [isHurdaTutanagiOpen, setIsHurdaTutanagiOpen] = useState(false);
+      const [isPendingTutanakOpen, setIsPendingTutanakOpen] = useState(false);
       const [hurdaTutanagiPayload, setHurdaTutanagiPayload] = useState(null);
       const [isDeviationModalOpen, setIsDeviationModalOpen] = useState(false);
       const [quarantineDecisionFinalize, setQuarantineDecisionFinalize] = useState(null);
@@ -226,15 +228,23 @@
       };
 
       const handleOpenEdit = (record) => {
-        setSelectedRecord(record);
+        setIsViewOpen(false);
         setFormMode('edit');
+        setSelectedRecord(record);
         setIsFormOpen(true);
       };
 
       const handleOpenNew = () => {
-        setSelectedRecord(null);
         setFormMode('new');
+        setSelectedRecord(null);
         setIsFormOpen(true);
+      };
+
+      const handleFormOpenChange = (open) => {
+        setIsFormOpen(open);
+        if (!open && formMode === 'new') {
+          setSelectedRecord(null);
+        }
       };
 
       const handleOpenDecision = (record) => {
@@ -283,6 +293,15 @@
 
       const handleHurdaTutanagiCompleted = useCallback(() => {
         setHurdaTutanagiPayload(null);
+        refreshData();
+      }, [refreshData]);
+
+      const handleOpenPendingTutanak = useCallback((record) => {
+        setSelectedRecord(record);
+        setIsPendingTutanakOpen(true);
+      }, []);
+
+      const handlePendingTutanakCompleted = useCallback(() => {
         refreshData();
       }, [refreshData]);
       
@@ -398,7 +417,7 @@
         <div className="space-y-6">
           <QuarantineFormModal 
             isOpen={isFormOpen} 
-            setIsOpen={setIsFormOpen} 
+            setIsOpen={handleFormOpenChange} 
             existingRecord={selectedRecord} 
             refreshData={refreshData} 
             mode={formMode} 
@@ -433,6 +452,12 @@
             processedQuantity={hurdaTutanagiPayload?.quantity}
             decisionNotes={hurdaTutanagiPayload?.notes}
             onCompleted={handleHurdaTutanagiCompleted}
+          />
+          <QuarantinePendingTutanakModal
+            isOpen={isPendingTutanakOpen}
+            setIsOpen={setIsPendingTutanakOpen}
+            record={selectedRecord}
+            onCompleted={handlePendingTutanakCompleted}
           />
           <QuarantineViewModal 
             isOpen={isViewOpen} 
@@ -498,7 +523,7 @@
                   {pendingHurdaRecordIds.length} kayıt için hurda tutanağı bekleniyor
                 </p>
                 <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                  İmzalı PDF yüklemek için kaydı açın ve <strong>İşlem Geçmişi</strong> sekmesine gidin.
+                  Listede <strong>Tutanak yükle</strong> butonuna tıklayarak imzalı PDF ekleyebilirsiniz.
                 </p>
               </div>
               <Button
@@ -507,11 +532,11 @@
                 className="shrink-0 h-8 border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 text-xs"
                 onClick={() => {
                   const firstRecord = records.find((r) => pendingHurdaRecordIds.includes(r.id));
-                  if (firstRecord) handleOpenView(firstRecord);
+                  if (firstRecord) handleOpenPendingTutanak(firstRecord);
                 }}
               >
                 <Upload className="h-3.5 w-3.5 mr-1.5" />
-                İlk kaydı aç
+                Tutanak yükle
               </Button>
             </div>
           )}
@@ -751,10 +776,16 @@
                               {item.status}
                             </Badge>
                             {pendingHurdaRecordIds.includes(item.id) && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
-                                <FileWarning className="h-3 w-3 shrink-0" />
-                                Tutanak bekliyor
-                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-[10px] font-semibold border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300"
+                                onClick={() => handleOpenPendingTutanak(item)}
+                              >
+                                <Upload className="h-3 w-3 mr-1 shrink-0" />
+                                Tutanak yükle
+                              </Button>
                             )}
                           </div>
                         </td>
@@ -802,6 +833,12 @@
                                             <AlertOctagon className="mr-2 h-4 w-4" />
                                             Uygunsuzluk Oluştur
                                         </DropdownMenuItem>
+                                        {pendingHurdaRecordIds.includes(item.id) && (
+                                            <DropdownMenuItem onClick={() => handleOpenPendingTutanak(item)}>
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Tutanak Yükle
+                                            </DropdownMenuItem>
+                                        )}
                                         <DropdownMenuSeparator />
                                         <AlertDialogTrigger asChild>
                                             <DropdownMenuItem className="text-destructive focus:text-destructive">

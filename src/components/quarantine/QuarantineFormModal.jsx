@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { normalizeUnitNameForSettings } from '@/lib/utils';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -23,6 +23,51 @@ const isSupplierSourceDepartment = (dept) => {
     return n.includes('tedarikçi') || n.includes('tedarikci');
 };
 
+const getEmptyFormData = () => ({
+    lot_no: '',
+    part_code: '',
+    part_name: '',
+    quantity: '',
+    unit: 'Adet',
+    source_department: '',
+    requesting_department: '',
+    requesting_person_name: '',
+    description: '',
+    supplier_id: '',
+    supplier_name: '',
+    quarantine_date: new Date().toISOString().slice(0, 10),
+    status: 'Karantinada',
+});
+
+const mapRecordToFormData = (record) => {
+    if (!record) return getEmptyFormData();
+    const normalizeDept = (value) => {
+        const raw = (value || '').trim();
+        if (!raw) return '';
+        return normalizeUnitNameForSettings(raw) || raw;
+    };
+    return {
+        lot_no: record.lot_no || '',
+        part_code: record.part_code || '',
+        part_name: record.part_name || '',
+        quantity: record.quantity ?? '',
+        unit: record.unit || 'Adet',
+        source_department: normalizeDept(record.source_department),
+        requesting_department: normalizeDept(record.requesting_department),
+        requesting_person_name: record.requesting_person_name || '',
+        description: record.description || '',
+        supplier_id: record.supplier_id || '',
+        supplier_name: record.supplier_name || '',
+        quarantine_date: record.quarantine_date
+            ? new Date(record.quarantine_date).toISOString().slice(0, 10)
+            : new Date().toISOString().slice(0, 10),
+        status: record.status || 'Karantinada',
+    };
+};
+
+const formatQuantityInputValue = (quantity) =>
+    quantity === '' || quantity == null ? '' : String(quantity);
+
 const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, mode }) => {
     const { toast } = useToast();
     const isEditMode = mode === 'edit';
@@ -35,6 +80,23 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
     const [newFiles, setNewFiles] = useState([]);
     const textareaRef = useRef(null);
     const fileInputRef = useRef(null);
+
+    const departmentOptions = useMemo(() => {
+        const options = new Set(departments.filter(Boolean));
+        [formData.source_department, formData.requesting_department]
+            .map((value) => (value || '').trim())
+            .filter(Boolean)
+            .forEach((value) => options.add(value));
+        return [...options].sort((a, b) => a.localeCompare(b, 'tr'));
+    }, [departments, formData.source_department, formData.requesting_department]);
+
+    const personnelOptions = useMemo(() => {
+        const names = new Set(personnel.map((person) => person.full_name).filter(Boolean));
+        if (formData.requesting_person_name?.trim()) {
+            names.add(formData.requesting_person_name.trim());
+        }
+        return [...names].sort((a, b) => a.localeCompare(b, 'tr'));
+    }, [personnel, formData.requesting_person_name]);
 
     useEffect(() => {
         const fetchSettingsData = async () => {
@@ -74,83 +136,52 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
         }
     }, [isOpen, toast]);
 
-    // Modal açıldığında ve mode/existingRecord değiştiğinde form verilerini güncelle
-    useEffect(() => {
-        if (!isOpen) {
-            // Modal kapalıyken form'u sıfırla
-            setFormData({
-                lot_no: '',
-                part_code: '',
-                part_name: '',
-                quantity: '',
-                unit: 'Adet',
-                source_department: '',
-                requesting_department: '',
-                requesting_person_name: '',
-                description: '',
-                supplier_id: '',
-                supplier_name: '',
-                quarantine_date: new Date().toISOString().slice(0, 10),
-                status: 'Karantinada'
-            });
-            return;
-        }
-        
-        // Modal açıkken
-        if (mode === 'edit' && existingRecord) {
-            // Düzenleme modunda mevcut kayıt verilerini yükle
-            console.log('📝 Karantina düzenleme modu - Mevcut kayıt:', existingRecord);
-            setFormData({
-                lot_no: existingRecord.lot_no || '',
-                part_code: existingRecord.part_code || '',
-                part_name: existingRecord.part_name || '',
-                quantity: existingRecord.quantity || '',
-                unit: existingRecord.unit || 'Adet',
-                source_department: existingRecord.source_department || '',
-                requesting_department: existingRecord.requesting_department || '',
-                requesting_person_name: existingRecord.requesting_person_name || '',
-                description: existingRecord.description || '',
-                supplier_id: existingRecord.supplier_id || '',
-                supplier_name: existingRecord.supplier_name || '',
-                quarantine_date: existingRecord.quarantine_date 
-                    ? new Date(existingRecord.quarantine_date).toISOString().slice(0, 10)
-                    : new Date().toISOString().slice(0, 10),
-                status: existingRecord.status || 'Karantinada'
-            });
-        } else {
-            // Yeni kayıt modunda başlangıç değerleri
-            console.log('📝 Karantina yeni kayıt modu');
-            setFormData({
-                lot_no: '',
-                part_code: '',
-                part_name: '',
-                quantity: '',
-                unit: 'Adet',
-                source_department: '',
-                requesting_department: '',
-                requesting_person_name: '',
-                description: '',
-                supplier_id: '',
-                supplier_name: '',
-                quarantine_date: new Date().toISOString().slice(0, 10),
-                status: 'Karantinada'
-            });
-        }
-    }, [isOpen, mode, existingRecord?.id]); // existingRecord.id kullanarak referans sorunlarını önle
+    // Modal kapalıyken formu koru; açıldığında mode'a göre yükle (diğer form modallarıyla aynı kalıp)
+    useLayoutEffect(() => {
+        if (!isOpen) return;
 
-    useEffect(() => {
-        if (!isOpen) {
-            setExistingAttachments([]);
+        if (isEditMode && existingRecord?.id) {
+            setFormData(mapRecordToFormData(existingRecord));
+            setExistingAttachments(normalizeQuarantineAttachments(existingRecord.attachments));
             setNewFiles([]);
             return;
         }
-        if (mode === 'edit' && existingRecord?.id) {
-            setExistingAttachments(normalizeQuarantineAttachments(existingRecord.attachments));
-        } else {
+
+        if (!isEditMode) {
+            setFormData(getEmptyFormData());
             setExistingAttachments([]);
+            setNewFiles([]);
         }
-        setNewFiles([]);
-    }, [isOpen, mode, existingRecord?.id]);
+    }, [isOpen, isEditMode, existingRecord]);
+
+    useEffect(() => {
+        if (!isOpen || !isEditMode || !existingRecord?.id) return;
+
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+                .from('quarantine_records_api')
+                .select('*')
+                .eq('id', existingRecord.id)
+                .single();
+
+            if (cancelled) return;
+
+            if (error) {
+                console.warn('Karantina kaydı yenilenemedi, liste verisi kullanılıyor:', error.message);
+                return;
+            }
+
+            if (data) {
+                setFormData(mapRecordToFormData(data));
+                setExistingAttachments(normalizeQuarantineAttachments(data.attachments));
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, isEditMode, existingRecord?.id]);
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -242,7 +273,7 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.part_name || !formData.quantity || !formData.source_department) {
+        if (!formData.part_name || formData.quantity === '' || formData.quantity == null || !formData.source_department) {
             toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen zorunlu alanları doldurun.' });
             return;
         }
@@ -365,8 +396,8 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
 
             <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="text-[10px]">{formData.status || 'Karantinada'}</Badge>
-                {formData.quantity && (
-                    <Badge className="text-[10px] bg-amber-100 text-amber-800">{formData.quantity} {formData.unit || 'Adet'}</Badge>
+                {formData.quantity !== '' && formData.quantity != null && (
+                    <Badge className="text-[10px] bg-amber-100 text-amber-800">{formatQuantityInputValue(formData.quantity)} {formData.unit || 'Adet'}</Badge>
                 )}
                 {(existingAttachments.length + newFiles.length) > 0 && (
                     <Badge variant="secondary" className="text-[10px]">
@@ -490,7 +521,18 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
                             </ModalField>
                             <div className="grid grid-cols-2 gap-2">
                                 <ModalField label="Miktar" required>
-                                    <Input id="quantity" type="number" value={formData.quantity || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} required />
+                                    <Input
+                                        id="quantity"
+                                        type="number"
+                                        value={formatQuantityInputValue(formData.quantity)}
+                                        onChange={e => handleInputChange(e.target.id, e.target.value)}
+                                        required
+                                    />
+                                    {isEditMode && existingRecord?.initial_quantity != null && (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Başlangıç miktarı: {existingRecord.initial_quantity} {formData.unit || 'Adet'}
+                                        </p>
+                                    )}
                                 </ModalField>
                                 <ModalField label="Birim">
                                     <Input id="unit" value={formData.unit || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} />
@@ -507,7 +549,7 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
                             <ModalField label="Karantinaya Sebebiyet Veren Birim" required>
                                 <Select value={formData.source_department || ''} onValueChange={handleSourceDepartmentChange}>
                                     <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
-                                    <SelectContent>{departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{departmentOptions.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
                                 </Select>
                             </ModalField>
                             {isSupplierSourceDepartment(formData.source_department) && (
@@ -533,13 +575,13 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
                             <ModalField label="Talebi Yapan Birim">
                                 <Select value={formData.requesting_department || ''} onValueChange={(v) => handleSelectChange('requesting_department', v)}>
                                     <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
-                                    <SelectContent>{departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{departmentOptions.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
                                 </Select>
                             </ModalField>
                             <ModalField label="Talebi Yapan Kişi">
                                 <Select value={formData.requesting_person_name || ''} onValueChange={(v) => handleSelectChange('requesting_person_name', v)}>
                                     <SelectTrigger><SelectValue placeholder="Kişi seçin..." /></SelectTrigger>
-                                    <SelectContent>{personnel.map(p => <SelectItem key={p.id} value={p.full_name}>{p.full_name}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{personnelOptions.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}</SelectContent>
                                 </Select>
                             </ModalField>
                             <div className="md:col-span-2">
