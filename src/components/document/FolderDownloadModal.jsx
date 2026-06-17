@@ -18,7 +18,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Download, Loader2 } from 'lucide-react';
 import { sanitizeArchiveName } from '@/lib/qualityFolderDownloadUtils';
-import { getPublishedAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
+import { getPdfAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const BUCKET_NAME = 'documents';
@@ -173,7 +173,7 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
             const countTotalFiles = () =>
                 docsToDownload.reduce((acc, doc) => {
                     const revision = doc.document_revisions;
-                    const pub = getPublishedAttachment(revision?.attachments);
+                    const pub = getPdfAttachment(revision?.attachments);
                     const n = (pub?.path ? 1 : 0) + getSourceAttachments(revision?.attachments).length;
                     return acc + n;
                 }, 0);
@@ -190,7 +190,7 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
             // Dosyaları kategorilerine göre Zip içinde klasörlere yerleştir (sıralı: ilerleme sayacı tutarlı)
             for (const doc of docsToDownload) {
                 const revision = doc.document_revisions;
-                const published = getPublishedAttachment(revision?.attachments);
+                const published = getPdfAttachment(revision?.attachments);
                 const sources = getSourceAttachments(revision?.attachments);
 
                 let categoryFolder = 'Diğer';

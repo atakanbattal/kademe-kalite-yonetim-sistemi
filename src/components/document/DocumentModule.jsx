@@ -18,7 +18,7 @@ import DocumentDetailModal from '@/components/document/DocumentDetailModal';
 import FolderDownloadModal from '@/components/document/FolderDownloadModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
-import { getPublishedAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
+import { getPdfAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -351,7 +351,7 @@ const DocumentModule = () => {
     }, [preparedDocuments, lifecycleFilter, activeTab, normalizedSearchTerm, selectedDepartmentId]);
 
     const downloadPdf = async (revision, docTitle, documentType, originalFileName) => {
-        const pub = getPublishedAttachment(revision?.attachments);
+        const pub = getPdfAttachment(revision?.attachments);
         let filePath = pub?.path;
         if (!filePath) {
             toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
@@ -457,7 +457,7 @@ const DocumentModule = () => {
     };
 
     const handleViewPdf = async (revision, title, documentType) => {
-        const pub = getPublishedAttachment(revision?.attachments);
+        const pub = getPdfAttachment(revision?.attachments);
         let filePath = pub?.path;
         if (!filePath) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya yolu bulunamadı.' });
@@ -750,10 +750,10 @@ const DocumentModule = () => {
                                     ) : (
                                         filteredDocuments.map((doc) => {
                                             const revision = doc.document_revisions;
-                                            const published = getPublishedAttachment(revision?.attachments);
+                                            const pdfAttachment = getPdfAttachment(revision?.attachments);
                                             const sourceFiles = getSourceAttachments(revision?.attachments);
-                                            const fileName = published?.name;
-                                            const hasFile = !!published?.path;
+                                            const fileName = pdfAttachment?.name;
+                                            const hasPdf = !!pdfAttachment?.path;
                                             const archived = isDocumentArchived(doc);
 
                                             return (
@@ -818,36 +818,38 @@ const DocumentModule = () => {
                                                     </td>
                                                     <td className="align-middle">
                                                         <div className="inline-flex items-center justify-end gap-0.5">
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                                        disabled={!hasFile}
-                                                                        onClick={() => handleViewPdf(revision, doc.title, doc.document_type)}
-                                                                    >
-                                                                        <Eye className="h-4 w-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent side="bottom">PDF önizle</TooltipContent>
-                                                            </Tooltip>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                                        disabled={!hasFile}
-                                                                        onClick={() => downloadPdf(revision, doc.title, doc.document_type, fileName)}
-                                                                    >
-                                                                        <FileDown className="h-4 w-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent side="bottom">PDF indir</TooltipContent>
-                                                            </Tooltip>
+                                                            {hasPdf && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                            onClick={() => handleViewPdf(revision, doc.title, doc.document_type)}
+                                                                        >
+                                                                            <Eye className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="bottom">PDF önizle</TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                            {hasPdf && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                            onClick={() => downloadPdf(revision, doc.title, doc.document_type, fileName)}
+                                                                        >
+                                                                            <FileDown className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="bottom">PDF indir</TooltipContent>
+                                                                </Tooltip>
+                                                            )}
                                                             {sourceFiles.length > 0 && (
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>

@@ -35,6 +35,20 @@ export function getPublishedAttachment(attachments) {
     return attachments[0];
 }
 
+/** Yalnızca gerçek PDF ekini döndürür (düzenlenebilir kaynak dosyaları dahil etmez). */
+export function getPdfAttachment(attachments) {
+    if (!Array.isArray(attachments) || attachments.length === 0) return null;
+    const publishedPdf = attachments.find((a) => a.role === 'published' && isPdfAttachment(a));
+    if (publishedPdf) return publishedPdf;
+    const legacyPdf = attachments.find((a) => !a.role && isPdfAttachment(a));
+    if (legacyPdf) return legacyPdf;
+    return null;
+}
+
+export function hasPdfAttachment(attachments) {
+    return !!getPdfAttachment(attachments)?.path;
+}
+
 export function getSourceAttachments(attachments) {
     if (!Array.isArray(attachments) || attachments.length === 0) return [];
     const withRole = attachments.filter((a) => a.role === 'source');

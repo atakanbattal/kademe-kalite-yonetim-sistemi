@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
-import { getPublishedAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
+import { getPdfAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
 
 const detailDocumentFolder = (documentType) => {
     const folderMap = {
@@ -162,7 +162,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
     };
 
     const handleViewPdf = async (revision, title, documentType) => {
-        const pub = getPublishedAttachment(revision?.attachments);
+        const pub = getPdfAttachment(revision?.attachments);
         let filePath = pub?.path;
         if (!filePath) {
             return;
@@ -298,9 +298,9 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                     ) : (
                                         <div className="space-y-4">
                                             {revisions.map((revision, index) => {
-                                                const published = getPublishedAttachment(revision?.attachments);
+                                                const pdfAttachment = getPdfAttachment(revision?.attachments);
                                                 const sources = getSourceAttachments(revision?.attachments);
-                                                const hasFile = !!published?.path;
+                                                const hasPdf = !!pdfAttachment?.path;
                                                 const isCurrent = document.current_revision_id === revision.id;
                                                 
                                                 return (
@@ -322,7 +322,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                                                 )}
                                                             </div>
                                                             <div className="flex flex-wrap gap-2 justify-end">
-                                                                {hasFile && (
+                                                                {hasPdf && (
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
