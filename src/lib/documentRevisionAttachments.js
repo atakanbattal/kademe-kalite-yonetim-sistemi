@@ -80,6 +80,32 @@ export function buildEditableSourceFileName(documentNumber, title, originalFileN
 }
 
 /** İndirme / listeleme: kayıtlı ad eski formatta ise doküman kodu + ad ile birleştir */
+export function getAttachmentExtensionLower(att) {
+    return (getFileExtension(att?.name) || getFileExtension(att?.path) || '').toLowerCase();
+}
+
+export function isDocxSourceAttachment(att) {
+    if (!att) return false;
+    const ext = getAttachmentExtensionLower(att);
+    if (ext === '.docx') return true;
+    if (ext === '.doc') return false;
+    const t = (att.type || '').toLowerCase();
+    return t === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+}
+
+export function isLegacyDocSourceAttachment(att) {
+    if (!att) return false;
+    const ext = getAttachmentExtensionLower(att);
+    if (ext === '.docx') return false;
+    if (ext === '.doc') return true;
+    const t = (att.type || '').toLowerCase();
+    return t === 'application/msword';
+}
+
+export function isWordSourceAttachment(att) {
+    return isDocxSourceAttachment(att) || isLegacyDocSourceAttachment(att);
+}
+
 export function resolveEditableSourceDownloadName(attachment, documentNumber, title) {
     const num = (documentNumber || '').trim();
     const docTitle = (title || '').trim();

@@ -14,11 +14,18 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useData } from '@/contexts/DataContext';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
+import SourceDocumentViewerModal from '@/components/document/SourceDocumentViewerModal';
 import DocumentDetailModal from '@/components/document/DocumentDetailModal';
 import FolderDownloadModal from '@/components/document/FolderDownloadModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
-import { getPdfAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
+import {
+    getPdfAttachment,
+    getSourceAttachments,
+    isWordSourceAttachment,
+    resolveEditableSourceDownloadName,
+} from '@/lib/documentRevisionAttachments';
+import { prepareWordSourcePreview } from '@/lib/internalDocumentSourcePreview';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -270,6 +277,15 @@ const DocumentModule = () => {
     const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
     const [activeTab, setActiveTab] = useState('Tümü');
     const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
+    const [sourceViewerState, setSourceViewerState] = useState({
+        isOpen: false,
+        blob: null,
+        previewUrl: null,
+        fallbackPreviewUrl: null,
+        previewMode: null,
+        title: '',
+        downloadHandler: null,
+    });
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isFolderDownloadModalOpen, setIsFolderDownloadModalOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
@@ -387,20 +403,25 @@ const DocumentModule = () => {
         document.body.removeChild(a);
     };
 
-    const downloadEditableSource = async (revision, documentType, attachment, doc) => {
+    const fetchEditableSourceBlob = async (revision, documentType, attachment) => {
         let filePath = attachment?.path;
         if (!filePath) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
-            return;
+            toast({ variant: 'destructive', title: 'Hata', description: 'Dosya yolu bulunamadı.' });
+            return null;
         }
         filePath = normalizeDocumentPath(filePath, documentType);
         const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
         if (error) {
-            toast({ variant: 'destructive', title: 'Hata', description: `Dosya indirilemedi: ${error.message}` });
-            return;
+            toast({ variant: 'destructive', title: 'Hata', description: `Dosya alınamadı: ${error.message}` });
+            return null;
         }
+        return new Blob([data], { type: attachment.type || 'application/octet-stream' });
+    };
+
+    const downloadEditableSource = async (revision, documentType, attachment, doc) => {
+        const blob = await fetchEditableSourceBlob(revision, documentType, attachment);
+        if (!blob) return;
         const downloadName = resolveEditableSourceDownloadName(attachment, doc?.document_number, doc?.title);
-        const blob = new Blob([data], { type: attachment.type || 'application/octet-stream' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -409,6 +430,37 @@ const DocumentModule = () => {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+    };
+
+    const handleViewSource = async (revision, documentType, attachment, doc) => {
+        if (!isWordSourceAttachment(attachment)) {
+            toast({
+                variant: 'destructive',
+                title: 'Önizleme desteklenmiyor',
+                description: 'Bu dosya türü için yalnızca indirme kullanılabilir.',
+            });
+            return;
+        }
+
+        const preview = await prepareWordSourcePreview(
+            attachment,
+            (path) => normalizeDocumentPath(path, documentType),
+        );
+        if (preview.error) {
+            toast({ variant: 'destructive', title: 'Hata', description: preview.error });
+            return;
+        }
+
+        const displayName = resolveEditableSourceDownloadName(attachment, doc?.document_number, doc?.title);
+        setSourceViewerState({
+            isOpen: true,
+            blob: preview.blob || null,
+            previewUrl: preview.previewUrl || null,
+            fallbackPreviewUrl: preview.fallbackPreviewUrl || null,
+            previewMode: preview.mode,
+            title: displayName,
+            downloadHandler: () => downloadEditableSource(revision, documentType, attachment, doc),
+        });
     };
 
     const archiveDocument = async (doc, reason = '') => {
@@ -516,6 +568,30 @@ const DocumentModule = () => {
                 setIsOpen={(isOpen) => setPdfViewerState(s => ({ ...s, isOpen }))}
                 pdfUrl={pdfViewerState.url}
                 title={pdfViewerState.title}
+            />
+            <SourceDocumentViewerModal
+                isOpen={sourceViewerState.isOpen}
+                setIsOpen={(isOpen) => {
+                    if (!isOpen) {
+                        setSourceViewerState({
+                            isOpen: false,
+                            blob: null,
+                            previewUrl: null,
+                            fallbackPreviewUrl: null,
+                            previewMode: null,
+                            title: '',
+                            downloadHandler: null,
+                        });
+                    } else {
+                        setSourceViewerState((state) => ({ ...state, isOpen: true }));
+                    }
+                }}
+                blob={sourceViewerState.blob}
+                previewUrl={sourceViewerState.previewUrl}
+                fallbackPreviewUrl={sourceViewerState.fallbackPreviewUrl}
+                previewMode={sourceViewerState.previewMode}
+                title={sourceViewerState.title}
+                onDownload={sourceViewerState.downloadHandler}
             />
             <DocumentDetailModal
                 isOpen={isDetailModalOpen}
@@ -866,16 +942,32 @@ const DocumentModule = () => {
                                                                             </span>
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
-                                                                    <DropdownMenuContent align="end" className="w-56">
-                                                                        {sourceFiles.map((s) => (
-                                                                            <DropdownMenuItem
-                                                                                key={s.path}
-                                                                                className="cursor-pointer text-xs"
-                                                                                onClick={() => downloadEditableSource(revision, doc.document_type, s, doc)}
-                                                                            >
-                                                                                <span className="truncate">{resolveEditableSourceDownloadName(s, doc.document_number, doc.title)}</span>
-                                                                            </DropdownMenuItem>
-                                                                        ))}
+                                                                    <DropdownMenuContent align="end" className="w-64">
+                                                                        {sourceFiles.map((s, sourceIndex) => {
+                                                                            const sourceName = resolveEditableSourceDownloadName(s, doc.document_number, doc.title);
+                                                                            const canPreview = isWordSourceAttachment(s);
+                                                                            return (
+                                                                                <React.Fragment key={s.path}>
+                                                                                    {sourceIndex > 0 && <DropdownMenuSeparator />}
+                                                                                    {canPreview && (
+                                                                                        <DropdownMenuItem
+                                                                                            className="cursor-pointer text-xs"
+                                                                                            onClick={() => handleViewSource(revision, doc.document_type, s, doc)}
+                                                                                        >
+                                                                                            <Eye className="mr-2 h-4 w-4 shrink-0" />
+                                                                                            <span className="truncate">Görüntüle: {sourceName}</span>
+                                                                                        </DropdownMenuItem>
+                                                                                    )}
+                                                                                    <DropdownMenuItem
+                                                                                        className="cursor-pointer text-xs"
+                                                                                        onClick={() => downloadEditableSource(revision, doc.document_type, s, doc)}
+                                                                                    >
+                                                                                        <FileDown className="mr-2 h-4 w-4 shrink-0" />
+                                                                                        <span className="truncate">İndir: {sourceName}</span>
+                                                                                    </DropdownMenuItem>
+                                                                                </React.Fragment>
+                                                                            );
+                                                                        })}
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             )}

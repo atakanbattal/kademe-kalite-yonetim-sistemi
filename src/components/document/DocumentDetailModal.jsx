@@ -3,13 +3,20 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { History, User, Calendar, FileText, Eye, FileEdit } from 'lucide-react';
+import { History, User, Calendar, FileText, Eye, FileDown } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
-import { getPdfAttachment, getSourceAttachments, resolveEditableSourceDownloadName } from '@/lib/documentRevisionAttachments';
+import SourceDocumentViewerModal from '@/components/document/SourceDocumentViewerModal';
+import {
+    getPdfAttachment,
+    getSourceAttachments,
+    isWordSourceAttachment,
+    resolveEditableSourceDownloadName,
+} from '@/lib/documentRevisionAttachments';
+import { prepareWordSourcePreview } from '@/lib/internalDocumentSourcePreview';
 
 const detailDocumentFolder = (documentType) => {
     const folderMap = {
@@ -55,6 +62,15 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
     const [revisions, setRevisions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
+    const [sourceViewerState, setSourceViewerState] = useState({
+        isOpen: false,
+        blob: null,
+        previewUrl: null,
+        fallbackPreviewUrl: null,
+        previewMode: null,
+        title: '',
+        downloadHandler: null,
+    });
 
     useEffect(() => {
         if (isOpen && document?.id) {
@@ -136,18 +152,29 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
         }
     };
 
-    const handleDownloadSource = async (revision, documentType, attachment) => {
+    const fetchSourceBlob = async (revision, documentType, attachment) => {
         let filePath = attachment?.path;
-        if (!filePath) return;
+        if (!filePath) return null;
         filePath = normalizeDetailStoragePath(filePath, documentType);
 
         try {
             const { data, error } = await supabase.storage.from('documents').download(filePath);
             if (error) {
-                console.error('Kaynak indirilemedi:', error);
-                return;
+                console.error('Kaynak dosyası alınamadı:', error);
+                return null;
             }
-            const blob = new Blob([data], { type: attachment.type || 'application/octet-stream' });
+            return new Blob([data], { type: attachment.type || 'application/octet-stream' });
+        } catch (err) {
+            console.error('Kaynak dosyası okuma hatası:', err);
+            return null;
+        }
+    };
+
+    const handleDownloadSource = async (revision, documentType, attachment) => {
+        const blob = await fetchSourceBlob(revision, documentType, attachment);
+        if (!blob) return;
+
+        try {
             const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = blobUrl;
@@ -159,6 +186,30 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
         } catch (err) {
             console.error('Kaynak indirme hatası:', err);
         }
+    };
+
+    const handleViewSource = async (revision, documentType, attachment) => {
+        if (!isWordSourceAttachment(attachment)) return;
+
+        const preview = await prepareWordSourcePreview(
+            attachment,
+            (path) => normalizeDetailStoragePath(path, documentType),
+        );
+        if (preview.error) {
+            console.error('Word önizleme hatası:', preview.error);
+            return;
+        }
+
+        const displayName = resolveEditableSourceDownloadName(attachment, document?.document_number, document?.title);
+        setSourceViewerState({
+            isOpen: true,
+            blob: preview.blob || null,
+            previewUrl: preview.previewUrl || null,
+            fallbackPreviewUrl: preview.fallbackPreviewUrl || null,
+            previewMode: preview.mode,
+            title: displayName,
+            downloadHandler: () => handleDownloadSource(revision, documentType, attachment),
+        });
     };
 
     const handleViewPdf = async (revision, title, documentType) => {
@@ -332,17 +383,31 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                                                         PDF
                                                                     </Button>
                                                                 )}
-                                                                {sources.map((s) => (
-                                                                    <Button
-                                                                        key={s.path}
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleDownloadSource(revision, document.document_type, s)}
-                                                                    >
-                                                                        <FileEdit className="w-4 h-4 mr-1" />
-                                                                        <span className="max-w-[140px] truncate">{resolveEditableSourceDownloadName(s, document.document_number, document.title)}</span>
-                                                                    </Button>
-                                                                ))}
+                                                                {sources.map((s) => {
+                                                                    const sourceName = resolveEditableSourceDownloadName(s, document.document_number, document.title);
+                                                                    return (
+                                                                        <div key={s.path} className="flex flex-wrap gap-1">
+                                                                            {isWordSourceAttachment(s) && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => handleViewSource(revision, document.document_type, s)}
+                                                                                >
+                                                                                    <Eye className="w-4 h-4 mr-1" />
+                                                                                    <span className="max-w-[120px] truncate">Görüntüle</span>
+                                                                                </Button>
+                                                                            )}
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                onClick={() => handleDownloadSource(revision, document.document_type, s)}
+                                                                            >
+                                                                                <FileDown className="w-4 h-4 mr-1" />
+                                                                                <span className="max-w-[140px] truncate">{sourceName}</span>
+                                                                            </Button>
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         </div>
 
@@ -484,6 +549,30 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                 setIsOpen={(isOpen) => setPdfViewerState(s => ({...s, isOpen}))}
                 pdfUrl={pdfViewerState.url}
                 title={pdfViewerState.title}
+            />
+            <SourceDocumentViewerModal
+                isOpen={sourceViewerState.isOpen}
+                setIsOpen={(isOpen) => {
+                    if (!isOpen) {
+                        setSourceViewerState({
+                            isOpen: false,
+                            blob: null,
+                            previewUrl: null,
+                            fallbackPreviewUrl: null,
+                            previewMode: null,
+                            title: '',
+                            downloadHandler: null,
+                        });
+                    } else {
+                        setSourceViewerState((state) => ({ ...state, isOpen: true }));
+                    }
+                }}
+                blob={sourceViewerState.blob}
+                previewUrl={sourceViewerState.previewUrl}
+                fallbackPreviewUrl={sourceViewerState.fallbackPreviewUrl}
+                previewMode={sourceViewerState.previewMode}
+                title={sourceViewerState.title}
+                onDownload={sourceViewerState.downloadHandler}
             />
         </>
     );
