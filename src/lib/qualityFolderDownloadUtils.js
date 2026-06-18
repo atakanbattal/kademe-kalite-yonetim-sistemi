@@ -69,6 +69,176 @@ const getPrintablePageElement = async (doc) => {
     return null;
 };
 
+const sliceCanvasToPdfPages = (canvas, pdf) => {
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imageHeightMm = (canvas.height * pdfWidth) / canvas.width;
+    const pageHeightPx = (canvas.height * pdfHeight) / imageHeightMm;
+
+    let offsetY = 0;
+    let pageIndex = 0;
+
+    while (offsetY < canvas.height - 1) {
+        let sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
+
+        if (sliceHeight < canvas.height - offsetY) {
+            const minChunk = Math.min(pageHeightPx * 0.35, 120);
+            sliceHeight = Math.max(minChunk, sliceHeight - 1);
+        }
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = Math.ceil(sliceHeight);
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(
+            canvas,
+            0,
+            offsetY,
+            canvas.width,
+            sliceHeight,
+            0,
+            0,
+            canvas.width,
+            sliceHeight,
+        );
+
+        const sliceData = sliceCanvas.toDataURL('image/png');
+        const sliceHeightMm = (sliceHeight * pdfWidth) / canvas.width;
+
+        if (pageIndex > 0) {
+            pdf.addPage();
+        }
+        pdf.addImage(sliceData, 'PNG', 0, 0, pdfWidth, sliceHeightMm, undefined, 'FAST');
+
+        offsetY += sliceHeight;
+        pageIndex += 1;
+    }
+};
+
+const collectProtectedIntervals = (pageElement, scale) => {
+    const rootTop = pageElement.getBoundingClientRect().top;
+    const selector = [
+        '.report-header',
+        '.meta-box',
+        '.section-title',
+        '.df-print-unit',
+        '.analysis-print-row',
+        '.df-analysis-group > .analysis-box > h4',
+        '.step-section',
+        '.step-title',
+        '.attachments-section',
+        '.signature-section',
+    ].join(',');
+
+    return Array.from(pageElement.querySelectorAll(selector))
+        .map((el) => {
+            const rect = el.getBoundingClientRect();
+            const top = Math.floor((rect.top - rootTop) * scale);
+            const bottom = Math.ceil((rect.bottom - rootTop) * scale);
+            return { top, bottom };
+        })
+        .filter((interval) => interval.bottom > interval.top + 4);
+};
+
+const findSafeSliceEnd = (startY, idealEndY, intervals, minSlicePx = 96) => {
+    let cutY = idealEndY;
+    const crossing = intervals.filter(
+        (interval) => cutY > interval.top + 6 && cutY < interval.bottom - 6,
+    );
+
+    if (!crossing.length) {
+        return cutY;
+    }
+
+    const first = crossing.sort((a, b) => a.top - b.top)[0];
+    if (first.top - startY >= minSlicePx) {
+        return first.top;
+    }
+
+    return Math.min(idealEndY, first.bottom);
+};
+
+const collectCanvasBreakPoints = (pageElement, scale) => {
+    const rootTop = pageElement.getBoundingClientRect().top;
+    const selectors = [
+        '.report-header',
+        '.meta-box',
+        '.section',
+        '.df-analysis-group',
+        '.df-print-unit',
+        '.analysis-print-row',
+        '.step-section',
+        '.attachments-section',
+        '.signature-section',
+    ].join(',');
+
+    const points = Array.from(pageElement.querySelectorAll(selectors))
+        .map((el) => Math.round((el.getBoundingClientRect().bottom - rootTop) * scale))
+        .filter((y) => y > 0);
+
+    return [...new Set(points)].sort((a, b) => a - b);
+};
+
+const sliceCanvasToPdfPagesAtSafeBreaks = (canvas, pdf, breakPointsPx, protectedIntervals = []) => {
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imageHeightMm = (canvas.height * pdfWidth) / canvas.width;
+    const pageHeightPx = (canvas.height * pdfHeight) / imageHeightMm;
+
+    const pushSlice = (startY, endY, pageIndex) => {
+        const sliceHeight = endY - startY;
+        if (sliceHeight <= 0) return pageIndex;
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = Math.ceil(sliceHeight);
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(
+            canvas,
+            0,
+            startY,
+            canvas.width,
+            sliceHeight,
+            0,
+            0,
+            canvas.width,
+            sliceHeight,
+        );
+
+        const sliceData = sliceCanvas.toDataURL('image/png');
+        const sliceHeightMm = (sliceHeight * pdfWidth) / canvas.width;
+        if (pageIndex > 0) {
+            pdf.addPage();
+        }
+        pdf.addImage(sliceData, 'PNG', 0, 0, pdfWidth, sliceHeightMm, undefined, 'FAST');
+        return pageIndex + 1;
+    };
+
+    let y = 0;
+    let pageIndex = 0;
+
+    while (y < canvas.height - 1) {
+        const idealMax = Math.min(y + pageHeightPx, canvas.height);
+        let nextY = idealMax;
+
+        if (protectedIntervals.length) {
+            nextY = findSafeSliceEnd(y, idealMax, protectedIntervals);
+        } else {
+            const candidates = breakPointsPx.filter((point) => point > y + 24 && point <= idealMax);
+            nextY = candidates.length ? candidates[candidates.length - 1] : idealMax;
+        }
+
+        if (nextY <= y + 8) {
+            nextY = idealMax;
+        }
+
+        pageIndex = pushSlice(y, nextY, pageIndex);
+        y = nextY;
+    }
+
+    return pageIndex;
+};
+
 const renderPrintableHtmlToPdfBuffer = async (html) => {
     const { default: html2canvas } = await import('html2canvas');
     const iframe = document.createElement('iframe');
@@ -118,21 +288,15 @@ const renderPrintableHtmlToPdfBuffer = async (html) => {
         });
 
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imageData = canvas.toDataURL('image/png');
-        const imageHeight = (canvas.height * pdfWidth) / canvas.width;
-        let remainingHeight = imageHeight;
-        let offsetY = 0;
-
-        pdf.addImage(imageData, 'PNG', 0, offsetY, pdfWidth, imageHeight, undefined, 'FAST');
-        remainingHeight -= pdfHeight;
-
-        while (remainingHeight > 0) {
-            offsetY = remainingHeight - imageHeight;
-            pdf.addPage();
-            pdf.addImage(imageData, 'PNG', 0, offsetY, pdfWidth, imageHeight, undefined, 'FAST');
-            remainingHeight -= pdfHeight;
+        const scale = 2;
+        const protectedIntervals = collectProtectedIntervals(pageElement, scale);
+        const breakPointsPx = collectCanvasBreakPoints(pageElement, scale);
+        if (protectedIntervals.length) {
+            sliceCanvasToPdfPagesAtSafeBreaks(canvas, pdf, breakPointsPx, protectedIntervals);
+        } else if (breakPointsPx.length) {
+            sliceCanvasToPdfPagesAtSafeBreaks(canvas, pdf, breakPointsPx);
+        } else {
+            sliceCanvasToPdfPages(canvas, pdf);
         }
 
         return pdf.output('arraybuffer');

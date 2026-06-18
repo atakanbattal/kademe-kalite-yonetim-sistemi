@@ -1,3 +1,73 @@
+/** GKK toplu import şablonunda tekrarlayan / hatalı 5 Neden satırları */
+const GKK_GENERIC_WHY1_BAD =
+  /Muayenede\s+uygunsuz\s+parçalar,\s*sevkiyattan\s+önce\s+tedarikçi\s+tarafından\s+elene?ememektedir\.?/iu;
+
+const GKK_GENERIC_WHY1_GOOD =
+  'Uygunsuz parçalar, tedarikçi tarafında sevkiyattan önce elenememektedir.';
+
+/** Ekran/PDF öncesi bilinen yazım ve şablon hatalarını düzeltir (DB: fix_df8d_analysis_text). */
+export function sanitizeDf8dAnalysisText(input) {
+  if (input == null || typeof input !== 'string') return input;
+  let t = String(input).normalize('NFC');
+
+  const pairs = [
+    [
+      'Muayenede uygunsuz parçalar, sevkiyattan önce tedarikçi tarafından eleneememektedir.',
+      GKK_GENERIC_WHY1_GOOD,
+    ],
+    [
+      'Muayenede uygunsuz parçalar, sevkiyattan önce tedarikçi tarafından elenememektedir.',
+      GKK_GENERIC_WHY1_GOOD,
+    ],
+    ['eleneememektedir', 'elenememektedir'],
+    ['Tedarikgi', 'Tedarikçi'],
+    ['Parga Adi', 'Parça Adı'],
+    ['Parga Kodu', 'Parça Kodu'],
+  ];
+
+  for (const [from, to] of pairs) {
+    if (t.includes(from)) t = t.split(from).join(to);
+  }
+
+  if (GKK_GENERIC_WHY1_BAD.test(t)) {
+    t = t.replace(GKK_GENERIC_WHY1_BAD, GKK_GENERIC_WHY1_GOOD);
+  }
+
+  return t;
+}
+
+/** GKK import şablonundan gelen tekrarlayan 5 Neden «1. neden» metni */
+export function isGenericGkkImportedWhy1(text) {
+  if (text == null || typeof text !== 'string') return false;
+  const s = sanitizeDf8dAnalysisText(text).trim();
+  return s === GKK_GENERIC_WHY1_GOOD || GKK_GENERIC_WHY1_BAD.test(text);
+}
+
+/** five_why_analysis JSON alanlarını görüntüleme için temizler */
+export function sanitizeFiveWhyAnalysisForDisplay(fiveWhy, record = null) {
+  if (!fiveWhy || typeof fiveWhy !== 'object') return fiveWhy;
+  const out = { ...fiveWhy };
+  for (const key of Object.keys(out)) {
+    const v = out[key];
+    if (v != null && typeof v === 'string') {
+      out[key] = sanitizeDf8dAnalysisText(v);
+    }
+  }
+  if (isGenericGkkImportedWhy1(out.why1) && record) {
+    const alt =
+      (record.part_name && record.supplier?.name
+        ? `${record.supplier.name} tedarikçisinden gelen «${record.part_name}» parçasında girdi kalite muayenesinde uygunsuzluk tespit edildi.`
+        : null) ||
+      summarizeGirdiKalite5n1kNe(record, record.description);
+    if (alt && alt.length > 20) out.why1 = alt;
+  }
+  if (out.problem && isGirdiKaliteVerboseBlob(out.problem) && record) {
+    const summary = summarizeGirdiKalite5n1kNe(record, out.problem);
+    if (summary) out.problem = summary;
+  }
+  return out;
+}
+
 /**
  * Kare / madde işaretlerini (■ ▪ ◼ vb.) metinden kaldırır; satır başındaki fazla boşlukları sadeleştirir.
  */
@@ -126,7 +196,143 @@ function isUyReferenceStyleTitle(t) {
 /** Bozuk/birleşik başlık: «MALIYETKAYDIDETAYLARI» */
 export function unfoldGluedSectionHeaders(text) {
   if (!text || typeof text !== 'string') return text;
-  return text.replace(/\bMALIYETKAYDIDETAYLARI\b/gi, 'Maliyet Kaydı Detayları');
+  return unfoldGirdiKaliteGluedHeaders(text).replace(/\bMALIYETKAYDIDETAYLARI\b/gi, 'Maliyet Kaydı Detayları');
+}
+
+/** GKK şablonunda birleşik/bozuk bölüm başlıkları (PDF/import) */
+export function unfoldGirdiKaliteGluedHeaders(text) {
+  if (!text || typeof text !== 'string') return text;
+  return text
+    .replace(/\bGIRD\s*\/\s*KALITE\s*KONTROLU\b/gi, 'Girdi Kalite Kontrolü')
+    .replace(/\bGİRDİ\s+KALİTE\s+KONTROLÜ\b/gi, 'Girdi Kalite Kontrolü')
+    .replace(/\bGIRDI\s+KALITE\s+KONTROLU\b/gi, 'Girdi Kalite Kontrolü')
+    .replace(/\bUYGUNSUZLUK\s*TESPITI\b/gi, 'Uygunsuzluk Tespiti')
+    .replace(/\bUYGUNSUZLUK\s*TESPİTİ\b/gi, 'Uygunsuzluk Tespiti')
+    .replace(/\bMUAYENE\s*BILGILERI\b/gi, 'Muayene Bilgileri')
+    .replace(/\bMUAYENE\s*BİLGİLERİ\b/gi, 'Muayene Bilgileri')
+    .replace(/\bKAYIT\s*BILGILERI\b/gi, 'Kayıt Bilgileri');
+}
+
+/** Pipe veya birleşik GKK şablon metni (5N1K «Ne» alanına yapışmış uzun blob) */
+export function isGirdiKaliteVerboseBlob(text) {
+  if (text == null || typeof text !== 'string') return false;
+  if (isVerboseGirdiKaliteNcTitle(text)) return true;
+
+  const flat = unfoldGirdiKaliteGluedHeaders(text).replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+  const fold = flat.replace(/\u0307/g, '').toLocaleLowerCase('tr-TR');
+  const hasGk =
+    (fold.includes('girdi') || fold.includes('gird/')) &&
+    (fold.includes('kalite') || fold.includes('kontrol')) &&
+    (fold.includes('uygunsuzluk') || fold.includes('muayene'));
+  const hasPipeMeta =
+    flat.includes('|') &&
+    (/(kay[iı]t\s*no|muayene\s*tarih|tedarik)/i.test(flat));
+  const hasSectionHeaders =
+    /muayene\s*bilgi/i.test(fold) && /(kay[iı]t\s*no|tedarik)/i.test(fold);
+
+  return (hasGk && hasPipeMeta) || (hasGk && hasSectionHeaders && flat.length > 50);
+}
+
+/** Pipe / «Etiket: değer» segmentlerinden GKK alanlarını çıkarır */
+export function parseGirdiKaliteFieldBlob(text) {
+  const fields = {};
+  if (!text || typeof text !== 'string') return fields;
+
+  const normalized = unfoldGirdiKaliteGluedHeaders(text).replace(/\r?\n/g, '\n');
+  const flat = normalized.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+  const segments = flat.split(/\s*\|\s*/).map((s) => s.trim()).filter(Boolean);
+
+  const assign = (key, val) => {
+    if (val && String(val).trim()) fields[key] = String(val).trim().replace(/\s+/g, ' ');
+  };
+
+  for (const seg of segments) {
+    const m = seg.match(/^(.{2,48}?)\s*:\s*(.+)$/);
+    if (!m) continue;
+    const label = m[1].trim().toLocaleLowerCase('tr-TR');
+    const value = m[2].trim();
+    if (/kay[iı]t\s*no/.test(label)) assign('kayitNo', value);
+    else if (/muayene\s*tarih/.test(label)) assign('muayeneTarihi', value);
+    else if (/tedarik/.test(label)) assign('tedarikci', value);
+    else if (/parça\s*ad/i.test(label)) assign('parcaAdi', value);
+    else if (/parça\s*kod/i.test(label)) assign('parcaKodu', value);
+    else if (/nihai\s*karar/.test(label)) assign('karar', value);
+    else if (/gelen\s*miktar/.test(label)) assign('gelenMiktar', value);
+  }
+
+  if (!fields.kayitNo) {
+    const km = flat.match(/Kay[iı]t\s*No\s*:\s*([^|]+?)(?=\s*\||\s+Muayene|$)/i);
+    if (km) assign('kayitNo', km[1]);
+  }
+  if (!fields.muayeneTarihi) {
+    const dm = flat.match(/Muayene\s*Tarih[iı]?\s*:\s*([^|]+?)(?=\s*\||\s+Tedarik|$)/i);
+    if (dm) assign('muayeneTarihi', dm[1]);
+  }
+  if (!fields.tedarikci) {
+    const tm = flat.match(/Tedarikçi\s*:\s*([^|]+?)(?=\s*\||\s+Parça|$)/i);
+    if (tm) assign('tedarikci', tm[1]);
+  }
+  if (!fields.parcaAdi) {
+    const pm = flat.match(/Parça\s*Adı\s*:\s*([^|]+?)(?=\s*\||\s+Parça\s*Kodu|$)/i);
+    if (pm) assign('parcaAdi', pm[1]);
+  }
+
+  return fields;
+}
+
+/** 5N1K «Ne» için kısa, okunabilir GKK özeti */
+export function summarizeGirdiKalite5n1kNe(record, blobText) {
+  const parsed = parseGirdiKaliteFieldBlob(blobText || record?.description || '');
+  const part =
+    record?.part_name ||
+    record?.part_code ||
+    parsed.parcaAdi ||
+    parsed.parcaKodu ||
+    null;
+  const supplier =
+    record?.supplier_name ||
+    record?.supplier?.name ||
+    parsed.tedarikci ||
+    null;
+
+  let summary;
+  if (part && supplier) {
+    summary = `${supplier} tedarikçisinden gelen «${part}» parçasında girdi kalite muayenesinde uygunsuzluk tespit edildi.`;
+  } else if (part) {
+    summary = `Girdi kalite muayenesinde «${part}» parçasında uygunsuzluk tespit edildi.`;
+  } else if (supplier) {
+    summary = `${supplier} tedarikçisi kaynaklı girdi kalite uygunsuzluğu tespit edildi.`;
+  } else {
+    summary = 'Girdi kalite kontrol muayenesinde uygunsuzluk tespit edildi.';
+  }
+
+  const meta = [
+    parsed.kayitNo && `Kayıt No: ${parsed.kayitNo}`,
+    parsed.muayeneTarihi && `Muayene: ${parsed.muayeneTarihi}`,
+  ].filter(Boolean);
+  if (meta.length) summary += ` (${meta.join(', ')})`;
+  return summary;
+}
+
+/**
+ * «1. madde 2. madde» tek satır aksiyon metnini satır satır böler.
+ * HTML çıktı için escapeFn verin (varsayılan: ham metin).
+ */
+export function formatNumberedListForDisplay(text, { escapeFn = (s) => s, html = false } = {}) {
+  if (text == null || text === '') return '';
+  let s = String(text).trim();
+  s = s.replace(/\r\n/g, '\n');
+
+  if (!/\n/.test(s) && /\d+\.\s/.test(s)) {
+    s = s.replace(/\s+(?=\d+\.\s)/g, '\n');
+  }
+  if (!/\n/.test(s) && /\d+\)\s/.test(s)) {
+    s = s.replace(/\s+(?=\d+\)\s)/g, '\n');
+  }
+
+  const lines = s.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const body = lines.map((line) => escapeFn(line)).join(html ? '<br/>' : '\n');
+  return body;
 }
 
 /**
@@ -468,6 +674,11 @@ export function shouldReplaceGrupOzetiBlobIn5n1kNe(text) {
   return (hasGrup && hasKategori) || (hasGrup && hasToplam) || (hasKategori && hasToplam && t.length > 40);
 }
 
+/** 5N1K «Ne» alanında gösterilmemesi gereken uzun şablon blobları */
+export function shouldReplaceVerboseBlobIn5n1kNe(text) {
+  return shouldReplaceGrupOzetiBlobIn5n1kNe(text) || isGirdiKaliteVerboseBlob(text);
+}
+
 /**
  * Anlamlı «Ne» metni: 5 neden problemi, sonra açıklamanın ilk anlamlı paragrafı (İlgili UYG listesinden önce).
  */
@@ -475,13 +686,37 @@ export function inferMeaningful5n1kNe(record) {
   if (!record || typeof record !== 'object') return '';
   const fw = record.five_why_analysis;
   if (fw && typeof fw === 'object') {
-    const prob = fw.problem != null ? String(fw.problem).trim() : '';
-    if (prob.length > 3) return prob;
-    const w1 = fw.why1 != null ? String(fw.why1).trim() : '';
-    if (w1.length > 3) return w1;
+    const probRaw = fw.problem != null ? String(fw.problem).trim() : '';
+    const prob = sanitizeDf8dAnalysisText(probRaw);
+    if (prob.length > 3 && !shouldReplaceVerboseBlobIn5n1kNe(prob)) return prob;
+    const w1Raw = fw.why1 != null ? String(fw.why1).trim() : '';
+    const w1 = sanitizeDf8dAnalysisText(w1Raw);
+    if (
+      w1.length > 3 &&
+      !shouldReplaceVerboseBlobIn5n1kNe(w1) &&
+      !isGenericGkkImportedWhy1(w1Raw)
+    ) {
+      return w1;
+    }
   }
+
+  const rawNe =
+    record.five_n1k_analysis?.what ||
+    record.five_n1k_analysis?.ne ||
+    '';
+  if (isGirdiKaliteVerboseBlob(rawNe)) {
+    return summarizeGirdiKalite5n1kNe(record, rawNe);
+  }
+  if (record.source_inspection_id || record.source === 'incoming_inspection' || record.is_supplier_nc) {
+    const gkk = summarizeGirdiKalite5n1kNe(record, record.description);
+    if (gkk && gkk.length > 20) return gkk;
+  }
+
   const desc = record.description;
   if (typeof desc !== 'string' || !desc.trim()) return '';
+  if (isGirdiKaliteVerboseBlob(desc)) {
+    return summarizeGirdiKalite5n1kNe(record, desc);
+  }
   let d = hasStructuredRootCauseData(record) ? stripDuplicateRootCauseFromProblemDescription(desc) : desc;
   d = stripSquareBullets(d);
   const uyIdx = d.search(/İLGİLİ\s+UYGUNSUZLUK\s+KAYITLARI/);
@@ -503,7 +738,7 @@ export function inferMeaningful5n1kNe(record) {
   const firstPara = blocks.find(
     (x) =>
       x.length > 12 &&
-      !shouldReplaceGrupOzetiBlobIn5n1kNe(x) &&
+      !shouldReplaceVerboseBlobIn5n1kNe(x) &&
       !/^([A-ZÇĞİÖŞÜ][^:\n]{0,48}):\s*$/i.test(x)
   );
   if (firstPara) return firstPara.length > 900 ? `${firstPara.slice(0, 897)}…` : firstPara;
@@ -511,7 +746,7 @@ export function inferMeaningful5n1kNe(record) {
   const line = head
     .split('\n')
     .map((l) => l.trim())
-    .find((l) => l.length > 12 && !shouldReplaceGrupOzetiBlobIn5n1kNe(l));
+    .find((l) => l.length > 12 && !shouldReplaceVerboseBlobIn5n1kNe(l));
   return line && line.length > 900 ? `${line.slice(0, 897)}…` : line || '';
 }
 

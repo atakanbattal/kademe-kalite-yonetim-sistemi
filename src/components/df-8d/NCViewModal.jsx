@@ -69,7 +69,11 @@ import {
   stripDuplicateRootCauseFromProblemDescription,
   getNonConformityListTitle,
   shouldReplaceGrupOzetiBlobIn5n1kNe,
+  shouldReplaceVerboseBlobIn5n1kNe,
   inferMeaningful5n1kNe,
+  formatNumberedListForDisplay,
+  sanitizeDf8dAnalysisText,
+  sanitizeFiveWhyAnalysisForDisplay,
 } from '@/lib/df8dTextUtils';
 import {
   normalizeNcAttachmentPath,
@@ -92,6 +96,16 @@ const getDefault8DTitle = (stepKey) => {
     D8: "Ekibi Takdir Etme"
   };
   return titles[stepKey] || stepKey;
+};
+
+/** «1. … 2. …» aksiyon maddelerini satır satır gösterir */
+const NumberedAnalysisText = ({ value, className = '' }) => {
+  if (value == null || String(value).trim() === '') return null;
+  const text = formatNumberedListForDisplay(
+    stripSquareBullets(sanitizeDf8dAnalysisText(value)),
+    { html: false },
+  );
+  return <span className={`whitespace-pre-line ${className}`.trim()}>{text}</span>;
 };
 
 const AttachmentItem = ({ path, onPreview }) => {
@@ -975,6 +989,8 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
 
                     if (!hasAnalysis) return null;
 
+                    const displayFiveWhy = sanitizeFiveWhyAnalysisForDisplay(record.five_why_analysis, record);
+
                     return (
                       <>
                         <Separator />
@@ -993,7 +1009,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
                                     {(() => {
                                       const raw = record.five_n1k_analysis.what || record.five_n1k_analysis.ne || '';
                                       if (!String(raw).trim()) return null;
-                                      const display = shouldReplaceGrupOzetiBlobIn5n1kNe(raw)
+                                      const display = shouldReplaceVerboseBlobIn5n1kNe(raw)
                                         ? (inferMeaningful5n1kNe(record) || raw)
                                         : raw;
                                       return <InfoCard label="Ne" value={display} />;
@@ -1019,49 +1035,57 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
                             )}
 
                             {/* 5 Neden Analizi */}
-                            {record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '') && (
+                            {displayFiveWhy && Object.values(displayFiveWhy).some(v => v && v.toString().trim() !== '') && (
                               <Card>
                                 <CardContent className="p-6">
                                   <h4 className="font-semibold mb-4 text-primary">5 Neden Analizi</h4>
                                   <div className="space-y-3">
-                                    {record.five_why_analysis.why1 && (
+                                    {displayFiveWhy.why1 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">1. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why1)}
+                                        <strong className="text-muted-foreground">1. Neden:</strong>{' '}
+                                        {stripSquareBullets(sanitizeDf8dAnalysisText(displayFiveWhy.why1))}
                                       </div>
                                     )}
-                                    {record.five_why_analysis.why2 && (
+                                    {displayFiveWhy.why2 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">2. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why2)}
+                                        <strong className="text-muted-foreground">2. Neden:</strong>{' '}
+                                        {stripSquareBullets(sanitizeDf8dAnalysisText(displayFiveWhy.why2))}
                                       </div>
                                     )}
-                                    {record.five_why_analysis.why3 && (
+                                    {displayFiveWhy.why3 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">3. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why3)}
+                                        <strong className="text-muted-foreground">3. Neden:</strong>{' '}
+                                        {stripSquareBullets(sanitizeDf8dAnalysisText(displayFiveWhy.why3))}
                                       </div>
                                     )}
-                                    {record.five_why_analysis.why4 && (
+                                    {displayFiveWhy.why4 && (
                                       <div className="p-3 bg-secondary/50 rounded-md">
-                                        <strong className="text-muted-foreground">4. Neden:</strong> {stripSquareBullets(record.five_why_analysis.why4)}
+                                        <strong className="text-muted-foreground">4. Neden:</strong>{' '}
+                                        {stripSquareBullets(sanitizeDf8dAnalysisText(displayFiveWhy.why4))}
                                       </div>
                                     )}
-                                    {record.five_why_analysis.why5 && (
+                                    {displayFiveWhy.why5 && (
                                       <div className="p-3 bg-destructive/10 border-l-4 border-destructive rounded-md">
-                                        <strong className="text-destructive">5. Neden (Kök Neden):</strong> {stripSquareBullets(record.five_why_analysis.why5)}
+                                        <strong className="text-destructive">5. Neden (Kök Neden):</strong>{' '}
+                                        {stripSquareBullets(sanitizeDf8dAnalysisText(displayFiveWhy.why5))}
                                       </div>
                                     )}
-                                    {record.five_why_analysis.rootCause && (
+                                    {displayFiveWhy.rootCause && (
                                       <div className="p-3 bg-primary/10 border-l-4 border-primary rounded-md mt-4">
-                                        <strong className="text-primary">Kök Neden Özeti:</strong> {stripSquareBullets(record.five_why_analysis.rootCause)}
+                                        <strong className="text-primary">Kök Neden Özeti:</strong>{' '}
+                                        <NumberedAnalysisText value={displayFiveWhy.rootCause} />
                                       </div>
                                     )}
-                                    {record.five_why_analysis.immediateAction && (
+                                    {displayFiveWhy.immediateAction && (
                                       <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border-l-4 border-yellow-500 rounded-md mt-4">
-                                        <strong className="text-yellow-700 dark:text-yellow-400">Anlık Aksiyon:</strong> {stripSquareBullets(record.five_why_analysis.immediateAction)}
+                                        <strong className="text-yellow-700 dark:text-yellow-400">Anlık Aksiyon:</strong>{' '}
+                                        <NumberedAnalysisText value={displayFiveWhy.immediateAction} />
                                       </div>
                                     )}
-                                    {record.five_why_analysis.preventiveAction && (
+                                    {displayFiveWhy.preventiveAction && (
                                       <div className="p-3 bg-green-50 dark:bg-green-950/20 border-l-4 border-green-500 rounded-md mt-4">
-                                        <strong className="text-green-700 dark:text-green-400">Önleyici Aksiyon:</strong> {stripSquareBullets(record.five_why_analysis.preventiveAction)}
+                                        <strong className="text-green-700 dark:text-green-400">Önleyici Aksiyon:</strong>{' '}
+                                        <NumberedAnalysisText value={displayFiveWhy.preventiveAction} />
                                       </div>
                                     )}
                                   </div>

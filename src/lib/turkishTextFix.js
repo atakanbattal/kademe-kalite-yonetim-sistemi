@@ -46,6 +46,15 @@ export function fixTurkishFreeText(input) {
 		['\nsebebi ile ', '\nsebebiyle '],
 		['\tsebebi ile ', '\tsebebiyle '],
 		['(sebebi ile)', '(sebebiyle)'],
+		[
+			'Muayenede uygunsuz parçalar, sevkiyattan önce tedarikçi tarafından eleneememektedir.',
+			'Uygunsuz parçalar, tedarikçi tarafında sevkiyattan önce elenememektedir.',
+		],
+		[
+			'Muayenede uygunsuz parçalar, sevkiyattan önce tedarikçi tarafından elenememektedir.',
+			'Uygunsuz parçalar, tedarikçi tarafında sevkiyattan önce elenememektedir.',
+		],
+		['eleneememektedir', 'elenememektedir'],
 	];
 
 	for (const [from, to] of pairs) {

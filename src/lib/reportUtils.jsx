@@ -31,7 +31,13 @@ import {
 	buildPdfHtmlTableForRelatedNonconformityRecords,
 	parseRelatedNonconformityRecordsBlob,
 	shouldReplaceGrupOzetiBlobIn5n1kNe,
+	shouldReplaceVerboseBlobIn5n1kNe,
 	inferMeaningful5n1kNe,
+	formatNumberedListForDisplay,
+	isGirdiKaliteVerboseBlob,
+	unfoldGirdiKaliteGluedHeaders,
+	sanitizeDf8dAnalysisText,
+	sanitizeFiveWhyAnalysisForDisplay,
 } from '@/lib/df8dTextUtils';
 import { getBucketForNcAttachmentPath, normalizeNcAttachmentPath } from '@/lib/df8dAttachmentUtils';
 import { formatFiveTopicForPdf, FIVE_T_PDF_LABELS } from '@/lib/fmeaFiveTopics';
@@ -5312,7 +5318,32 @@ const generateGenericReportHtml = async (record, type) => {
 				const formatProblemDescription = (text) => {
 					if (!text || typeof text !== 'string') return '-';
 
-					const normalized = normalizeTurkishChars(text);
+					let normalized = normalizeTurkishChars(text);
+					normalized = unfoldGirdiKaliteGluedHeaders(normalized);
+
+					// Tek satır pipe GKK blob → okunabilir özet satırları
+					if (isGirdiKaliteVerboseBlob(normalized) && normalized.includes('|')) {
+						const flat = normalized.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+						const segments = flat.split(/\s*\|\s*/).map((s) => s.trim()).filter(Boolean);
+						const esc = (t) => escapeHtml(String(t || ''));
+						const rows = segments
+							.map((seg) => {
+								if (/^girdi\s*kalite/i.test(seg) && !seg.includes(':')) {
+									return `<div style="margin: 0 0 8px 0; font-weight: 700; font-size: 13px; color: #1e40af;">${esc(seg)}</div>`;
+								}
+								const hm = seg.match(/^(.{2,48}?)\s*:\s*(.+)$/);
+								if (hm) {
+									return `<div style="margin: 3px 0; font-size: 13px; line-height: 1.5;"><strong style="color:#374151;">${esc(hm[1])}:</strong> <span style="color:#4b5563;">${esc(hm[2])}</span></div>`;
+								}
+								if (/^muayene\s*bilgi/i.test(seg)) {
+									return `<div style="margin: 12px 0 6px 0; font-weight: 600; font-size: 12px; color: #3730a3; text-transform: uppercase;">${esc(seg)}</div>`;
+								}
+								return `<div style="margin: 3px 0; font-size: 13px; color: #4b5563;">${esc(seg)}</div>`;
+							})
+							.join('\n');
+						return rows || formatProblemDescriptionPlain(normalized);
+					}
+
 					const tri = triSplitDescriptionForPdfRelatedTable(normalized);
 					if (tri && /\bUYG-\d{2}-\d+/i.test(tri.recordsBlob)) {
 						const chunks = [];
@@ -6717,7 +6748,12 @@ const generateGenericReportHtml = async (record, type) => {
 				sectionNumber = record.closing_notes ? '5' : '4';
 			}
 
-			html += `<div class="section" > <h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
+			html += `<div class="section df-root-cause-section" > <h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
+
+			const analysisRowClass = 'fillable-field df-print-unit analysis-print-row';
+			const analysisRowFlowClass = 'fillable-field df-print-unit analysis-print-row fillable-field--flow';
+			const openAnalysisBlock = () => '<div class="df-analysis-group"><div class="analysis-box fillable">';
+			const closeAnalysisBlock = () => '</div></div>';
 
 			// HTML escape fonksiyonu (güvenlik ve doğru gösterim için)
 			const escapeHtml = (text) => {
@@ -6730,6 +6766,15 @@ const generateGenericReportHtml = async (record, type) => {
 					.replace(/'/g, '&#39;')
 					.replace(/\n/g, '<br>');
 			};
+			const escapeHtmlInline = (text) => {
+				if (!text) return '';
+				return String(text)
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&#39;');
+			};
 
 			// Veri varsa göster, yoksa boş alan göster
 			const renderField = (value, emptyPattern) => {
@@ -6740,7 +6785,10 @@ const generateGenericReportHtml = async (record, type) => {
 				// String'e çevir ve trim yap
 				const strValue = String(value).trim();
 				if (strValue !== '' && strValue !== 'null' && strValue !== 'undefined') {
-					return escapeHtml(strValue);
+					return formatNumberedListForDisplay(sanitizeDf8dAnalysisText(strValue), {
+						escapeFn: escapeHtmlInline,
+						html: true,
+					});
 				}
 				return ''; // Boş alanlar için alt çizgi karakterleri kaldırıldı, CSS border-bottom kullanılıyor
 			};
@@ -6758,74 +6806,74 @@ const generateGenericReportHtml = async (record, type) => {
 			};
 			const rawWhat = get5N1KValue('what');
 			const displayWhat =
-				shouldReplaceGrupOzetiBlobIn5n1kNe(rawWhat)
+				shouldReplaceVerboseBlobIn5n1kNe(rawWhat)
 					? (inferMeaningful5n1kNe(record) || rawWhat)
 					: rawWhat;
-			html += `<div class="analysis-box fillable" >
+			html += `${openAnalysisBlock()}
 				<h4>5N1K Analizi</h4>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Ne:</strong>
 					<div class="fillable-line">${renderField(displayWhat, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Nerede:</strong>
 					<div class="fillable-line">${renderField(get5N1KValue('where'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Ne Zaman:</strong>
 					<div class="fillable-line">${renderField(get5N1KValue('when'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Kim:</strong>
 					<div class="fillable-line">${renderField(get5N1KValue('who'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Nasıl:</strong>
 					<div class="fillable-line">${renderField(get5N1KValue('how'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Neden Önemli:</strong>
 					<div class="fillable-line">${renderField(get5N1KValue('why'), '')}</div>
 				</div>
-			</div> `;
+			${closeAnalysisBlock()} `;
 
 			// 5 Neden Analizi-Her zaman göster
-			const fiveWhy = record.five_why_analysis || {};
-			html += `<div class="analysis-box fillable" >
+			const fiveWhy = sanitizeFiveWhyAnalysisForDisplay(record.five_why_analysis || {}, record);
+			html += `${openAnalysisBlock()}
 				<h4>5 Neden Analizi</h4>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>1. Neden:</strong>
 					<div class="fillable-line">${renderField(fiveWhy.why1, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>2. Neden:</strong>
 					<div class="fillable-line">${renderField(fiveWhy.why2, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>3. Neden:</strong>
 					<div class="fillable-line">${renderField(fiveWhy.why3, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>4. Neden:</strong>
 					<div class="fillable-line">${renderField(fiveWhy.why4, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>5. Neden (Kök Neden):</strong>
 					<div class="fillable-line">${renderField(fiveWhy.why5, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowFlowClass}">
 					<strong>Kök Neden Özeti:</strong>
 					<div class="fillable-area">${renderField(fiveWhy.rootCause, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowFlowClass}">
 					<strong>Anlık Aksiyon:</strong>
 					<div class="fillable-area">${renderField(fiveWhy.immediateAction, '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowFlowClass}">
 					<strong>Önleyici Aksiyon:</strong>
 					<div class="fillable-area">${renderField(fiveWhy.preventiveAction, '')}</div>
 				</div>
-			</div> `;
+			${closeAnalysisBlock()} `;
 
 			// Ishikawa (Balık Kılçığı) Analizi-Her zaman göster
 			const ishikawa = record.ishikawa_analysis || {};
@@ -6838,33 +6886,33 @@ const generateGenericReportHtml = async (record, type) => {
 				}
 				return value.toString();
 			};
-			html += `<div class="analysis-box fillable" >
+			html += `${openAnalysisBlock()}
 				<h4>Ishikawa (Balık Kılçığı) Analizi-6M</h4>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>İnsan (Man):</strong>
 					<div class="fillable-area">${renderField(getIshikawaValue('man'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Makine (Machine):</strong>
 					<div class="fillable-area">${renderField(getIshikawaValue('machine'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Metot (Method):</strong>
 					<div class="fillable-area">${renderField(getIshikawaValue('method') || getIshikawaValue('management'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Malzeme (Material):</strong>
 					<div class="fillable-area">${renderField(getIshikawaValue('material'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Çevre (Environment):</strong>
 					<div class="fillable-area">${renderField(getIshikawaValue('environment'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Ölçüm (Measurement):</strong>
 					<div class="fillable-area">${renderField(getIshikawaValue('measurement'), '')}</div>
 				</div>
-			</div> `;
+			${closeAnalysisBlock()} `;
 
 			// FTA (Hata Ağacı) Analizi-Her zaman göster
 			const fta = record.fta_analysis || {};
@@ -6896,33 +6944,33 @@ const generateGenericReportHtml = async (record, type) => {
 				}
 				return fta[field] || '';
 			};
-			html += `<div class="analysis-box fillable" >
+			html += `${openAnalysisBlock()}
 				<h4>FTA (Hata Ağacı) Analizi</h4>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Üst Olay:</strong>
 					<div class="fillable-line">${renderField(fta.topEvent || getFTAValue('topEvent'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Ara Olaylar:</strong>
 					<div class="fillable-area">${renderField(fta.intermediateEvents || getFTAValue('intermediateEvents'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Temel Olaylar:</strong>
 					<div class="fillable-area">${renderField(fta.basicEvents || getFTAValue('basicEvents'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Kapılar:</strong>
 					<div class="fillable-area">${renderField(fta.gates || getFTAValue('gates'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Kök Nedenler:</strong>
 					<div class="fillable-area">${renderField(fta.rootCauses || getFTAValue('rootCauses'), '')}</div>
 				</div>
-				<div class="fillable-field">
+				<div class="${analysisRowClass}">
 					<strong>Özet:</strong>
 					<div class="fillable-area">${renderField(fta.summary, '')}</div>
 				</div>
-			</div> `;
+			${closeAnalysisBlock()} `;
 
 			html += `</div> `;
 
@@ -7196,7 +7244,7 @@ const generateGenericReportHtml = async (record, type) => {
 		}
 
 		if (attachments.length > 0) {
-			html += `<div class="section" ><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
+			html += `<div class="section attachments-section" ><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
 			for (const attachment of attachments) {
 				let pathToUse = attachment;
 				if ((type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null) {
@@ -8504,6 +8552,11 @@ h3 {
 	white-space: normal;
 }
 @media print {
+	@page {
+		size: A4 portrait;
+		margin: 10mm;
+	}
+
 	/* Flex + min-height sayfa kırılmasını bozar; blok akışa geç */
 	.page-container {
 		display: block !important;
@@ -8566,38 +8619,123 @@ h3 {
 		widows: 3;
 	}
 
-	/* Kök neden kutuları: başlık metinden ayrılmasın, uzun içerik bölünebilir */
+	/*
+	 * Kök neden: analiz grubu sayfa arası bölünebilir;
+	 * her satır (etiket + kutu) tek parça kalır, ortadan kesilmez.
+	 */
+	.df-root-cause-section {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+	}
+	.df-analysis-group {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		margin-bottom: 12px !important;
+	}
+	.df-print-unit {
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+	}
 	.analysis-box,
 	.analysis-box.fillable {
 		page-break-inside: auto !important;
 		break-inside: auto !important;
+		border: none !important;
+		padding: 0 !important;
+		margin-bottom: 0 !important;
+		background: transparent !important;
+		box-shadow: none !important;
 	}
 	.analysis-box h4,
 	.analysis-box.fillable h4 {
 		page-break-after: avoid !important;
 		break-after: avoid !important;
+		margin-bottom: 6px !important;
+		padding: 4px 8px !important;
+		background: #f3f4f6 !important;
+		border-left: 3px solid #2563eb !important;
+	}
+	.analysis-print-row {
+		display: block !important;
+		width: 100% !important;
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+		margin-bottom: 6px !important;
+		padding: 4px 8px !important;
+		border: 1px solid #9ca3af !important;
+		border-radius: 3px !important;
+		background: #fafafa !important;
+		box-sizing: border-box !important;
+		overflow: visible !important;
 	}
 	.fillable-field {
-		page-break-inside: auto !important;
-		break-inside: auto !important;
-		margin-bottom: 8px !important;
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+		margin-bottom: 0 !important;
 	}
 	.fillable-field strong {
+		display: block !important;
 		page-break-after: avoid !important;
 		break-after: avoid !important;
 	}
 	.fillable-line,
 	.fillable-area {
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+		min-height: 0 !important;
+		border: none !important;
+		background: transparent !important;
+		padding: 2px 0 4px 0 !important;
+		display: block !important;
+		width: 100% !important;
+		box-sizing: border-box !important;
+	}
+	.fillable-line {
+		border-bottom: 1px solid #9ca3af !important;
+	}
+	/* Uzun numaralı aksiyon metinleri: yalnızca içerik kutusu satır arası bölünebilir */
+	.fillable-field.fillable-field--flow {
+		display: block !important;
 		page-break-inside: auto !important;
 		break-inside: auto !important;
+	}
+	.fillable-field.fillable-field--flow strong {
+		page-break-after: avoid !important;
+		break-after: avoid !important;
+	}
+	.fillable-field.fillable-field--flow .fillable-area {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		min-height: 24px !important;
+		border: 1px solid #d1d5db !important;
+		background: #ffffff !important;
+		padding: 6px 8px !important;
 		orphans: 3;
 		widows: 3;
 	}
+
 	.problem-description-block p {
 		page-break-inside: auto !important;
 		break-inside: auto !important;
 		orphans: 3;
 		widows: 3;
+	}
+
+	.attachments-section {
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+	}
+	.image-grid {
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+	}
+	.image-container {
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
+	}
+	.signature-section {
+		page-break-inside: avoid !important;
+		break-inside: avoid !important;
 	}
 }
 `;
@@ -9393,11 +9531,27 @@ a: after,
 		page-break-after: auto;
 	}
 
-			/* Uzun metin kutuları sayfa arası bölünebilir; başlıklar içerikten ayrılmasın */
+			/* Kök neden satırları bölünmesin; uzun aksiyon metinleri --flow ile satır arası bölünebilir */
 			.notes-box,
 			.analysis-box {
 		page-break-inside: auto;
 		break-inside: auto;
+	}
+			.df-analysis-group {
+		page-break-inside: auto;
+		break-inside: auto;
+		margin-bottom: 12px;
+	}
+			.df-print-unit {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+			.analysis-print-row {
+		display: block;
+		width: 100%;
+		page-break-inside: avoid;
+		break-inside: avoid;
+		overflow: visible;
 	}
 			.analysis-box h4,
 			.step-title {
@@ -9409,12 +9563,28 @@ a: after,
 		break-inside: auto;
 		overflow: visible;
 	}
+			.fillable-field {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
 			.fillable-field strong {
 		page-break-after: avoid;
 		break-after: avoid;
 	}
 			.fillable-line,
 			.fillable-area {
+		page-break-inside: avoid;
+		break-inside: avoid;
+		display: block;
+		width: 100%;
+		box-sizing: border-box;
+	}
+			.fillable-field.fillable-field--flow {
+		display: block;
+		page-break-inside: auto;
+		break-inside: auto;
+	}
+			.fillable-field.fillable-field--flow .fillable-area {
 		page-break-inside: auto;
 		break-inside: auto;
 		orphans: 3;
@@ -9609,7 +9779,14 @@ a: after,
 @media print {
 	@page { size: A4 landscape; margin: 0; }
 			body { background-color: #fff; }
-			.page-container { box-shadow: none; border: none; margin: 0; height: 100vh; }
+			.page-container {
+		box-shadow: none;
+		border: none;
+		margin: 0;
+		height: auto !important;
+		min-height: auto !important;
+		display: block !important;
+	}
 }
 `;
 
