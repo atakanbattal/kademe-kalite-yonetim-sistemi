@@ -6636,10 +6636,17 @@ const generateGenericReportHtml = async (record, type) => {
 
 		// İlerleme Notları / Yapılan Çalışmalar (Tüm uygunsuzluklar için)
 		if (type === 'nonconformity' && record.closing_notes) {
+			const escapeClosingNotes = (text) => String(text || '')
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;')
+				.replace(/\n/g, '<br>');
 			html += `<div class="section" >
 				<h2 class="section-title blue">${sectionNumber}. İLERLEME NOTLARI / YAPILAN ÇALIŞMALAR</h2>
-				<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px; margin-top: 10px;">
-					<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; margin: 0;">${record.closing_notes}</pre>
+				<div class="progress-notes-box" style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px; margin-top: 10px;">
+					<div class="progress-notes-body">${escapeClosingNotes(record.closing_notes)}</div>
 				</div>
 			</div> `;
 		}
@@ -8473,7 +8480,7 @@ h3 {
 `;
 	} else if (type === 'nonconformity') {
 		reportContentHtml = await generateGenericReportHtml(normalizedRecord, type);
-		/* Playwright PDF: satır/paragraf ortasında saçma kesilmeleri azalt */
+		/* DF/8D PDF: Playwright ve tarayıcı yazdırma için sayfa kırılma düzeni */
 		cssOverrides = `
 .problem-description-block {
 	overflow: visible;
@@ -8485,45 +8492,112 @@ h3 {
 	overflow-wrap: break-word;
 	hyphens: none;
 }
-.step-description-body {
+.step-description-body,
+.progress-notes-body {
 	overflow-wrap: break-word;
 	word-break: normal;
 	hyphens: none;
+	line-height: 1.55;
+	font-size: 10px;
+}
+.progress-notes-body {
+	white-space: normal;
 }
 @media print {
-	/* Kutu uzun olduğunda sayfa arası bölünebilir; başlık tek başına sayfa dibinde kalmasın */
+	/* Flex + min-height sayfa kırılmasını bozar; blok akışa geç */
+	.page-container {
+		display: block !important;
+		min-height: auto !important;
+		height: auto !important;
+	}
+	.report-wrapper {
+		display: block !important;
+		flex: none !important;
+	}
+	.report-footer {
+		margin-top: 16px !important;
+		flex-shrink: unset !important;
+	}
+
+	.section {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		page-break-before: auto !important;
+	}
+	.section-title {
+		page-break-after: avoid !important;
+		break-after: avoid !important;
+	}
+	.section-title + * {
+		page-break-before: avoid !important;
+		break-before: avoid !important;
+	}
+
+	/* 8D adımları: başlık ile meta birlikte, açıklama metni sayfa arası bölünebilir */
+	.step-section {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		overflow: visible !important;
+	}
+	.step-title,
+	.step-section > p {
+		page-break-after: avoid !important;
+		break-after: avoid !important;
+	}
+	.step-description {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+	}
+	.step-description-body {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		orphans: 3;
+		widows: 3;
+	}
+
+	.progress-notes-box {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+	}
+	.progress-notes-body {
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		orphans: 3;
+		widows: 3;
+	}
+
+	/* Kök neden kutuları: başlık metinden ayrılmasın, uzun içerik bölünebilir */
+	.analysis-box,
 	.analysis-box.fillable {
 		page-break-inside: auto !important;
 		break-inside: auto !important;
 	}
+	.analysis-box h4,
 	.analysis-box.fillable h4 {
 		page-break-after: avoid !important;
 		break-after: avoid !important;
 	}
-	.analysis-box.fillable h4 + .fillable-field {
-		page-break-before: avoid !important;
-		break-before: avoid !important;
-	}
 	.fillable-field {
-		page-break-inside: avoid !important;
-		break-inside: avoid !important;
+		page-break-inside: auto !important;
+		break-inside: auto !important;
 		margin-bottom: 8px !important;
 	}
 	.fillable-field strong {
 		page-break-after: avoid !important;
 		break-after: avoid !important;
 	}
-	/* Tek sorunun cevap metni çok uzunsa satır içi bölünebilir; kutunun başlığı metinden kopmasın */
 	.fillable-line,
 	.fillable-area {
 		page-break-inside: auto !important;
 		break-inside: auto !important;
-		orphans: 2;
-		widows: 2;
+		orphans: 3;
+		widows: 3;
 	}
 	.problem-description-block p {
-		page-break-inside: avoid;
-		break-inside: avoid;
+		page-break-inside: auto !important;
+		break-inside: auto !important;
+		orphans: 3;
+		widows: 3;
 	}
 }
 `;
@@ -9051,10 +9125,11 @@ h3 {
 	border-left: 3px solid #2563eb;
 	background-color: #fafafa;
 	border-radius: 0 4px 4px 0;
-	page-break-inside: avoid;
+	page-break-inside: auto;
+	break-inside: auto;
 	max-width: 100%;
 	box-sizing: border-box;
-	overflow: hidden;
+	overflow: visible;
 }
 		.step-title {
 	font-weight: bold;
@@ -9251,23 +9326,22 @@ a: after,
 		box-shadow: none!important;
 		border: none!important;
 		width: 100% !important;
-		min-height: 297mm!important; /* Full page height in print */
+		min-height: auto!important;
+		height: auto!important;
 		padding: 0!important;
-		display: flex!important;
-		flex-direction: column!important;
+		display: block!important;
 	}
 		
 		.report-wrapper {
 		padding: 0!important;
-		flex: 1!important; /* Take remaining space */
+		flex: none!important;
 		margin: 0!important;
-		display: flex!important;
-		flex-direction: column!important;
+		display: block!important;
 	}
 		
 		.report-footer {
-		margin-top: auto!important; /* Push to bottom */
-		flex-shrink: 0!important;
+		margin-top: 16px!important;
+		flex-shrink: unset!important;
 	}
 
 			/* Başlık her zaman en başta */
@@ -9319,10 +9393,32 @@ a: after,
 		page-break-after: auto;
 	}
 
-			/* Notes ve Analysis kutular */
+			/* Uzun metin kutuları sayfa arası bölünebilir; başlıklar içerikten ayrılmasın */
 			.notes-box,
 			.analysis-box {
-		page-break-inside: auto; /* Uzunsa bölünebilir */
+		page-break-inside: auto;
+		break-inside: auto;
+	}
+			.analysis-box h4,
+			.step-title {
+		page-break-after: avoid;
+		break-after: avoid;
+	}
+			.step-section {
+		page-break-inside: auto;
+		break-inside: auto;
+		overflow: visible;
+	}
+			.fillable-field strong {
+		page-break-after: avoid;
+		break-after: avoid;
+	}
+			.fillable-line,
+			.fillable-area {
+		page-break-inside: auto;
+		break-inside: auto;
+		orphans: 3;
+		widows: 3;
 	}
 
 			/* İmza alanı-sayfanın sonunda bütün kal */
@@ -9341,41 +9437,21 @@ a: after,
 		display: none!important;
 	}
 
-			/* Görseller yarım kesilmesin */
-			.image-container {
-		page-break-inside: avoid;
-	}
-
-			/* Kutu elementleri bölünmesin */
-			.item-box,
-			.notes-box,
-			.analysis-box,
-			.step-section {
-		page-break-inside: avoid;
-	}
-
-			/* Fillable alanlar için özel ayarlar */
-			.fillable-field {
+			/* Görseller ve küçük kartlar yarım kesilmesin */
+			.image-container,
+			.item-box {
 		page-break-inside: avoid;
 		break-inside: avoid;
 	}
 
-			.fillable-line,
-			.fillable-area {
-		page-break-inside: avoid;
-		break-inside: avoid;
-	}
-
-			/* Section başlıkları ve içerikleri birlikte kalsın */
+			/* Section başlıkları içerikten ayrılmasın */
 			.section-title {
 		page-break-after: avoid;
 		break-after: avoid;
 	}
-
-			/* Section içeriği başlıktan ayrılmasın */
-			.section > *:first-child {
-		page-break-after: avoid;
-		break-after: avoid;
+			.section-title + * {
+		page-break-before: avoid;
+		break-before: avoid;
 	}
 }
 `;
