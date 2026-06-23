@@ -92,7 +92,9 @@ export async function buildDocumentCodeReplacementsForTarget(newNumber, {
     oldNumber,
     extraTextSources = [],
     docxBlob,
+    docBlob,
     xlsxBlob,
+    xlsBlob,
 } = {}) {
     const newParsed = parseStandardDocumentCode(newNumber);
     if (!newParsed) return [];
@@ -110,10 +112,20 @@ export async function buildDocumentCodeReplacementsForTarget(newNumber, {
         const inDocx = await extractDocumentCodesFromDocx(docxBlob);
         inDocx.forEach((code) => sources.add(code));
     }
+    if (docBlob) {
+        const { extractDocumentCodesFromDoc } = await import('./docDocumentCodeReplace.js');
+        const inDoc = await extractDocumentCodesFromDoc(docBlob);
+        inDoc.forEach((code) => sources.add(code));
+    }
     if (xlsxBlob) {
         const { extractDocumentCodesFromXlsx } = await import('./xlsxDocumentCodeReplace.js');
         const inXlsx = await extractDocumentCodesFromXlsx(xlsxBlob);
         inXlsx.forEach((code) => sources.add(code));
+    }
+    if (xlsBlob) {
+        const { extractDocumentCodesFromXls } = await import('./xlsDocumentCodeReplace.js');
+        const inXls = await extractDocumentCodesFromXls(xlsBlob);
+        inXls.forEach((code) => sources.add(code));
     }
 
     return buildReplacementPairsFromSources(sources, newParsed);
