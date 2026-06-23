@@ -3,7 +3,9 @@ import {
     getAttachmentExtensionLower,
     getFileExtension,
     isDocxSourceAttachment,
+    isExcelSourceAttachment,
     isLegacyDocSourceAttachment,
+    resolveEditableSourceMimeType,
 } from '@/lib/documentRevisionAttachments';
 
 export const INTERNAL_DOCUMENTS_BUCKET = 'documents';
@@ -14,6 +16,23 @@ export function buildOfficeOnlineEmbedUrl(fileUrl) {
 
 export function buildGoogleDocsEmbedUrl(fileUrl) {
     return `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+}
+
+export async function fetchInternalDocumentBlob(filePath, mimeType = 'application/octet-stream') {
+    const { data: signed, error } = await supabase.storage
+        .from(INTERNAL_DOCUMENTS_BUCKET)
+        .createSignedUrl(filePath, 3600);
+    if (error) {
+        throw error;
+    }
+
+    const response = await fetch(signed.signedUrl, { cache: 'no-store' });
+    if (!response.ok) {
+        throw new Error(`Dosya indirilemedi (${response.status})`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return new Blob([arrayBuffer], { type: mimeType });
 }
 
 export async function prepareWordSourcePreview(attachment, normalizePath) {
@@ -28,7 +47,12 @@ export async function prepareWordSourcePreview(attachment, normalizePath) {
     }
 
     const ext = (getAttachmentExtensionLower(attachment) || getFileExtension(filePath).toLowerCase());
-    const useOfficeOnline = ext === '.doc' || (isLegacyDocSourceAttachment(attachment) && !isDocxSourceAttachment(attachment));
+    const contentType = resolveEditableSourceMimeType(attachment?.name || filePath, attachment?.type);
+    const useOfficeOnline = ext === '.doc'
+        || ext === '.xls'
+        || ext === '.xlsx'
+        || isExcelSourceAttachment(attachment)
+        || (isLegacyDocSourceAttachment(attachment) && !isDocxSourceAttachment(attachment));
 
     if (useOfficeOnline) {
         const { data, error } = await supabase.storage
@@ -45,15 +69,13 @@ export async function prepareWordSourcePreview(attachment, normalizePath) {
     }
 
     if (ext === '.docx' || isDocxSourceAttachment(attachment)) {
-        const { data, error } = await supabase.storage.from(INTERNAL_DOCUMENTS_BUCKET).download(filePath);
-        if (error) {
-            return { error: error.message };
+        try {
+            const blob = await fetchInternalDocumentBlob(filePath, contentType);
+            return { mode: 'docx', blob };
+        } catch (error) {
+            return { error: error.message || 'Word dosyası alınamadı.' };
         }
-        const blob = new Blob([data], {
-            type: attachment.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        });
-        return { mode: 'docx', blob };
     }
 
-    return { error: 'Desteklenmeyen Word formatı.' };
+    return { error: 'Desteklenmeyen Office formatı.' };
 }

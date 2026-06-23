@@ -181,20 +181,26 @@ function injectDocumentCodeInSheet(sharedEntries, sheetXml, targetHyphen, target
     for (const row of rows.slice(0, 25)) {
         for (let i = 0; i < row.cells.length; i += 1) {
             if (!isDocumentNumberLabel(row.cells[i].text)) continue;
+
+            for (let j = i + 1; j < row.cells.length; j += 1) {
+                if (textMatchesTargetCode(row.cells[j].text, targetParsed)) return false;
+            }
+
             for (let j = i + 1; j < row.cells.length; j += 1) {
                 const valueCell = row.cells[j];
-                if (textMatchesTargetCode(valueCell.text, targetParsed)) return false;
-                if (isCodeSlotValue(valueCell.text, targetParsed) || looksLikeDocumentCode(valueCell.text) || isPlaceholderCodeValue(valueCell.text)) {
-                    if (valueCell.type === 's' && valueCell.rawValue !== '') {
-                        const idx = Number(valueCell.rawValue);
-                        if (sharedEntries[idx]) {
-                            sharedEntries[idx].text = targetHyphen;
-                            sharedEntries[idx].xml = setSharedStringItemText(sharedEntries[idx].xml, targetHyphen);
-                            return true;
-                        }
+                const valueText = valueCell.text;
+                if (!valueText || isPlaceholderCodeValue(valueText)) continue;
+                if (!looksLikeDocumentCode(valueText) && !isCodeSlotValue(valueText, targetParsed)) continue;
+
+                if (valueCell.type === 's' && valueCell.rawValue !== '') {
+                    const idx = Number(valueCell.rawValue);
+                    if (sharedEntries[idx]) {
+                        sharedEntries[idx].text = targetHyphen;
+                        sharedEntries[idx].xml = setSharedStringItemText(sharedEntries[idx].xml, targetHyphen);
+                        return true;
                     }
-                    return false;
                 }
+                return false;
             }
         }
     }

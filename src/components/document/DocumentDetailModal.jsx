@@ -13,10 +13,10 @@ import SourceDocumentViewerModal from '@/components/document/SourceDocumentViewe
 import {
     getPdfAttachment,
     getSourceAttachments,
-    isWordSourceAttachment,
+    isOfficeSourcePreviewAttachment,
     resolveEditableSourceDownloadName,
 } from '@/lib/documentRevisionAttachments';
-import { prepareWordSourcePreview } from '@/lib/internalDocumentSourcePreview';
+import { prepareWordSourcePreview, fetchInternalDocumentBlob } from '@/lib/internalDocumentSourcePreview';
 
 const detailDocumentFolder = (documentType) => {
     const folderMap = {
@@ -158,14 +158,12 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
         filePath = normalizeDetailStoragePath(filePath, documentType);
 
         try {
-            const { data, error } = await supabase.storage.from('documents').download(filePath);
-            if (error) {
-                console.error('Kaynak dosyası alınamadı:', error);
-                return null;
-            }
-            return new Blob([data], { type: attachment.type || 'application/octet-stream' });
+            return await fetchInternalDocumentBlob(
+                filePath,
+                attachment.type || 'application/octet-stream',
+            );
         } catch (err) {
-            console.error('Kaynak dosyası okuma hatası:', err);
+            console.error('Kaynak dosyası alınamadı:', err);
             return null;
         }
     };
@@ -189,7 +187,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
     };
 
     const handleViewSource = async (revision, documentType, attachment) => {
-        if (!isWordSourceAttachment(attachment)) return;
+        if (!isOfficeSourcePreviewAttachment(attachment)) return;
 
         const preview = await prepareWordSourcePreview(
             attachment,
@@ -387,7 +385,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                                                     const sourceName = resolveEditableSourceDownloadName(s, document.document_number, document.title);
                                                                     return (
                                                                         <div key={s.path} className="flex flex-wrap gap-1">
-                                                                            {isWordSourceAttachment(s) && (
+                                                                            {isOfficeSourcePreviewAttachment(s) && (
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="sm"

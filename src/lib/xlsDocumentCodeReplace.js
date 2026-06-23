@@ -1,17 +1,12 @@
-import { read, write, utils } from 'xlsx';
+import { read, utils } from 'xlsx';
 import {
-    applyReplacements,
     collectCodesFromText,
     formatVariant,
-    isCodeSlotValue,
-    isDocumentNumberLabel,
-    looksLikeDocumentCode,
-    isPlaceholderCodeValue,
     parseStandardDocumentCode,
-    textMatchesTargetCode,
 } from './documentCodeUtils.js';
 
 const XLS_MIME = 'application/vnd.ms-excel';
+const PAD_CHARS = ['\u0007', ' ', '\t'];
 
 export function isXlsAttachment(fileName, mimeType = '') {
     const name = String(fileName || '').toLowerCase();
@@ -20,11 +15,94 @@ export function isXlsAttachment(fileName, mimeType = '') {
     return name.endsWith('.xls') || type === XLS_MIME;
 }
 
-async function blobToUint8Array(input) {
+async function toUint8Array(input) {
     if (input instanceof ArrayBuffer) return new Uint8Array(input);
     if (input instanceof Uint8Array) return input;
     if (input instanceof Blob) return new Uint8Array(await input.arrayBuffer());
     throw new TypeError('Expected Blob, ArrayBuffer, or Uint8Array');
+}
+
+function encodeUtf16Le(str) {
+    const out = new Uint8Array(str.length * 2);
+    for (let i = 0; i < str.length; i += 1) {
+        const code = str.charCodeAt(i);
+        out[i * 2] = code & 0xff;
+        out[i * 2 + 1] = code >> 8;
+    }
+    return out;
+}
+
+function encodeAscii(str) {
+    const out = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i += 1) {
+        out[i] = str.charCodeAt(i) & 0xff;
+    }
+    return out;
+}
+
+function fitToLength(text, length) {
+    if (text.length === length) return text;
+    if (text.length > length) return text.slice(0, length);
+    let padded = text;
+    while (padded.length < length) {
+        padded += PAD_CHARS[0];
+    }
+    return padded;
+}
+
+function buildSameLengthPairs(fullText, replacements) {
+    const pairs = [];
+    const seen = new Set();
+    for (const [from, to] of replacements) {
+        const source = String(from);
+        const target = String(to);
+        if (!source || source === target || !fullText.includes(source)) continue;
+
+        const nextTarget = source.length === target.length
+            ? target
+            : fitToLength(target, source.length);
+        if (nextTarget === source) continue;
+
+        const key = `${source}\0${nextTarget}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push([source, nextTarget]);
+    }
+    return pairs;
+}
+
+function patchRawBuffer(data, pairs) {
+    if (!pairs.length) return { buf: data, changed: false };
+
+    const buf = new Uint8Array(data);
+    let changed = false;
+
+    for (const [from, to] of pairs) {
+        if (from.length !== to.length) continue;
+
+        const variants = [
+            [encodeUtf16Le(from), encodeUtf16Le(to)],
+            [encodeAscii(from), encodeAscii(to)],
+        ];
+
+        for (const [fromBytes, toBytes] of variants) {
+            for (let i = 0; i <= buf.length - fromBytes.length; i += 1) {
+                let matched = true;
+                for (let j = 0; j < fromBytes.length; j += 1) {
+                    if (buf[i + j] !== fromBytes[j]) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if (!matched) continue;
+                buf.set(toBytes, i);
+                changed = true;
+                i += fromBytes.length - 1;
+            }
+        }
+    }
+
+    return { buf, changed };
 }
 
 function getCellText(cell) {
@@ -32,13 +110,6 @@ function getCellText(cell) {
     if (cell.w != null && String(cell.w).trim()) return String(cell.w);
     if (cell.v == null) return '';
     return String(cell.v);
-}
-
-function setCellText(cell, text) {
-    cell.v = text;
-    cell.t = 's';
-    delete cell.w;
-    delete cell.z;
 }
 
 function collectCodesFromWorkbook(workbook, bucket) {
@@ -55,41 +126,8 @@ function collectCodesFromWorkbook(workbook, bucket) {
     }
 }
 
-function injectDocumentCodeInWorkbook(workbook, targetHyphen, targetParsed) {
-    for (const sheetName of workbook.SheetNames) {
-        const sheet = workbook.Sheets[sheetName];
-        if (!sheet?.['!ref']) continue;
-        const range = utils.decode_range(sheet['!ref']);
-        const maxRow = Math.min(range.e.r, range.s.r + 24);
-
-        for (let row = range.s.r; row <= maxRow; row += 1) {
-            for (let col = range.s.c; col <= range.e.c; col += 1) {
-                const labelAddress = utils.encode_cell({ r: row, c: col });
-                const labelCell = sheet[labelAddress];
-                if (!isDocumentNumberLabel(getCellText(labelCell))) continue;
-
-                for (let nextCol = col + 1; nextCol <= range.e.c; nextCol += 1) {
-                    const valueAddress = utils.encode_cell({ r: row, c: nextCol });
-                    const valueCell = sheet[valueAddress];
-                    const valueText = getCellText(valueCell);
-                    if (textMatchesTargetCode(valueText, targetParsed)) return true;
-                    if (
-                        isCodeSlotValue(valueText, targetParsed)
-                        || looksLikeDocumentCode(valueText)
-                        || isPlaceholderCodeValue(valueText)
-                    ) {
-                        if (!valueCell) sheet[valueAddress] = { t: 's', v: targetHyphen };
-                        else setCellText(valueCell, targetHyphen);
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
-function replaceInWorkbook(workbook, replacements, targetParsed) {
+function collectWorkbookText(workbook) {
+    const parts = [];
     for (const sheetName of workbook.SheetNames) {
         const sheet = workbook.Sheets[sheetName];
         if (!sheet?.['!ref']) continue;
@@ -97,18 +135,15 @@ function replaceInWorkbook(workbook, replacements, targetParsed) {
         for (let row = range.s.r; row <= range.e.r; row += 1) {
             for (let col = range.s.c; col <= range.e.c; col += 1) {
                 const address = utils.encode_cell({ r: row, c: col });
-                const cell = sheet[address];
-                if (!cell) continue;
-                const currentText = getCellText(cell);
-                const updated = applyReplacements(currentText, replacements, targetParsed);
-                if (updated !== currentText) setCellText(cell, updated);
+                parts.push(getCellText(sheet[address]));
             }
         }
     }
+    return parts.join('\n');
 }
 
 export async function extractDocumentCodesFromXls(input) {
-    const data = await blobToUint8Array(input);
+    const data = await toUint8Array(input);
     const workbook = read(data, { type: 'array', cellDates: true });
     const found = new Set();
     collectCodesFromWorkbook(workbook, found);
@@ -117,20 +152,27 @@ export async function extractDocumentCodesFromXls(input) {
 
 export async function replaceDocumentCodeInXls(input, replacements, targetNumber = null) {
     const targetParsed = parseStandardDocumentCode(targetNumber);
-    const targetHyphen = targetParsed ? formatVariant(targetParsed, 'hyphen') : null;
-
-    const data = await blobToUint8Array(input);
+    const data = await toUint8Array(input);
     const workbook = read(data, { type: 'array', cellDates: true });
+    const fullText = collectWorkbookText(workbook);
 
-    if (replacements?.length || targetParsed) {
-        replaceInWorkbook(workbook, replacements, targetParsed);
-    }
-    if (targetHyphen && targetParsed) {
-        injectDocumentCodeInWorkbook(workbook, targetHyphen, targetParsed);
+    const effectiveReplacements = buildSameLengthPairs(fullText, replacements || []);
+    if (targetParsed) {
+        const targetHyphen = formatVariant(targetParsed, 'hyphen');
+        const found = new Set();
+        collectCodesFromWorkbook(workbook, found);
+        for (const code of found) {
+            if (code === targetHyphen) continue;
+            effectiveReplacements.push(...buildSameLengthPairs(fullText, [[code, targetHyphen]]));
+        }
     }
 
-    const output = write(workbook, { bookType: 'biff8', type: 'array' });
-    return new Blob([output], { type: XLS_MIME });
+    const { buf, changed } = patchRawBuffer(data, effectiveReplacements);
+    if (!changed) {
+        return new Blob([data], { type: XLS_MIME });
+    }
+
+    return new Blob([buf], { type: XLS_MIME });
 }
 
 export async function ensureDocumentCodeInXls(input, targetNumber) {

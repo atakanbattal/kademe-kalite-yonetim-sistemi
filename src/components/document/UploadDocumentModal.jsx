@@ -15,6 +15,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
         buildEditableSourceFileName,
         getPublishedAttachment,
         getSourceAttachments,
+        resolveEditableSourceMimeType,
         SOURCE_FILE_ACCEPT,
     } from '@/lib/documentRevisionAttachments';
     import { hasRevisionInFileName } from '@/lib/documentCompliance';
@@ -433,6 +434,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     personnel_id: formData.document_type === 'Personel Sertifikaları' ? formData.personnel_id : null,
                     valid_until: formData.valid_until || null,
                     user_id: user.id,
+                    ...(isReclassifying && documentNumber ? { document_number: documentNumber } : {}),
                 };
 
                 const buildRevisionPayload = (attachments) => ({
@@ -583,15 +585,15 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     const sanitizedSourceName = sanitizeFileName(displayName);
                     let uploadPath = source.path;
                     let uploadSize = source.size;
-                    let uploadType = source.type || 'application/octet-stream';
+                    let uploadType = resolveEditableSourceMimeType(source.name, source.type);
 
                     if (shouldPatchOfficeSource(source.name, source.type)) {
                         const { data, error: downloadError } = await supabase.storage.from(BUCKET_NAME).download(source.path);
                         if (downloadError) throw downloadError;
-                        const patchedBlob = await prepareSourceBlob(data, source.name, source.type);
+                        const patchedBlob = await prepareSourceBlob(data, source.name, uploadType);
                         uploadPath = buildSourceStoragePath(sanitizedSourceName);
                         uploadSize = patchedBlob.size;
-                        uploadType = source.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        uploadType = resolveEditableSourceMimeType(displayName, uploadType);
                         const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(uploadPath, patchedBlob, {
                             upsert: true,
                             contentType: uploadType,
@@ -621,19 +623,20 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                     const sanitizedSourceName = sanitizeFileName(displayName);
                     const srcPath = buildSourceStoragePath(sanitizedSourceName);
                     let uploadBlob = srcFile;
-                    if (shouldPatchOfficeSource(srcFile.name, srcFile.type)) {
-                        uploadBlob = await prepareSourceBlob(srcFile, srcFile.name, srcFile.type);
+                    const srcMime = resolveEditableSourceMimeType(srcFile.name, srcFile.type);
+                    if (shouldPatchOfficeSource(srcFile.name, srcMime)) {
+                        uploadBlob = await prepareSourceBlob(srcFile, srcFile.name, srcMime);
                     }
                     const { error: srcErr } = await supabase.storage.from(BUCKET_NAME).upload(srcPath, uploadBlob, {
                         upsert: true,
-                        contentType: srcFile.type || uploadBlob.type || 'application/octet-stream',
+                        contentType: resolveEditableSourceMimeType(displayName, srcFile.type || uploadBlob.type),
                     });
                     if (srcErr) throw srcErr;
                     sourceMetas.push({
                         path: srcPath,
                         name: displayName,
                         size: uploadBlob.size,
-                        type: srcFile.type || uploadBlob.type || 'application/octet-stream',
+                        type: resolveEditableSourceMimeType(displayName, srcFile.type || uploadBlob.type),
                         role: 'source',
                     });
                 }
@@ -694,7 +697,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
                 toast({
                     title: 'Başarılı!',
                     description: docxContentPatched
-                        ? `Doküman ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}. Word kaynak dosyalarındaki doküman kodu da güncellendi.`
+                        ? `Doküman ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}. Word/Excel kaynak dosyalarındaki doküman kodu da güncellendi.`
                         : `Doküman başarıyla ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}.`,
                 });
                 refreshDocuments();

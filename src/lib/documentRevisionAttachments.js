@@ -102,8 +102,22 @@ export function isLegacyDocSourceAttachment(att) {
     return t === 'application/msword';
 }
 
+export function isExcelSourceAttachment(att) {
+    if (!att) return false;
+    const ext = getAttachmentExtensionLower(att);
+    if (ext === '.xlsx' || ext === '.xls') return true;
+    const t = (att.type || '').toLowerCase();
+    return t === 'application/vnd.ms-excel'
+        || t.includes('spreadsheetml.sheet');
+}
+
 export function isWordSourceAttachment(att) {
     return isDocxSourceAttachment(att) || isLegacyDocSourceAttachment(att);
+}
+
+/** Word / Excel kaynak dosyaları uygulama içi önizlenebilir. */
+export function isOfficeSourcePreviewAttachment(att) {
+    return isWordSourceAttachment(att) || isExcelSourceAttachment(att);
 }
 
 export function resolveEditableSourceDownloadName(attachment, documentNumber, title) {
@@ -118,4 +132,19 @@ export function resolveEditableSourceDownloadName(attachment, documentNumber, ti
         return currentName;
     }
     return buildEditableSourceFileName(num, docTitle, currentName || 'kaynak.docx', 0);
+}
+
+const EXTENSION_MIME_MAP = {
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc': 'application/msword',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.xls': 'application/vnd.ms-excel',
+};
+
+/** Kaynak dosya uzantısından MIME tipi çözümler (octet-stream yedeklerini düzeltir). */
+export function resolveEditableSourceMimeType(fileName, mimeType = '') {
+    const type = String(mimeType || '').toLowerCase().trim();
+    if (type && type !== 'application/octet-stream') return type;
+    const ext = getFileExtension(fileName).toLowerCase();
+    return EXTENSION_MIME_MAP[ext] || type || 'application/octet-stream';
 }

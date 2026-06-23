@@ -22,10 +22,10 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
 import {
     getPdfAttachment,
     getSourceAttachments,
-    isWordSourceAttachment,
+    isOfficeSourcePreviewAttachment,
     resolveEditableSourceDownloadName,
 } from '@/lib/documentRevisionAttachments';
-import { prepareWordSourcePreview } from '@/lib/internalDocumentSourcePreview';
+import { prepareWordSourcePreview, fetchInternalDocumentBlob } from '@/lib/internalDocumentSourcePreview';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -410,12 +410,15 @@ const DocumentModule = () => {
             return null;
         }
         filePath = normalizeDocumentPath(filePath, documentType);
-        const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
-        if (error) {
+        try {
+            return await fetchInternalDocumentBlob(
+                filePath,
+                attachment.type || 'application/octet-stream',
+            );
+        } catch (error) {
             toast({ variant: 'destructive', title: 'Hata', description: `Dosya alınamadı: ${error.message}` });
             return null;
         }
-        return new Blob([data], { type: attachment.type || 'application/octet-stream' });
     };
 
     const downloadEditableSource = async (revision, documentType, attachment, doc) => {
@@ -433,7 +436,7 @@ const DocumentModule = () => {
     };
 
     const handleViewSource = async (revision, documentType, attachment, doc) => {
-        if (!isWordSourceAttachment(attachment)) {
+        if (!isOfficeSourcePreviewAttachment(attachment)) {
             toast({
                 variant: 'destructive',
                 title: 'Önizleme desteklenmiyor',
@@ -945,7 +948,7 @@ const DocumentModule = () => {
                                                                     <DropdownMenuContent align="end" className="w-64">
                                                                         {sourceFiles.map((s, sourceIndex) => {
                                                                             const sourceName = resolveEditableSourceDownloadName(s, doc.document_number, doc.title);
-                                                                            const canPreview = isWordSourceAttachment(s);
+                                                                            const canPreview = isOfficeSourcePreviewAttachment(s);
                                                                             return (
                                                                                 <React.Fragment key={s.path}>
                                                                                     {sourceIndex > 0 && <DropdownMenuSeparator />}

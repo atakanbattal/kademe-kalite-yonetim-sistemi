@@ -42,7 +42,7 @@ const SourceDocumentViewerModal = ({
 
         if (previewMode === 'office-online') {
             setLoading(!!previewUrl);
-            setError(previewUrl ? null : 'Word belgesi için önizleme bağlantısı oluşturulamadı.');
+            setError(previewUrl ? null : 'Belge için önizleme bağlantısı oluşturulamadı.');
             setActivePreviewUrl(previewUrl || null);
             return;
         }
@@ -64,7 +64,7 @@ const SourceDocumentViewerModal = ({
             const container = containerRef.current;
             const styleContainer = styleContainerRef.current;
             if (!container) {
-                setError('Word belgesi görüntülenemedi.');
+                setError('Belge görüntülenemedi.');
                 setLoading(false);
                 return;
             }
@@ -89,7 +89,7 @@ const SourceDocumentViewerModal = ({
             } catch (err) {
                 console.error('Word önizleme hatası:', err);
                 if (!cancelled) {
-                    setError('Word belgesi görüntülenemedi.');
+                    setError('Belge görüntülenemedi.');
                     setLoading(false);
                 }
             }
@@ -113,7 +113,7 @@ const SourceDocumentViewerModal = ({
             return;
         }
         setLoading(false);
-        setError('Word belgesi önizlenemedi. Dosyayı indirip Word ile açmayı deneyin.');
+        setError('Belge önizlenemedi. Dosyayı indirip Office ile açmayı deneyin.');
     };
 
     const showDocxPreview = previewMode === 'docx';
@@ -124,7 +124,7 @@ const SourceDocumentViewerModal = ({
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
                     <DialogTitle className="flex justify-between items-center gap-4">
-                        <span className="truncate">{title || 'Word Görüntüleyici'}</span>
+                        <span className="truncate">{title || 'Belge Görüntüleyici'}</span>
                         {onDownload && (
                             <Button variant="outline" size="sm" onClick={onDownload} className="shrink-0">
                                 <Download className="w-4 h-4 mr-2" />
@@ -133,14 +133,14 @@ const SourceDocumentViewerModal = ({
                         )}
                     </DialogTitle>
                     <DialogDescription>
-                        Word kaynak dosyasını aşağıda görüntüleyebilirsiniz.
+                        Word / Excel kaynak dosyasını aşağıda görüntüleyebilirsiniz.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex-1 min-h-0 px-6 pb-6 overflow-hidden flex flex-col relative">
                     {loading && (
                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-md border bg-background/90 text-muted-foreground">
                             <Loader2 className="w-8 h-8 animate-spin" />
-                            <p className="mt-2">Word belgesi yükleniyor...</p>
+                            <p className="mt-2">Belge yükleniyor...</p>
                         </div>
                     )}
                     {error && !loading && (
@@ -158,7 +158,7 @@ const SourceDocumentViewerModal = ({
                         <iframe
                             key={activePreviewUrl}
                             src={activePreviewUrl}
-                            title={title || 'Word Viewer'}
+                            title={title || 'Office Viewer'}
                             className="w-full flex-1 min-h-0 border rounded-md bg-white"
                             onLoad={handleOfficeFrameLoad}
                             onError={handleOfficeFrameError}
