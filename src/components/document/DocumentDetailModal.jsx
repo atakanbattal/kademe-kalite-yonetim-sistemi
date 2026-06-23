@@ -10,6 +10,7 @@ import { tr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import SourceDocumentViewerModal from '@/components/document/SourceDocumentViewerModal';
+import { useToast } from '@/components/ui/use-toast';
 import {
     getPdfAttachment,
     getSourceAttachments,
@@ -59,6 +60,7 @@ const normalizeDetailStoragePath = (path, documentType) => {
 };
 
 const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
+    const { toast } = useToast();
     const [revisions, setRevisions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
@@ -194,7 +196,11 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
             (path) => normalizeDetailStoragePath(path, documentType),
         );
         if (preview.error) {
-            console.error('Word önizleme hatası:', preview.error);
+            toast({
+                variant: 'destructive',
+                title: 'Önizleme hatası',
+                description: preview.error,
+            });
             return;
         }
 

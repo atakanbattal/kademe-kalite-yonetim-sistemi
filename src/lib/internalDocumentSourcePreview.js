@@ -48,10 +48,17 @@ export async function prepareWordSourcePreview(attachment, normalizePath) {
 
     const ext = (getAttachmentExtensionLower(attachment) || getFileExtension(filePath).toLowerCase());
     const contentType = resolveEditableSourceMimeType(attachment?.name || filePath, attachment?.type);
+
+    if (ext === '.xlsx' || ext === '.xls' || isExcelSourceAttachment(attachment)) {
+        try {
+            const blob = await fetchInternalDocumentBlob(filePath, contentType);
+            return { mode: 'spreadsheet', blob };
+        } catch (error) {
+            return { error: error.message || 'Excel dosyası alınamadı.' };
+        }
+    }
+
     const useOfficeOnline = ext === '.doc'
-        || ext === '.xls'
-        || ext === '.xlsx'
-        || isExcelSourceAttachment(attachment)
         || (isLegacyDocSourceAttachment(attachment) && !isDocxSourceAttachment(attachment));
 
     if (useOfficeOnline) {

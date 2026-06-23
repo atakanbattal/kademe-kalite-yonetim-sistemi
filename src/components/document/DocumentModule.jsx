@@ -23,6 +23,7 @@ import {
     getPdfAttachment,
     getSourceAttachments,
     isOfficeSourcePreviewAttachment,
+    isExcelSourceAttachment,
     resolveEditableSourceDownloadName,
 } from '@/lib/documentRevisionAttachments';
 import { prepareWordSourcePreview, fetchInternalDocumentBlob } from '@/lib/internalDocumentSourcePreview';
@@ -833,6 +834,9 @@ const DocumentModule = () => {
                                             const sourceFiles = getSourceAttachments(revision?.attachments);
                                             const fileName = pdfAttachment?.name;
                                             const hasPdf = !!pdfAttachment?.path;
+                                            const excelPreviewSource = !hasPdf
+                                                ? sourceFiles.find((s) => isExcelSourceAttachment(s))
+                                                : null;
                                             const archived = isDocumentArchived(doc);
 
                                             return (
@@ -911,6 +915,22 @@ const DocumentModule = () => {
                                                                         </Button>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent side="bottom">PDF önizle</TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                            {excelPreviewSource && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                                            onClick={() => handleViewSource(revision, doc.document_type, excelPreviewSource, doc)}
+                                                                        >
+                                                                            <Eye className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="bottom">Excel önizle</TooltipContent>
                                                                 </Tooltip>
                                                             )}
                                                             {hasPdf && (

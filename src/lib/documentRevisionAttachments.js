@@ -120,6 +120,16 @@ export function isOfficeSourcePreviewAttachment(att) {
     return isWordSourceAttachment(att) || isExcelSourceAttachment(att);
 }
 
+/** Önizlenebilir kaynak ekleri; PDF yoksa yayınlanmış Excel dosyalarını da kapsar. */
+export function getOfficePreviewAttachments(attachments) {
+    const sources = getSourceAttachments(attachments).filter(isOfficeSourcePreviewAttachment);
+    if (sources.length) return sources;
+    if (getPdfAttachment(attachments)) return [];
+    return (attachments || []).filter(
+        (a) => a.role === 'published' && isOfficeSourcePreviewAttachment(a),
+    );
+}
+
 export function resolveEditableSourceDownloadName(attachment, documentNumber, title) {
     const num = (documentNumber || '').trim();
     const docTitle = (title || '').trim();

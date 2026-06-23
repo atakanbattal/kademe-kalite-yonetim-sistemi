@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { renderAsync } from 'docx-preview';
+import { buildSpreadsheetPreviewSheets } from '@/lib/spreadsheetPreview';
 
 const waitForNextPaint = () => new Promise((resolve) => {
     requestAnimationFrame(() => {
@@ -25,12 +26,16 @@ const SourceDocumentViewerModal = ({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [activePreviewUrl, setActivePreviewUrl] = useState(null);
+    const [spreadsheetSheets, setSpreadsheetSheets] = useState([]);
+    const [activeSheetIndex, setActiveSheetIndex] = useState(0);
 
     useEffect(() => {
         if (!isOpen) {
             setError(null);
             setLoading(false);
             setActivePreviewUrl(null);
+            setSpreadsheetSheets([]);
+            setActiveSheetIndex(0);
             if (containerRef.current) {
                 containerRef.current.innerHTML = '';
             }
@@ -45,6 +50,35 @@ const SourceDocumentViewerModal = ({
             setError(previewUrl ? null : 'Belge için önizleme bağlantısı oluşturulamadı.');
             setActivePreviewUrl(previewUrl || null);
             return;
+        }
+
+        if (previewMode === 'spreadsheet' && blob) {
+            let cancelled = false;
+
+            const renderSpreadsheet = async () => {
+                setLoading(true);
+                setError(null);
+                setSpreadsheetSheets([]);
+                setActiveSheetIndex(0);
+
+                try {
+                    const sheets = await buildSpreadsheetPreviewSheets(blob);
+                    if (cancelled) return;
+                    setSpreadsheetSheets(sheets);
+                    setLoading(false);
+                } catch (err) {
+                    console.error('Excel önizleme hatası:', err);
+                    if (!cancelled) {
+                        setError('Excel dosyası görüntülenemedi.');
+                        setLoading(false);
+                    }
+                }
+            };
+
+            renderSpreadsheet();
+            return () => {
+                cancelled = true;
+            };
         }
 
         if (previewMode !== 'docx' || !blob) {
@@ -117,7 +151,9 @@ const SourceDocumentViewerModal = ({
     };
 
     const showDocxPreview = previewMode === 'docx';
+    const showSpreadsheetPreview = previewMode === 'spreadsheet' && spreadsheetSheets.length > 0 && !error;
     const showOfficePreview = previewMode === 'office-online' && activePreviewUrl && !error;
+    const activeSheet = spreadsheetSheets[activeSheetIndex];
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -163,6 +199,30 @@ const SourceDocumentViewerModal = ({
                             onLoad={handleOfficeFrameLoad}
                             onError={handleOfficeFrameError}
                         />
+                    )}
+                    {showSpreadsheetPreview && (
+                        <div className="flex flex-1 min-h-0 flex-col gap-2">
+                            {spreadsheetSheets.length > 1 && (
+                                <div className="flex flex-wrap gap-1 flex-shrink-0">
+                                    {spreadsheetSheets.map((sheet, index) => (
+                                        <Button
+                                            key={sheet.name}
+                                            type="button"
+                                            size="sm"
+                                            variant={index === activeSheetIndex ? 'default' : 'outline'}
+                                            className="max-w-[200px] truncate"
+                                            onClick={() => setActiveSheetIndex(index)}
+                                        >
+                                            {sheet.name}
+                                        </Button>
+                                    ))}
+                                </div>
+                            )}
+                            <div
+                                className="flex-1 min-h-0 overflow-auto rounded-md border bg-white p-2 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border/60 [&_td]:px-2 [&_td]:py-1 [&_td]:text-xs [&_td]:align-top [&_th]:border [&_th]:border-border/60 [&_th]:bg-muted/40 [&_th]:px-2 [&_th]:py-1 [&_th]:text-xs [&_th]:font-semibold"
+                                dangerouslySetInnerHTML={{ __html: activeSheet?.html || '' }}
+                            />
+                        </div>
                     )}
                     {showDocxPreview && !error && (
                         <>
