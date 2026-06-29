@@ -20,40 +20,11 @@ import React, { useState, useMemo } from 'react';
         const [auditToDelete, setAuditToDelete] = useState(null);
         const { toast } = useToast();
 
-        // Rapor numarasına göre sıralama fonksiyonu
-        const sortByReportNumber = (a, b) => {
-            const reportA = a.report_number || '';
-            const reportB = b.report_number || '';
-            
-            // Rapor numarası formatı: IT-YYYY-NNN (örn: IT-2025-017)
-            const parseReportNumber = (reportNum) => {
-                const match = reportNum.match(/^IT-(\d{4})-(\d+)$/);
-                if (match) {
-                    return {
-                        year: parseInt(match[1], 10),
-                        number: parseInt(match[2], 10),
-                        full: reportNum
-                    };
-                }
-                // Eğer format uyumsuzsa, string olarak karşılaştır
-                return { year: 0, number: 0, full: reportNum };
-            };
-            
-            const parsedA = parseReportNumber(reportA);
-            const parsedB = parseReportNumber(reportB);
-            
-            // Önce yıla göre sırala (büyükten küçüğe)
-            if (parsedA.year !== parsedB.year) {
-                return parsedB.year - parsedA.year;
-            }
-            
-            // Aynı yıldaysa numaraya göre sırala (büyükten küçüğe)
-            if (parsedA.number !== parsedB.number) {
-                return parsedB.number - parsedA.number;
-            }
-            
-            // Eğer parse edilemediyse string karşılaştırması
-            return parsedB.full.localeCompare(parsedA.full);
+        const sortByAuditDate = (a, b) => {
+            const dateA = a.audit_date ? new Date(a.audit_date).getTime() : 0;
+            const dateB = b.audit_date ? new Date(b.audit_date).getTime() : 0;
+            if (dateA !== dateB) return dateB - dateA;
+            return String(a.title || '').localeCompare(String(b.title || ''), 'tr');
         };
 
         const filteredAudits = useMemo(() => {
@@ -67,7 +38,7 @@ import React, { useState, useMemo } from 'react';
                 const matchesStatus = statusFilter === 'all' || audit.status === statusFilter;
 
                 return matchesSearch && matchesStatus;
-            }).sort(sortByReportNumber); // Rapor numarasına göre sırala
+            }).sort(sortByAuditDate);
         }, [audits, searchTerm, statusFilter]);
 
         const formatDate = (dateString) => {

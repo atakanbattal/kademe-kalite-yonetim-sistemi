@@ -286,7 +286,8 @@ export const DataProvider = ({ children }) => {
             audits: supabase
                 .from('audits')
                 .select('*,department:cost_settings!department_id(id,unit_name),audit_standard:audit_standards!audit_standard_id(id,code,name)')
-                .order('report_number', { ascending: false }),
+                .order('audit_date', { ascending: false })
+                .order('title', { ascending: true }),
             auditFindings: supabase
                 .from('audit_findings')
                 .select('*,audits!audit_id(report_number),non_conformities!fk_source_finding(id,nc_number,status,due_at,due_date)'),
