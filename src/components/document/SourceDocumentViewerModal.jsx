@@ -229,7 +229,7 @@ const SourceDocumentViewerModal = ({
                             <div ref={styleContainerRef} className="hidden" aria-hidden="true" />
                             <div
                                 ref={containerRef}
-                                className="w-full flex-1 min-h-0 overflow-auto [&_.docx-wrapper]:bg-white [&_.docx-wrapper]:shadow-sm [&_.docx-wrapper]:mx-auto"
+                                className="w-full flex-1 min-h-0 overflow-auto [&_.docx-wrapper]:bg-white [&_.docx-wrapper]:shadow-sm [&_.docx-wrapper]:mx-auto [&_.docx-wrapper_span[style*='font-weight:bold']]:!font-bold [&_.docx-wrapper_span[style*='font-weight: bold']]:!font-bold [&_.docx-wrapper_b]:!font-bold"
                             />
                         </>
                     )}

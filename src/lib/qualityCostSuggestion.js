@@ -5,11 +5,11 @@
 
 export const DEFAULT_QUALITY_COST_SUGGESTION_SETTINGS = {
     id: null,
-    df_cost_threshold_try: 50000,
-    eight_d_cost_threshold_try: 150000,
-    mdi_cost_threshold_try: 25000,
-    df_recurrence_threshold: 3,
-    eight_d_recurrence_threshold: 5,
+    df_cost_threshold_try: 23321.22,
+    eight_d_cost_threshold_try: 46642.44,
+    mdi_cost_threshold_try: 10000,
+    df_recurrence_threshold: 5,
+    eight_d_recurrence_threshold: 10,
     threshold_period_days: 30,
     auto_suggest: true,
 };
