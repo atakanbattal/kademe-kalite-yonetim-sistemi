@@ -32,7 +32,9 @@ import {
 	parseRelatedNonconformityRecordsBlob,
 	shouldReplaceGrupOzetiBlobIn5n1kNe,
 	shouldReplaceVerboseBlobIn5n1kNe,
+	shouldReplace5n1kNe,
 	inferMeaningful5n1kNe,
+	sanitizeFiveN1kAnalysisForDisplay,
 	formatNumberedListForDisplay,
 	isGirdiKaliteVerboseBlob,
 	unfoldGirdiKaliteGluedHeaders,
@@ -6794,7 +6796,7 @@ const generateGenericReportHtml = async (record, type) => {
 			};
 
 			// 5N1K Analizi-Her zaman göster
-			const fiveN1K = record.five_n1k_analysis || {};
+			const fiveN1K = sanitizeFiveN1kAnalysisForDisplay(record.five_n1k_analysis || {}, record);
 			// Türkçe ve İngilizce alan adlarını destekle
 			const get5N1KValue = (field) => {
 				return fiveN1K[field] || fiveN1K[field === 'what' ? 'ne' :
@@ -6804,11 +6806,7 @@ const generateGenericReportHtml = async (record, type) => {
 								field === 'how' ? 'nasil' :
 									field === 'why' ? 'neden' : field] || '';
 			};
-			const rawWhat = get5N1KValue('what');
-			const displayWhat =
-				shouldReplaceVerboseBlobIn5n1kNe(rawWhat)
-					? (inferMeaningful5n1kNe(record) || rawWhat)
-					: rawWhat;
+			const displayWhat = get5N1KValue('what');
 			html += `${openAnalysisBlock()}
 				<h4>5N1K Analizi</h4>
 				<div class="${analysisRowClass}">

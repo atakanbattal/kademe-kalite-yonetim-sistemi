@@ -3,7 +3,7 @@ import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { sanitizeFileName } from './utils';
-import { shouldReplaceGrupOzetiBlobIn5n1kNe, inferMeaningful5n1kNe } from './df8dTextUtils';
+import { sanitizeFiveN1kAnalysisForDisplay, sanitizeFiveWhyAnalysisForDisplay } from './df8dTextUtils';
 
 const generatePdf = async (doc, { title, reportNo, record, contentSections, dataContext }) => {
     const { personnel, departments } = dataContext;
@@ -139,11 +139,8 @@ const getNCContent = (record, dataContext) => {
         
         // 5N1K Analizi
         if (record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) {
-            const analysis = record.five_n1k_analysis;
-            const rawWhat = analysis.what || analysis.ne || '';
-            const displayWhat = shouldReplaceGrupOzetiBlobIn5n1kNe(rawWhat)
-                ? (inferMeaningful5n1kNe(record) || rawWhat)
-                : rawWhat;
+            const analysis = sanitizeFiveN1kAnalysisForDisplay(record.five_n1k_analysis, record);
+            const displayWhat = analysis.what || analysis.ne || '';
             if (displayWhat) analysisData.push({ label: '5N1K - Ne', value: displayWhat });
             if (analysis.where || analysis.nerede) analysisData.push({ label: '5N1K - Nerede', value: analysis.where || analysis.nerede });
             if (analysis.when || analysis.neZaman) analysisData.push({ label: '5N1K - Ne Zaman', value: analysis.when || analysis.neZaman });
@@ -154,7 +151,7 @@ const getNCContent = (record, dataContext) => {
         
         // 5 Neden Analizi
         if (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) {
-            const analysis = record.five_why_analysis;
+            const analysis = sanitizeFiveWhyAnalysisForDisplay(record.five_why_analysis, record);
             if (analysis.why1) analysisData.push({ label: '5 Neden - 1. Neden', value: analysis.why1 });
             if (analysis.why2) analysisData.push({ label: '5 Neden - 2. Neden', value: analysis.why2 });
             if (analysis.why3) analysisData.push({ label: '5 Neden - 3. Neden', value: analysis.why3 });

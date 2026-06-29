@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Calendar, X } from 'lucide-react';
@@ -10,7 +10,32 @@ import { normalizeUnitNameForSettings } from '@/lib/utils';
 
 const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
     const [departments, setDepartments] = useState([]);
-    const [localSearchTerm, setLocalSearchTerm] = useState(filters.searchTerm || '');
+    const [localSearchTerm, setLocalSearchTerm] = useState(() => filters.searchTerm || '');
+    const lastCommittedSearchRef = useRef(filters.searchTerm || '');
+
+    // Yerel input anında güncellenir; parent filtresi debounce ile gecikmeli yazılır (ağır liste hesabı tetiklenmesin).
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            lastCommittedSearchRef.current = localSearchTerm;
+            setFilters((prev) => {
+                if (prev.searchTerm === localSearchTerm) return prev;
+                return { ...prev, searchTerm: localSearchTerm };
+            });
+        }, 280);
+        return () => clearTimeout(timer);
+    }, [localSearchTerm, setFilters]);
+
+    // Parent'tan gelen dış reset (ör. tüm filtreleri temizle) — kendi debounce'umuzdan geleni geri yazma.
+    useEffect(() => {
+        if (filters.searchTerm !== lastCommittedSearchRef.current) {
+            lastCommittedSearchRef.current = filters.searchTerm || '';
+            setLocalSearchTerm(filters.searchTerm || '');
+        }
+    }, [filters.searchTerm]);
+
+    const handleInputChange = (e) => {
+        setLocalSearchTerm(e.target.value);
+    };
 
     useEffect(() => {
         const fetchDepartments = async () => {
@@ -50,26 +75,6 @@ const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
         };
         fetchDepartments();
     }, []);
-
-    // Local search term'i senkronize et
-    useEffect(() => {
-        setLocalSearchTerm(filters.searchTerm || '');
-    }, [filters.searchTerm]);
-
-    // Debounce ile arama terimini güncelle (100ms gecikme)
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (localSearchTerm !== filters.searchTerm) {
-                setFilters(prev => ({ ...prev, searchTerm: localSearchTerm }));
-            }
-        }, 100);
-
-        return () => clearTimeout(timer);
-    }, [localSearchTerm, filters.searchTerm, setFilters]);
-
-    const handleInputChange = (e) => {
-        setLocalSearchTerm(e.target.value);
-    };
 
     const handleSelectChange = (filterName, value) => {
         setFilters(prev => ({ ...prev, [filterName]: value }));

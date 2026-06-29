@@ -70,9 +70,7 @@ import {
   hasStructuredRootCauseData,
   stripDuplicateRootCauseFromProblemDescription,
   getNonConformityListTitle,
-  shouldReplaceGrupOzetiBlobIn5n1kNe,
-  shouldReplaceVerboseBlobIn5n1kNe,
-  inferMeaningful5n1kNe,
+  sanitizeFiveN1kAnalysisForDisplay,
   formatNumberedListForDisplay,
   sanitizeDf8dAnalysisText,
   sanitizeFiveWhyAnalysisForDisplay,
@@ -1028,6 +1026,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
                     if (!hasAnalysis) return null;
 
                     const displayFiveWhy = sanitizeFiveWhyAnalysisForDisplay(record.five_why_analysis, record);
+                    const displayFiveN1k = sanitizeFiveN1kAnalysisForDisplay(record.five_n1k_analysis, record);
 
                     return (
                       <>
@@ -1039,33 +1038,30 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
                           </h3>
                           <div className="space-y-4">
                             {/* 5N1K Analizi */}
-                            {record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '') && (
+                            {displayFiveN1k && Object.values(displayFiveN1k).some(v => v && v.toString().trim() !== '') && (
                               <Card>
                                 <CardContent className="p-6">
                                   <h4 className="font-semibold mb-4 text-primary">5N1K Analizi</h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {(() => {
-                                      const raw = record.five_n1k_analysis.what || record.five_n1k_analysis.ne || '';
+                                      const raw = displayFiveN1k.what || displayFiveN1k.ne || '';
                                       if (!String(raw).trim()) return null;
-                                      const display = shouldReplaceVerboseBlobIn5n1kNe(raw)
-                                        ? (inferMeaningful5n1kNe(record) || raw)
-                                        : raw;
-                                      return <InfoCard label="Ne" value={display} />;
+                                      return <InfoCard label="Ne" value={raw} />;
                                     })()}
-                                    {(record.five_n1k_analysis.where || record.five_n1k_analysis.nerede) && (
-                                      <InfoCard label="Nerede" value={record.five_n1k_analysis.where || record.five_n1k_analysis.nerede} />
+                                    {(displayFiveN1k.where || displayFiveN1k.nerede) && (
+                                      <InfoCard label="Nerede" value={displayFiveN1k.where || displayFiveN1k.nerede} />
                                     )}
-                                    {(record.five_n1k_analysis.when || record.five_n1k_analysis.neZaman) && (
-                                      <InfoCard label="Ne Zaman" value={record.five_n1k_analysis.when || record.five_n1k_analysis.neZaman} />
+                                    {(displayFiveN1k.when || displayFiveN1k.neZaman) && (
+                                      <InfoCard label="Ne Zaman" value={displayFiveN1k.when || displayFiveN1k.neZaman} />
                                     )}
-                                    {(record.five_n1k_analysis.who || record.five_n1k_analysis.kim) && (
-                                      <InfoCard label="Kim" value={record.five_n1k_analysis.who || record.five_n1k_analysis.kim} />
+                                    {(displayFiveN1k.who || displayFiveN1k.kim) && (
+                                      <InfoCard label="Kim" value={displayFiveN1k.who || displayFiveN1k.kim} />
                                     )}
-                                    {(record.five_n1k_analysis.how || record.five_n1k_analysis.nasil) && (
-                                      <InfoCard label="Nasıl" value={record.five_n1k_analysis.how || record.five_n1k_analysis.nasil} />
+                                    {(displayFiveN1k.how || displayFiveN1k.nasil) && (
+                                      <InfoCard label="Nasıl" value={displayFiveN1k.how || displayFiveN1k.nasil} />
                                     )}
-                                    {(record.five_n1k_analysis.why || record.five_n1k_analysis.neden) && (
-                                      <InfoCard label="Neden Önemli" value={record.five_n1k_analysis.why || record.five_n1k_analysis.neden} />
+                                    {(displayFiveN1k.why || displayFiveN1k.neden) && (
+                                      <InfoCard label="Neden Önemli" value={displayFiveN1k.why || displayFiveN1k.neden} />
                                     )}
                                   </div>
                                 </CardContent>

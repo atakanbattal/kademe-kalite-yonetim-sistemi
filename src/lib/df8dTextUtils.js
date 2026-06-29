@@ -5,6 +5,52 @@ const GKK_GENERIC_WHY1_BAD =
 const GKK_GENERIC_WHY1_GOOD =
   'Uygunsuz parçalar, tedarikçi tarafında sevkiyattan önce elenememektedir.';
 
+const GARBLED_IMPORT_RE =
+  /agilan|a[cç]ilan|driinlerde|d[uü]r[uü]nlerde|miidiiriimiiz|m[uü]d[uü]r|tarafindan|biinyesinde|iretilen|iiretim|\b6nce\b|dretim|uymadan|gerceklestirilen|planlama tarafindan|kayit no:/i;
+
+const GENERIC_5N1K_NASIL =
+  'Üretim hattı kontrol noktası, ara ürün muayenesi veya son kontrol sırasında tespit edilmiştir.';
+
+const GENERIC_PRODUCTION_WHY1 = 'Operatörler tanımlı prosedürden sapmaktadır.';
+
+const GENERIC_PRODUCTION_IMMEDIATE =
+  'Üretim sürecinde prosedür/talimat uygulanmaması veya kontrol mekanizması eksikliği nedeniyle uygunsuzluk oluşmuş.';
+
+function recordReferenceText(record) {
+  if (!record || typeof record !== 'object') return '';
+  return String(record.description || record.problem_definition || '').trim();
+}
+
+/** Import/OCR kaynaklı bozuk veya pipe ile kesilmiş analiz metni */
+export function isGarbledOrTruncatedAnalysisText(text, referenceText) {
+  if (text == null || typeof text !== 'string') return false;
+  const t = stripSquareBullets(text).trim();
+  if (!t) return false;
+  const ref = referenceText != null ? String(referenceText).trim() : '';
+  if (GARBLED_IMPORT_RE.test(t)) return true;
+  if (/\|\s*[a-zA-ZğüşıöçĞÜŞİÖÇ]{0,12}$/.test(t)) return true;
+  if (ref && t.includes('|') && t.length < ref.length * 0.85) return true;
+  if (ref.length > 40 && t.length < ref.length * 0.55) {
+    const refFold = ref.replace(/\u0307/g, '').toLocaleLowerCase('tr-TR').slice(0, 40);
+    const tFold = t.replace(/\u0307/g, '').toLocaleLowerCase('tr-TR').slice(0, 40);
+    if (refFold.slice(0, 12) === tFold.slice(0, 12) && ref.length > t.length + 20) return true;
+  }
+  return false;
+}
+
+export function shouldReplaceGarbledAnalysisText(text, record) {
+  return isGarbledOrTruncatedAnalysisText(text, recordReferenceText(record));
+}
+
+export function isGenericProductionWhyChain(fiveWhy) {
+  if (!fiveWhy || typeof fiveWhy !== 'object') return false;
+  return String(fiveWhy.why1 || '').trim() === GENERIC_PRODUCTION_WHY1;
+}
+
+export function isGenericPlaceholder5n1kNasil(text) {
+  return text != null && String(text).trim() === GENERIC_5N1K_NASIL;
+}
+
 /** Ekran/PDF öncesi bilinen yazım ve şablon hatalarını düzeltir (DB: fix_df8d_analysis_text). */
 export function sanitizeDf8dAnalysisText(input) {
   if (input == null || typeof input !== 'string') return input;
@@ -47,6 +93,33 @@ export function isGenericGkkImportedWhy1(text) {
 export function sanitizeFiveWhyAnalysisForDisplay(fiveWhy, record = null) {
   if (!fiveWhy || typeof fiveWhy !== 'object') return fiveWhy;
   const out = { ...fiveWhy };
+  const ref = recordReferenceText(record);
+  if (record && shouldReplaceGarbledAnalysisText(out.problem, record)) {
+    const inferred = inferMeaningful5n1kNe(record);
+    if (inferred) out.problem = inferred;
+    else if (ref) out.problem = ref.length > 900 ? `${ref.slice(0, 897)}…` : ref;
+  }
+  if (record && isGenericProductionWhyChain(out) && /sipari[sş]|depo|kanban|sat[ıi]nalma/i.test(ref)) {
+    out.why1 = 'Kanban harici ürünlerde yetkisiz sipariş açılmış ve onaylanmıştır.';
+    out.why2 = 'ERP/sistemde depo personeline kanban dışı ürünler için sipariş açma yetkisi tanımlı veya kısıtlanmamıştır.';
+    out.why3 = 'Kanban dışı ürünler için sipariş yetki matrisi tanımlanmamış veya sistemde uygulanmamıştır.';
+    out.why4 = 'Sipariş onay akışında yetki ve sipariş türü kontrolü zorunlu adım olarak kurgulanmamıştır.';
+    out.why5 = 'Depo sipariş süreçleri için periyodik yetki denetimi, eğitim ve uyum takibi yapılmamaktadır.';
+    out.rootCause = 'Kanban harici ürün siparişleri için yetki matrisi, sistem kısıtları ve zorunlu onay akışı tanımlanmamıştır.';
+    out.immediateAction = 'Yetkisiz açılan sipariş iptal edilmeli veya revize edilmeli; ilgili onay kayıtları gözden geçirilmelidir.';
+    out.preventiveAction =
+      '1. Kanban harici ürünler için sipariş açma yetkileri gözden geçirilmeli; yalnızca yetkili kullanıcılar sipariş açabilmelidir.\n' +
+      '2. ERP sisteminde kanban dışı ürünler için zorunlu onay adımı tanımlanmalıdır.\n' +
+      '3. Depo personeline sipariş yetki prosedürü eğitimi verilmelidir.\n' +
+      '4. Aylık sipariş yetki uyum denetimi yapılmalıdır.';
+  } else if (record && isGenericProductionWhyChain(out)) {
+    for (const key of ['why1', 'why2', 'why3', 'why4', 'why5', 'rootCause', 'immediateAction', 'preventiveAction']) {
+      out[key] = null;
+    }
+  }
+  if (out.immediateAction && String(out.immediateAction).trim() === GENERIC_PRODUCTION_IMMEDIATE && ref) {
+    out.immediateAction = inferMeaningful5n1kNe(record) || out.immediateAction;
+  }
   for (const key of Object.keys(out)) {
     const v = out[key];
     if (v != null && typeof v === 'string') {
@@ -679,6 +752,90 @@ export function shouldReplaceVerboseBlobIn5n1kNe(text) {
   return shouldReplaceGrupOzetiBlobIn5n1kNe(text) || isGirdiKaliteVerboseBlob(text);
 }
 
+export function shouldReplace5n1kNe(text, record) {
+  return shouldReplaceVerboseBlobIn5n1kNe(text) || shouldReplaceGarbledAnalysisText(text, record);
+}
+
+/** 5N1K «Nasıl»: şablondan bağımsız, kayıt bağlamına göre kısa tespit cümlesi */
+export function inferMeaningful5n1kNasil(record) {
+  const blob = [
+    record?.description,
+    record?.title,
+    record?.five_why_analysis?.problem,
+    record?.five_n1k_analysis?.ne,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLocaleLowerCase('tr-TR');
+
+  if (/gird[iı]|gkk|tedarik[cç]i|muayene/.test(blob)) {
+    return 'GKK (Girdi Kalite Kontrol) muayenesinde veya saha geri bildirimi ile tespit edilmiştir.';
+  }
+  if (/i[sş]\s*kazas|kaza\s*bildirim|26-00[12]/.test(blob)) {
+    return 'İş kazası bildirimi veya güvensiz durum tespiti ile kayıt altına alınmıştır.';
+  }
+  if (/sipari[sş]|depo|kanban|sat[ıi]nalma/.test(blob)) {
+    return 'Depo/sipariş onay sürecinde yetki kontrolü sırasında tespit edilmiştir.';
+  }
+  if (/mavi\s*dosya/.test(blob)) {
+    return 'Üretim planlama ve araç teslim sürecinde dosya kontrolü sırasında tespit edilmiştir.';
+  }
+  if (/mdb|pompa|perkins/.test(blob)) {
+    return 'Montaj hattı kontrolü ve kontrol planı denetimi sırasında tespit edilmiştir.';
+  }
+  if (/s[ıi]zd[ıi]rmaz/.test(blob)) {
+    return 'Sızdırmazlık testi sırasında kaçak tespit edilmiştir.';
+  }
+  if (/kaynak|wps/.test(blob)) {
+    return 'Hat sonu kontrol ve kaynak görsel muayenesi sırasında tespit edilmiştir.';
+  }
+  if (/elektrik\s*montaj|kablolama/.test(blob)) {
+    return 'Elektrik montaj veya fonksiyon testi sırasında tespit edilmiştir.';
+  }
+  if (/boya|r[oö]t[uü][sş]/.test(blob)) {
+    return 'Boya kabul muayenesi veya görsel kontrol sırasında tespit edilmiştir.';
+  }
+  if (/say[ıi]m|stok|raf/.test(blob)) {
+    return 'Stok sayımı veya depo denetimi sırasında tespit edilmiştir.';
+  }
+  if (/grup\s*[öo]zet|uyg-/.test(blob)) {
+    return 'Grup uygunsuzluk kayıtlarının birleştirilmesi/değerlendirilmesi sırasında tespit edilmiştir.';
+  }
+  const w1 = record?.five_why_analysis?.why1;
+  if (w1 && String(w1).trim().length > 12 && !isGenericProductionWhyChain(record?.five_why_analysis)) {
+    return `${String(w1).trim()} (tespit bağlamı).`;
+  }
+  return 'Kalite denetimi, saha kontrolü veya geri bildirim ile tespit edilmiştir.';
+}
+
+/** 5N1K JSON alanlarını ekran/PDF için temizler */
+export function sanitizeFiveN1kAnalysisForDisplay(fiveN1k, record = null) {
+  if (!fiveN1k || typeof fiveN1k !== 'object') return fiveN1k;
+  const out = { ...fiveN1k };
+  const rawNe = out.what || out.ne || '';
+  if (shouldReplace5n1kNe(rawNe, record)) {
+    const inferred = inferMeaningful5n1kNe(record);
+    if (inferred) {
+      if (out.what != null) out.what = inferred;
+      if (out.ne != null || out.what == null) out.ne = inferred;
+    }
+  } else if (rawNe) {
+    const cleaned = sanitizeDf8dAnalysisText(String(rawNe));
+    if (out.what != null) out.what = cleaned;
+    if (out.ne != null) out.ne = cleaned;
+  }
+  const rawNasil = out.how || out.nasil || '';
+  if (isGenericPlaceholder5n1kNasil(rawNasil)) {
+    out.nasil = inferMeaningful5n1kNasil(record);
+    if (out.how != null) out.how = out.nasil;
+  }
+  for (const key of ['nerede', 'where', 'neZaman', 'when', 'kim', 'who', 'neden', 'why']) {
+    const v = out[key];
+    if (v != null && typeof v === 'string') out[key] = sanitizeDf8dAnalysisText(v);
+  }
+  return out;
+}
+
 /**
  * Anlamlı «Ne» metni: 5 neden problemi, sonra açıklamanın ilk anlamlı paragrafı (İlgili UYG listesinden önce).
  */
@@ -688,7 +845,7 @@ export function inferMeaningful5n1kNe(record) {
   if (fw && typeof fw === 'object') {
     const probRaw = fw.problem != null ? String(fw.problem).trim() : '';
     const prob = sanitizeDf8dAnalysisText(probRaw);
-    if (prob.length > 3 && !shouldReplaceVerboseBlobIn5n1kNe(prob)) return prob;
+    if (prob.length > 3 && !shouldReplace5n1kNe(probRaw, record)) return prob;
     const w1Raw = fw.why1 != null ? String(fw.why1).trim() : '';
     const w1 = sanitizeDf8dAnalysisText(w1Raw);
     if (
