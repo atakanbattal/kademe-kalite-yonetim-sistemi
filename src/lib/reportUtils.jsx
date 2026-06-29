@@ -7244,33 +7244,51 @@ const generateGenericReportHtml = async (record, type) => {
 		}
 
 		if (attachments.length > 0) {
+			const resolvedAttachments = await Promise.all(
+				attachments.map(async (attachment) => {
+					let pathToUse = attachment;
+					if ((type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null) {
+						pathToUse = attachment.file_path || attachment.path || attachment;
+					}
+					let bucketToUse = bucket;
+					if (type === 'nonconformity') {
+						let raw = pathToUse;
+						if (typeof raw === 'object' && raw !== null) raw = raw.path || raw.file_path || '';
+						const p = normalizeNcAttachmentPath(raw) || (typeof raw === 'string' ? raw : '');
+						bucketToUse = getBucketForNcAttachmentPath(p);
+					}
+					const url = await getAttachmentUrl(pathToUse, bucketToUse);
+					const pathStr = typeof pathToUse === 'string' ? pathToUse : (pathToUse.path || pathToUse.file_path || '');
+					const fileName = (type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null
+						? getAttachmentDisplayName(
+								attachment.file_name || attachment.name,
+								attachment.file_path || pathStr
+							)
+						: (typeof attachment === 'string' ? attachment : attachment.name || attachment.path || '').split('/').pop();
+					const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(pathStr);
+					return { url, fileName, isImage };
+				})
+			);
+
+			const imageEntries = resolvedAttachments.filter((entry) => entry.url && entry.isImage);
+			const imageSrcMap = new Map();
+			if (imageEntries.length > 0) {
+				await Promise.all(
+					imageEntries.map(async (entry) => {
+						const base64 = await imageUrlToBase64(entry.url);
+						imageSrcMap.set(entry.url, base64 || entry.url);
+					})
+				);
+			}
+
 			html += `<div class="section attachments-section" ><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
-			for (const attachment of attachments) {
-				let pathToUse = attachment;
-				if ((type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null) {
-					pathToUse = attachment.file_path || attachment.path || attachment;
-				}
-				let bucketToUse = bucket;
-				if (type === 'nonconformity') {
-					let raw = pathToUse;
-					if (typeof raw === 'object' && raw !== null) raw = raw.path || raw.file_path || '';
-					const p = normalizeNcAttachmentPath(raw) || (typeof raw === 'string' ? raw : '');
-					bucketToUse = getBucketForNcAttachmentPath(p);
-				}
-				const url = await getAttachmentUrl(pathToUse, bucketToUse);
-				const fileName = (type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null
-					? getAttachmentDisplayName(
-							attachment.file_name || attachment.name,
-							attachment.file_path || (typeof pathToUse === 'string' ? pathToUse : '')
-						)
-					: (typeof attachment === 'string' ? attachment : attachment.name || attachment.path || '').split('/').pop();
-				const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeof pathToUse === 'string' ? pathToUse : (pathToUse.path || pathToUse.file_path || ''));
-				if (!url) continue;
-				if (isImage) {
-					const base64 = await imageUrlToBase64(url);
-					html += `<div class="image-container"><a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${base64 || url}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/></a></div>`;
+			for (const entry of resolvedAttachments) {
+				if (!entry.url) continue;
+				if (entry.isImage) {
+					const src = imageSrcMap.get(entry.url) || entry.url;
+					html += `<div class="image-container"><a href="${entry.url}" target="_blank" rel="noopener noreferrer"><img src="${src}" class="attachment-image" alt="Ek" crossOrigin="anonymous" loading="eager" decoding="async"/></a></div>`;
 				} else {
-					html += `<div class="attachment-file"><a href="${url}" target="_blank" rel="noopener noreferrer">${fileName}</a></div>`;
+					html += `<div class="attachment-file"><a href="${entry.url}" target="_blank" rel="noopener noreferrer">${entry.fileName}</a></div>`;
 				}
 			}
 			html += `</div></div> `;
@@ -7724,18 +7742,82 @@ const generatePrintableReportHtml = async (record, type) => {
 	}
 }
 `;
-		} else if (type === 'master_document_list' || type === 'code_mapping_list') {
+		} else if (type === 'master_document_list') {
 			cssOverrides = `
 .page-container {
-	width: 297mm !important;
-	min-height: 210mm !important;
+	width: 420mm !important;
+	min-height: 297mm !important;
+	max-width: 100% !important;
+	margin: 0 auto !important;
 }
 .report-wrapper {
-	padding: 6mm !important;
+	padding: 5mm !important;
 }
 .list-summary {
-	margin-bottom: 8px !important;
+	margin-bottom: 6px !important;
 	font-size: 11px !important;
+}
+.results-table {
+	table-layout: fixed !important;
+	width: 100% !important;
+}
+.results-table th,
+.results-table td {
+	font-size: 9px !important;
+	padding: 5px 6px !important;
+	vertical-align: top !important;
+	word-wrap: break-word !important;
+	overflow-wrap: anywhere !important;
+	line-height: 1.3 !important;
+}
+.results-table th {
+	white-space: normal !important;
+	font-size: 8.5px !important;
+}
+.results-table .col-code { width: 9%; font-family: ui-monospace, monospace; }
+.results-table .col-title { width: 14%; }
+.results-table .col-type { width: 7%; }
+.results-table .col-dept { width: 10%; }
+.results-table .col-rev { width: 4%; text-align: center; }
+.results-table .col-date { width: 7%; white-space: nowrap; }
+.results-table .col-flag { width: 4%; text-align: center; }
+.results-table .col-note { width: 12%; }
+@media print {
+	@page {
+		size: A3 landscape;
+		margin: 0;
+	}
+	html, body {
+		width: 420mm !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		background-color: #fff !important;
+	}
+	.page-container {
+		width: 420mm !important;
+		max-width: 420mm !important;
+		margin: 0 !important;
+		box-shadow: none !important;
+	}
+	.report-wrapper {
+		padding: 5mm !important;
+	}
+	.results-table thead {
+		display: table-header-group;
+	}
+	.results-table tr {
+		page-break-inside: avoid;
+	}
+}
+`;
+		} else if (type === 'code_mapping_list') {
+			cssOverrides = `
+.page-container {
+	width: 420mm !important;
+	min-height: 297mm !important;
+}
+.report-wrapper {
+	padding: 5mm !important;
 }
 .results-table {
 	table-layout: fixed !important;
@@ -7750,24 +7832,13 @@ const generatePrintableReportHtml = async (record, type) => {
 	overflow-wrap: anywhere !important;
 	line-height: 1.25 !important;
 }
-.results-table th {
-	white-space: normal !important;
-	font-size: 7.5px !important;
-}
 .results-table .col-code { width: 9%; font-family: ui-monospace, monospace; }
-.results-table .col-title { width: 14%; }
-.results-table .col-type { width: 7%; }
-.results-table .col-dept { width: 10%; }
-.results-table .col-rev { width: 4%; text-align: center; }
-.results-table .col-date { width: 7%; white-space: nowrap; }
-.results-table .col-flag { width: 4%; text-align: center; }
-.results-table .col-note { width: 12%; }
 .results-table .col-folder { width: 11%; }
 .results-table .col-file { width: 14%; }
 @media print {
 	@page {
-		size: A4 landscape;
-		margin: 6mm;
+		size: A3 landscape;
+		margin: 0;
 	}
 	body {
 		background-color: #fff !important;
@@ -7777,11 +7848,8 @@ const generatePrintableReportHtml = async (record, type) => {
 		margin: 0 !important;
 		box-shadow: none !important;
 	}
-	.results-table thead {
-		display: table-header-group;
-	}
-	.results-table tr {
-		page-break-inside: avoid;
+	.report-wrapper {
+		padding: 5mm !important;
 	}
 }
 `;
@@ -8554,7 +8622,7 @@ h3 {
 @media print {
 	@page {
 		size: A4 portrait;
-		margin: 10mm;
+		margin: 0;
 	}
 
 	/* Flex + min-height sayfa kırılmasını bozar; blok akışa geç */
@@ -8562,10 +8630,13 @@ h3 {
 		display: block !important;
 		min-height: auto !important;
 		height: auto !important;
+		width: 100% !important;
+		margin: 0 !important;
 	}
 	.report-wrapper {
 		display: block !important;
 		flex: none !important;
+		padding: 8mm !important;
 	}
 	.report-footer {
 		margin-top: 16px !important;
@@ -8795,13 +8866,11 @@ h3 {
 	const isTrainingRecord = type === 'training_record' || type === 'training_exam_results';
 
 	const defaultStyles = `
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
-
 		/* ============================================
 		   SAYFA AYARLARI-PDF OPTİMİZASYONU
 		   ============================================ */
 		body {
-	font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif;
+	font-family: 'Segoe UI', 'Arial Unicode MS', 'Noto Sans', Tahoma, sans-serif;
 	color: #1f2937;
 	margin: 0;
 	padding: 0;
@@ -8815,16 +8884,16 @@ h3 {
 	background-color: white;
 	box-sizing: border-box;
 	box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-	margin: 20px auto;
+	margin: 0 auto;
 	width: 210mm;
 	page-break-after: auto;
-	min-height: calc(297mm-40px); /* Full page height */
+	min-height: 297mm;
 	display: flex;
 	flex-direction: column;
 }
 	
 	.report-wrapper {
-	padding: 10mm;
+	padding: 8mm;
 	flex: 1; /* Take remaining space */
 	display: flex;
 	flex-direction: column;
@@ -9417,10 +9486,10 @@ a: after,
    YAZDIR MOD-OPTİMİZE SAYFA DÜZENİ
    ============================================ */
 @media print {
-	/* Sayfa ayarları – dengeli margin ve akıllı bölünme */
+	/* Sayfa ayarları – kenar boşluğu tek katman (iç padding ile) */
 	@page {
 		size: A4 portrait;
-		margin: 10mm;
+		margin: 0;
 		orphans: 3;  /* Sayfa sonunda en az 3 satır */
 		widows: 3;   /* Sayfa başında en az 3 satır */
 	}
@@ -9471,7 +9540,7 @@ a: after,
 	}
 		
 		.report-wrapper {
-		padding: 0!important;
+		padding: 8mm!important;
 		flex: none!important;
 		margin: 0!important;
 		display: block!important;

@@ -7,7 +7,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +38,8 @@ import {
   XCircle,
   X,
   Edit,
+  CheckCircle,
+  RotateCcw,
   CalendarCheck2,
   Paperclip,
   Printer,
@@ -49,6 +50,7 @@ import {
   CircleDot,
 } from 'lucide-react';
 import Df8dImageLightbox from '@/components/df-8d/Df8dImageLightbox';
+import CloseNCModal from '@/components/df-8d/modals/CloseNCModal';
 import { EditRejectionDetailsModal } from '@/components/df-8d/modals/ActionModals';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -451,11 +453,19 @@ function getHeaderTitleParts(record) {
   };
 }
 
+const getCloseRecordActionLabel = (type) => {
+  if (type === 'DF') return "DF'ü Kapat";
+  if (type === '8D') return "8D'yi Kapat";
+  return 'Kaydı Kapat';
+};
+
 const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRecordUpdated }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [isEditRejectionOpen, setIsEditRejectionOpen] = useState(false);
+  const [isCloseRecordModalOpen, setIsCloseRecordModalOpen] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [supplierName, setSupplierName] = useState(null);
 
@@ -507,6 +517,28 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
   }, [isOpen, record]);
 
   const headerParts = useMemo(() => getHeaderTitleParts(record), [record]);
+
+  const isRecordOpen = record?.status !== 'Kapatıldı' && record?.status !== 'Reddedildi';
+  const canCloseRecord = isRecordOpen;
+
+  const handleReopenRecord = async () => {
+    if (!record?.id) return;
+    setIsReopening(true);
+    try {
+      const { error } = await supabase
+        .from('non_conformities')
+        .update({ status: 'Açık', reopened_at: new Date().toISOString() })
+        .eq('id', record.id);
+      if (error) {
+        toast({ variant: 'destructive', title: 'Hata', description: `Kayıt tekrar açılamadı: ${error.message}` });
+        return;
+      }
+      toast({ title: 'Başarılı', description: 'Uygunsuzluk kaydı tekrar açıldı.' });
+      await onNcRecordUpdated?.(record.id);
+    } finally {
+      setIsReopening(false);
+    }
+  };
 
   const openingAttachmentPaths = useMemo(
     () => normalizeNcAttachmentPathsList(record?.attachments),
@@ -698,6 +730,12 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
         record={record}
         onSaved={() => onNcRecordUpdated?.(record.id)}
       />
+      <CloseNCModal
+        isOpen={isCloseRecordModalOpen}
+        setIsOpen={setIsCloseRecordModalOpen}
+        record={record}
+        onSave={() => onNcRecordUpdated?.(record?.id)}
+      />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent
           key={recordId || 'nc-view'}
@@ -761,7 +799,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
                   className="h-10 w-10 rounded-xl bg-white/10 text-white hover:bg-white/20"
                 >
                   <X className="h-4 w-4" />
-                  <span className="sr-only">Kapat</span>
+                  <span className="sr-only">Pencereyi kapat</span>
                 </Button>
               </div>
             </div>
@@ -1299,17 +1337,38 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onDownloadPDF, onEdit, onNcRec
                   <Edit className="mr-2 h-4 w-4" /> Düzenle
                 </Button>
               )}
+              {canCloseRecord && (
+                <Button
+                  type="button"
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => setIsCloseRecordModalOpen(true)}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  {getCloseRecordActionLabel(record.type)}
+                </Button>
+              )}
+              {!isRecordOpen && record?.status === 'Kapatıldı' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleReopenRecord}
+                  disabled={isReopening}
+                >
+                  {isReopening ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                  )}
+                  Tekrar Aç
+                </Button>
+              )}
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">
               <Button onClick={handlePrint} variant="outline" disabled={isPrinting}>
                 {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
                 Yazdır / PDF
               </Button>
-              <DialogClose asChild>
-                <Button type="button" variant="default" size="lg" className="min-w-[7rem]">
-                  Kapat
-                </Button>
-              </DialogClose>
             </div>
           </DialogFooter>
         </DialogContent>

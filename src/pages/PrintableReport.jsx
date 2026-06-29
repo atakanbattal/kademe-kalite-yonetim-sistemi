@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -15,7 +15,43 @@ const PrintableReport = () => {
     const [error, setError] = useState(null);
     const [reportTitle, setReportTitle] = useState('Rapor Yükleniyor...');
     const [blobUrl, setBlobUrl] = useState(null);
+    const [htmlGenerating, setHtmlGenerating] = useState(false);
     const iframeRef = useRef(null);
+    const hasTriggeredPrintRef = useRef(false);
+
+    const waitForPrintableAssets = useCallback(async (doc) => {
+        if (!doc) return;
+
+        if (doc.fonts?.ready) {
+            try {
+                await Promise.race([
+                    doc.fonts.ready,
+                    new Promise((resolve) => setTimeout(resolve, 1500)),
+                ]);
+            } catch {
+                /* noop */
+            }
+        }
+
+        const images = Array.from(doc.images || []);
+        if (!images.length) return;
+
+        await Promise.all(
+            images.map(
+                (image) =>
+                    new Promise((resolve) => {
+                        if (image.complete) {
+                            resolve();
+                            return;
+                        }
+                        const done = () => resolve();
+                        image.addEventListener('load', done, { once: true });
+                        image.addEventListener('error', done, { once: true });
+                        setTimeout(done, 4000);
+                    })
+            )
+        );
+    }, []);
 
     const fetchData = async () => {
         setLoading(true);
@@ -44,7 +80,7 @@ const PrintableReport = () => {
                         });
 
                         // Liste tipleri için localStorage'dan veri okunduysa direkt kullan
-                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'kpi_list' || type === 'leak_test_list' || type === 'process_inspection_list' || type === 'quality_cost_executive_summary' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
+                        if (type.endsWith('_list') || type === 'document_list' || type === 'master_document_list' || type === 'code_mapping_list' || type === 'equipment_list' || type === 'kpi_list' || type === 'leak_test_list' || type === 'process_inspection_list' || type === 'quality_cost_executive_summary' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
                             // Liste tipleri için ek işlem gerekmez, veri zaten hazır
                             console.log(`✅ Liste tipi (${type}) verisi localStorage'dan okundu`);
                         }
@@ -844,38 +880,61 @@ const PrintableReport = () => {
     }, [type, id, location.search]);
 
     useEffect(() => {
-        if (data) {
-            let url = null;
-            (async () => {
-                const html = await generatePrintableReportHtml(data, type);
-
-                // Araç modülündeki gibi Blob URL kullan (doğru çalışan yöntem)
-                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-                url = URL.createObjectURL(blob);
-                setBlobUrl(url);
-            })();
-
-            // Cleanup function - URL'i temizle
-            return () => {
-                if (url) {
-                    URL.revokeObjectURL(url);
-                }
-            };
+        if (!data) {
+            setBlobUrl(null);
+            setHtmlGenerating(false);
+            return undefined;
         }
+
+        let cancelled = false;
+        let objectUrl = null;
+        setHtmlGenerating(true);
+        setBlobUrl(null);
+        hasTriggeredPrintRef.current = false;
+
+        (async () => {
+            try {
+                const html = await generatePrintableReportHtml(data, type);
+                if (cancelled) return;
+                objectUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+                setBlobUrl(objectUrl);
+            } catch (err) {
+                console.error('Rapor HTML oluşturulamadı:', err);
+                if (!cancelled) {
+                    setError(`Rapor HTML oluşturulamadı: ${err.message}`);
+                }
+            } finally {
+                if (!cancelled) {
+                    setHtmlGenerating(false);
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
+        };
     }, [data, type]);
 
-    const handleIframeLoad = () => {
+    const handleIframeLoad = async () => {
         const iframe = iframeRef.current;
-        // Yazdır/PDF varsayılan dosya adı iframe document.title üzerinden gelir; blob HTML ile senkron tut
         if (iframe?.contentDocument && reportTitle) {
             iframe.contentDocument.title = reportTitle;
         }
-        if (window.location.search.includes('autoprint=true') && iframe) {
-            setTimeout(() => {
-                if (iframe.contentWindow) {
-                    iframe.contentWindow.print();
-                }
-            }, 500);
+
+        if (!window.location.search.includes('autoprint=true') || !iframe?.contentWindow || hasTriggeredPrintRef.current) {
+            return;
+        }
+
+        hasTriggeredPrintRef.current = true;
+        try {
+            await waitForPrintableAssets(iframe.contentDocument);
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        } catch (printErr) {
+            console.warn('Otomatik yazdırma başlatılamadı:', printErr);
         }
     };
 
@@ -899,13 +958,19 @@ const PrintableReport = () => {
         };
     }, []);
 
-    if (loading) {
+    if (loading || htmlGenerating) {
         return (
             <div className="flex h-screen w-screen items-center justify-center bg-gray-100">
                 <div className="text-center">
                     <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-                    <p className="mt-4 text-lg font-semibold text-gray-700">Rapor Oluşturuluyor...</p>
-                    <p className="text-sm text-gray-500">Lütfen bekleyin, verileriniz hazırlanıyor.</p>
+                    <p className="mt-4 text-lg font-semibold text-gray-700">
+                        {loading ? 'Rapor Oluşturuluyor...' : 'PDF Hazırlanıyor...'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                        {loading
+                            ? 'Verileriniz yükleniyor, lütfen bekleyin.'
+                            : 'Rapor düzeni ve görseller hazırlanıyor.'}
+                    </p>
                 </div>
             </div>
         );
@@ -924,7 +989,7 @@ const PrintableReport = () => {
         );
     }
 
-    if (!blobUrl && !loading) {
+    if (!blobUrl && !loading && !htmlGenerating) {
         return null;
     }
 

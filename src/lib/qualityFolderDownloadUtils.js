@@ -53,7 +53,7 @@ const waitForPrintableAssets = async (doc) => {
         )
     );
 
-    await sleep(150);
+    await sleep(80);
 };
 
 const getPrintablePageElement = async (doc) => {
@@ -239,7 +239,12 @@ const sliceCanvasToPdfPagesAtSafeBreaks = (canvas, pdf, breakPointsPx, protected
     return pageIndex;
 };
 
-const renderPrintableHtmlToPdfBuffer = async (html) => {
+const REPORT_PDF_FORMATS = {
+    master_document_list: { format: 'A3', landscape: true },
+    code_mapping_list: { format: 'A3', landscape: true },
+};
+
+const renderPrintableHtmlToPdfBuffer = async (html, type) => {
     const { default: html2canvas } = await import('html2canvas');
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -279,7 +284,7 @@ const renderPrintableHtmlToPdfBuffer = async (html) => {
         await waitForPrintableAssets(frameDoc);
 
         const canvas = await html2canvas(pageElement, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false,
@@ -287,8 +292,11 @@ const renderPrintableHtmlToPdfBuffer = async (html) => {
             windowHeight: Math.ceil(pageElement.scrollHeight || 1800),
         });
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const scale = 2;
+        const isLandscapeA3 = type === 'master_document_list' || type === 'code_mapping_list';
+        const pdf = isLandscapeA3
+            ? new jsPDF('l', 'mm', 'a3')
+            : new jsPDF('p', 'mm', 'a4');
+        const scale = 1.5;
         const protectedIntervals = collectProtectedIntervals(pageElement, scale);
         const breakPointsPx = collectCanvasBreakPoints(pageElement, scale);
         if (protectedIntervals.length) {
@@ -308,6 +316,7 @@ const renderPrintableHtmlToPdfBuffer = async (html) => {
 export const createPrintableReportPdfBuffer = async (record, type) => {
     const { generatePrintableReportHtml } = await import('@/lib/reportUtils');
     const html = await generatePrintableReportHtml(record, type);
+    const pageFormat = REPORT_PDF_FORMATS[type] || { format: 'A4', landscape: false };
 
     try {
         const response = await fetch(REPORT_PDF_ROUTE, {
@@ -318,6 +327,7 @@ export const createPrintableReportPdfBuffer = async (record, type) => {
             body: JSON.stringify({
                 html,
                 baseUrl: window.location.origin,
+                ...pageFormat,
             }),
         });
 
@@ -331,5 +341,5 @@ export const createPrintableReportPdfBuffer = async (record, type) => {
         console.warn('Tarayici tabanli PDF servisi kullanilamadi, istemci fallback devreye giriyor:', error);
     }
 
-    return renderPrintableHtmlToPdfBuffer(html);
+    return renderPrintableHtmlToPdfBuffer(html, type);
 };

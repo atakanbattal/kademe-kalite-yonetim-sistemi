@@ -91,11 +91,9 @@ const createReportPdfPlugin = () => {
                                 await document.fonts.ready;
                             }
                         });
-                        await page.waitForTimeout(500);
+                        await page.waitForTimeout(150);
 
-                        const pdfBuffer = await page.pdf({
-                            format,
-                            landscape,
+                        const pdfOptions = {
                             printBackground: true,
                             preferCSSPageSize: true,
                             margin: {
@@ -104,7 +102,17 @@ const createReportPdfPlugin = () => {
                                 bottom: '0',
                                 left: '0',
                             },
-                        });
+                        };
+
+                        if (format === 'A3') {
+                            pdfOptions.format = 'A3';
+                            pdfOptions.landscape = landscape;
+                        } else {
+                            pdfOptions.format = format;
+                            pdfOptions.landscape = landscape;
+                        }
+
+                        const pdfBuffer = await page.pdf(pdfOptions);
 
                         res.statusCode = 200;
                         res.setHeader('Content-Type', 'application/pdf');
