@@ -10,8 +10,8 @@ import * as cheerio from 'cheerio';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const htmlPath = path.join(root, 'public/docs/Kademe_Birim_Surec_Akis_Semalari.html');
-const outPath = path.join(__dirname, 'process-flow-seed.json');
+const htmlPath = process.env.PROCESS_FLOW_HTML_PATH || path.join(root, 'public/docs/Kademe_Birim_Surec_Akis_Semalari.html');
+const outPath = process.env.PROCESS_FLOW_SEED_OUT || path.join(__dirname, 'process-flow-seed.json');
 
 function norm(text) {
   return (text || '').replace(/\s+/g, ' ').trim();
