@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { Pencil, Eye, Loader2, RefreshCw, Search, Menu, Printer } from 'lucide-react';
+import { Pencil, Eye, Loader2, RefreshCw, Search, Menu, Printer, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -8,6 +8,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import ProcessFlowStepEditor, { stepToForm } from './ProcessFlowStepEditor';
 import ProcessFlowPrintDialog from './ProcessFlowPrintDialog';
+import ProcessFlowUnitDialog from './ProcessFlowUnitDialog';
+import ProcessFlowFlowDialog from './ProcessFlowFlowDialog';
 import { useProcessFlowData } from './useProcessFlowData';
 import {
     cloneUnits,
@@ -16,6 +18,7 @@ import {
     reorderStepInUnits,
     markStepDeletedInUnits,
     insertStepAfterInUnits,
+    insertFirstStepInUnits,
 } from './processFlowDraftUtils';
 import { STEP_TYPE_CLASS, STEP_TYPE_ICON, formatDocumentChip } from './processFlowConstants';
 import './processFlowDiagrams.css';
@@ -124,6 +127,12 @@ const ProcessFlowDiagramsModule = () => {
         error,
         reload,
         persistFlow,
+        createUnit,
+        updateUnit,
+        deleteUnit,
+        createFlow,
+        updateFlow,
+        deleteFlow,
     } = useProcessFlowData();
 
     const [activeSlug, setActiveSlug] = useState(null);
@@ -140,6 +149,9 @@ const ProcessFlowDiagramsModule = () => {
     const [pdfViewer, setPdfViewer] = useState({ isOpen: false, url: null, title: '' });
     const [unitNavOpen, setUnitNavOpen] = useState(readSidebarPreference);
     const [printDialogOpen, setPrintDialogOpen] = useState(false);
+    const [unitDialog, setUnitDialog] = useState({ open: false, mode: 'create' });
+    const [flowDialog, setFlowDialog] = useState({ open: false, mode: 'create', flow: null });
+    const [entitySaving, setEntitySaving] = useState(false);
 
     useEffect(() => {
         const mq = window.matchMedia('(min-width: 901px)');
@@ -207,6 +219,133 @@ const ProcessFlowDiagramsModule = () => {
     const handlePrint = useCallback(() => {
         setPrintDialogOpen(true);
     }, []);
+
+    const syncDraftAfterEntityChange = useCallback((slug) => {
+        setDraftUnits(null);
+        setDeletedStepIds([]);
+        setFlowStructureDirty(false);
+        setSelectedStepId(null);
+        setSelectedFlowId(null);
+        setEditorForm(null);
+        setSavedStepForm(null);
+        if (slug) setActiveSlug(slug);
+    }, []);
+
+    const guardUnsaved = useCallback(() => {
+        if (!hasUnsavedChanges) return true;
+        return window.confirm('Kaydedilmemiş adım değişiklikleri var. Devam edilsin mi?');
+    }, [hasUnsavedChanges]);
+
+    const openUnitDialog = useCallback((mode = 'create') => {
+        if (!guardUnsaved()) return;
+        setUnitDialog({ open: true, mode });
+    }, [guardUnsaved]);
+
+    const openFlowDialog = useCallback((mode = 'create', flow = null) => {
+        if (!guardUnsaved()) return;
+        setFlowDialog({ open: true, mode, flow });
+    }, [guardUnsaved]);
+
+    const handleUnitSubmit = async (form) => {
+        setEntitySaving(true);
+        try {
+            if (unitDialog.mode === 'edit' && activeUnit) {
+                const updated = await updateUnit(activeUnit.id, form);
+                syncDraftAfterEntityChange(updated.slug);
+                toast({ title: 'Birim güncellendi' });
+            } else {
+                const created = await createUnit(form);
+                syncDraftAfterEntityChange(created.slug);
+                setEditMode(true);
+                toast({ title: 'Birim oluşturuldu', description: 'Şimdi süreç akışı ekleyebilirsiniz.' });
+            }
+            setUnitDialog({ open: false, mode: 'create' });
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Kaydedilemedi', description: err.message });
+        } finally {
+            setEntitySaving(false);
+        }
+    };
+
+    const handleFlowSubmit = async (form) => {
+        if (!activeUnit) return;
+        setEntitySaving(true);
+        try {
+            if (flowDialog.mode === 'edit' && flowDialog.flow) {
+                await updateFlow(flowDialog.flow.id, form);
+                syncDraftAfterEntityChange(activeUnit.slug);
+                toast({ title: 'Süreç güncellendi' });
+            } else {
+                await createFlow(activeUnit.id, form);
+                syncDraftAfterEntityChange(activeUnit.slug);
+                setEditMode(true);
+                toast({
+                    title: 'Süreç oluşturuldu',
+                    description: form.withDefaultSteps
+                        ? 'Adımları düzenleyebilirsiniz.'
+                        : 'İlk adımı ekleyerek sıfırdan başlayın.',
+                });
+            }
+            setFlowDialog({ open: false, mode: 'create', flow: null });
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Kaydedilemedi', description: err.message });
+        } finally {
+            setEntitySaving(false);
+        }
+    };
+
+    const handleDeleteUnit = async () => {
+        if (!activeUnit || !guardUnsaved()) return;
+        if (!window.confirm(`"${activeUnit.name}" birimi ve tüm süreçleri silinecek. Emin misiniz?`)) return;
+        setEntitySaving(true);
+        try {
+            await deleteUnit(activeUnit.id);
+            syncDraftAfterEntityChange(null);
+            toast({ title: 'Birim silindi' });
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Silinemedi', description: err.message });
+        } finally {
+            setEntitySaving(false);
+        }
+    };
+
+    const handleDeleteFlow = async (flow) => {
+        if (!flow || !guardUnsaved()) return;
+        if (!window.confirm(`"${flow.title}" süreci silinecek. Emin misiniz?`)) return;
+        setEntitySaving(true);
+        try {
+            await deleteFlow(flow.id);
+            syncDraftAfterEntityChange(activeUnit?.slug);
+            toast({ title: 'Süreç silindi' });
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Silinemedi', description: err.message });
+        } finally {
+            setEntitySaving(false);
+        }
+    };
+
+    const handleInsertFirstStep = (flowId) => {
+        if (selectedStepId && isFormDirty) {
+            if (!window.confirm('Bu adımdaki kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?')) return;
+        }
+        let newStep = null;
+        setDraftUnits((prev) => {
+            const base = prev || cloneUnits(units);
+            const next = insertFirstStepInUnits(base, flowId);
+            const { flow } = findFlowInUnits(next, flowId);
+            newStep = flow?.steps?.[0] || null;
+            return next;
+        });
+        setFlowStructureDirty(true);
+        if (newStep) {
+            setSelectedStepId(newStep.id);
+            setSelectedFlowId(flowId);
+            const form = stepToForm(newStep);
+            setEditorForm(form);
+            setSavedStepForm(form);
+        }
+        toast({ title: 'İlk adım eklendi', description: 'Kaydet ile kalıcı hale getirin.' });
+    };
 
     const resetDraftState = useCallback(() => {
         setDraftUnits(null);
@@ -371,7 +510,24 @@ const ProcessFlowDiagramsModule = () => {
     }
 
     if (!activeUnit) {
-        return <div className="p-6 text-muted-foreground">Henüz süreç akış verisi yok.</div>;
+        return (
+            <div className="p-6 text-center space-y-4">
+                <p className="text-muted-foreground">Henüz süreç akış verisi yok.</p>
+                {canWrite ? (
+                    <Button onClick={() => openUnitDialog('create')}>
+                        <Plus className="h-4 w-4 mr-2" /> İlk birimi oluştur
+                    </Button>
+                ) : null}
+                <ProcessFlowUnitDialog
+                    open={unitDialog.open}
+                    onOpenChange={(open) => setUnitDialog((s) => ({ ...s, open }))}
+                    mode={unitDialog.mode}
+                    unit={activeUnit}
+                    saving={entitySaving}
+                    onSubmit={handleUnitSubmit}
+                />
+            </div>
+        );
     }
 
     return (
@@ -389,6 +545,23 @@ const ProcessFlowDiagramsModule = () => {
                 editMode={editMode}
                 hasUnsavedChanges={hasUnsavedChanges}
                 onError={(message) => toast({ variant: 'destructive', title: 'Yazdırılamadı', description: message })}
+            />
+            <ProcessFlowUnitDialog
+                open={unitDialog.open}
+                onOpenChange={(open) => setUnitDialog((s) => ({ ...s, open }))}
+                mode={unitDialog.mode}
+                unit={unitDialog.mode === 'edit' ? activeUnit : null}
+                saving={entitySaving}
+                onSubmit={handleUnitSubmit}
+            />
+            <ProcessFlowFlowDialog
+                open={flowDialog.open}
+                onOpenChange={(open) => setFlowDialog((s) => ({ ...s, open }))}
+                mode={flowDialog.mode}
+                flow={flowDialog.flow}
+                unitName={activeUnit.name}
+                saving={entitySaving}
+                onSubmit={handleFlowSubmit}
             />
             <div className="-m-3 sm:-m-4 md:-m-6 pfd-root">
                 <div className={`pfd-layout${unitNavOpen ? '' : ' pfd-side-closed'}`}>
@@ -437,6 +610,19 @@ const ProcessFlowDiagramsModule = () => {
                                 </button>
                             ))}
                         </nav>
+                        {editMode && canWrite ? (
+                            <div className="p-3 border-t border-white/10">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => openUnitDialog('create')}
+                                >
+                                    <Plus className="h-4 w-4 mr-1" /> Yeni birim
+                                </Button>
+                            </div>
+                        ) : null}
                     </aside>
 
                     <div className="pfd-main">
@@ -468,15 +654,30 @@ const ProcessFlowDiagramsModule = () => {
                                     <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                                 </Button>
                                 {canWrite ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant={editMode ? 'default' : 'outline'}
-                                        onClick={() => (editMode ? exitEditMode() : setEditMode(true))}
-                                    >
-                                        {editMode ? <Pencil className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
-                                        {editMode ? 'Düzenlemeyi bitir' : 'Düzenle'}
-                                    </Button>
+                                    <>
+                                        {editMode ? (
+                                            <>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => openFlowDialog('create')}>
+                                                    <Plus className="h-4 w-4 mr-1" /> Yeni süreç
+                                                </Button>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => openUnitDialog('edit')}>
+                                                    Birim
+                                                </Button>
+                                                <Button type="button" variant="outline" size="sm" onClick={handleDeleteUnit} disabled={entitySaving}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </>
+                                        ) : null}
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={editMode ? 'default' : 'outline'}
+                                            onClick={() => (editMode ? exitEditMode() : setEditMode(true))}
+                                        >
+                                            {editMode ? <Pencil className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
+                                            {editMode ? 'Düzenlemeyi bitir' : 'Düzenle'}
+                                        </Button>
+                                    </>
                                 ) : null}
                             </div>
                         </div>
@@ -519,20 +720,49 @@ const ProcessFlowDiagramsModule = () => {
                                     <div className="pfd-ideal-flag">⚙ {IDEAL_FLAG_TEXT}</div>
                                 ) : null}
 
+                                {activeUnit.flows.length === 0 && editMode ? (
+                                    <div className="pfd-flow pfd-empty-flow text-center py-10">
+                                        <p className="text-muted-foreground mb-4">Bu birimde henüz süreç yok.</p>
+                                        <Button type="button" onClick={() => openFlowDialog('create')}>
+                                            <Plus className="h-4 w-4 mr-2" /> İlk süreci oluştur
+                                        </Button>
+                                    </div>
+                                ) : null}
+
                                 {activeUnit.flows.map((flow) => (
                                     <div key={flow.id} className="pfd-flow">
                                         <div className="pfd-flow-head">
                                             <h3>{flow.title}</h3>
-                                            {flow.header_document_codes?.length ? (
-                                                <div className="pfd-chips">
-                                                    {flow.header_document_codes.map((code) => (
-                                                        <span key={code} className="pfd-chip">{code}</span>
-                                                    ))}
-                                                </div>
-                                            ) : null}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {flow.header_document_codes?.length ? (
+                                                    <div className="pfd-chips">
+                                                        {flow.header_document_codes.map((code) => (
+                                                            <span key={code} className="pfd-chip">{code}</span>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
+                                                {editMode && canWrite ? (
+                                                    <>
+                                                        <Button type="button" variant="outline" size="sm" onClick={() => openFlowDialog('edit', flow)}>
+                                                            Düzenle
+                                                        </Button>
+                                                        <Button type="button" variant="outline" size="sm" onClick={() => handleDeleteFlow(flow)} disabled={entitySaving}>
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </>
+                                                ) : null}
+                                            </div>
                                         </div>
                                         {flow.intro ? <p className="pfd-flow-intro">{flow.intro}</p> : null}
                                         <div className="pfd-chart">
+                                            {flow.steps.length === 0 && editMode ? (
+                                                <div className="py-8 text-center w-full">
+                                                    <p className="text-sm text-muted-foreground mb-3">Boş süreç — sıfırdan adım ekleyin</p>
+                                                    <Button type="button" variant="outline" size="sm" onClick={() => handleInsertFirstStep(flow.id)}>
+                                                        <Plus className="h-4 w-4 mr-1" /> İlk adımı ekle
+                                                    </Button>
+                                                </div>
+                                            ) : null}
                                             {flow.steps.map((step, idx) => {
                                                 const displayStep = editMode && step.id === selectedStepId && editorForm
                                                     ? mergeStepWithForm(step, editorForm)

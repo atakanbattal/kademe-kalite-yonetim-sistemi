@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { splitDocumentCode } from './processFlowConstants';
 import { nestProcessFlowData } from './processFlowNest';
+import { slugFromCode } from './processFlowDraftUtils';
+
+const DEFAULT_FLOW_STEPS = [
+    { step_type: 'start', text: 'Süreç başlangıcı' },
+    { step_type: 'process', text: 'İşlem adımı' },
+    { step_type: 'end', text: 'Süreç bitişi' },
+];
 
 async function resolveDocumentId(documentCode) {
     const { data } = await supabase
@@ -130,6 +137,147 @@ export function useProcessFlowData() {
         return savedSteps;
     }, []);
 
+    const ensureUniqueSlug = useCallback(async (baseSlug, excludeUnitId = null) => {
+        let slug = baseSlug;
+        let suffix = 2;
+        while (true) {
+            let query = supabase.from('process_flow_units').select('id').eq('slug', slug);
+            if (excludeUnitId) query = query.neq('id', excludeUnitId);
+            const { data } = await query.maybeSingle();
+            if (!data) return slug;
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+    }, []);
+
+    const createUnit = useCallback(async (fields) => {
+        const code = String(fields.code || '').trim().toUpperCase();
+        const name = String(fields.name || '').trim();
+        if (!code || !name) throw new Error('Birim kodu ve adı zorunludur.');
+
+        const baseSlug = slugFromCode(code) || slugFromCode(name);
+        if (!baseSlug) throw new Error('Geçerli bir birim kodu girin.');
+
+        const slug = await ensureUniqueSlug(baseSlug);
+        const { data: existing } = await supabase.from('process_flow_units').select('sort_order').order('sort_order', { ascending: false }).limit(1);
+        const sortOrder = (existing?.[0]?.sort_order ?? -1) + 1;
+
+        const { data, error } = await supabase
+            .from('process_flow_units')
+            .insert({
+                code,
+                slug,
+                name,
+                subtitle: fields.subtitle?.trim() || null,
+                owner_role: fields.owner_role?.trim() || null,
+                roles: fields.roles?.trim() || null,
+                purpose: fields.purpose?.trim() || null,
+                is_ideal_process: !!fields.is_ideal_process,
+                sort_order: sortOrder,
+            })
+            .select('*')
+            .single();
+        if (error) throw error;
+        await load({ silent: true });
+        return data;
+    }, [ensureUniqueSlug, load]);
+
+    const updateUnit = useCallback(async (unitId, fields) => {
+        const code = String(fields.code || '').trim().toUpperCase();
+        const name = String(fields.name || '').trim();
+        if (!code || !name) throw new Error('Birim kodu ve adı zorunludur.');
+
+        const baseSlug = slugFromCode(code) || slugFromCode(name);
+        const slug = await ensureUniqueSlug(baseSlug, unitId);
+
+        const { data, error } = await supabase
+            .from('process_flow_units')
+            .update({
+                code,
+                slug,
+                name,
+                subtitle: fields.subtitle?.trim() || null,
+                owner_role: fields.owner_role?.trim() || null,
+                roles: fields.roles?.trim() || null,
+                purpose: fields.purpose?.trim() || null,
+                is_ideal_process: !!fields.is_ideal_process,
+            })
+            .eq('id', unitId)
+            .select('*')
+            .single();
+        if (error) throw error;
+        await load({ silent: true });
+        return data;
+    }, [ensureUniqueSlug, load]);
+
+    const deleteUnit = useCallback(async (unitId) => {
+        const { error } = await supabase.from('process_flow_units').delete().eq('id', unitId);
+        if (error) throw error;
+        await load({ silent: true });
+    }, [load]);
+
+    const createFlow = useCallback(async (unitId, { title, intro, withDefaultSteps = false }) => {
+        const flowTitle = String(title || '').trim();
+        if (!flowTitle) throw new Error('Süreç adı zorunludur.');
+
+        const { data: existing } = await supabase
+            .from('process_flows')
+            .select('sort_order')
+            .eq('unit_id', unitId)
+            .order('sort_order', { ascending: false })
+            .limit(1);
+        const sortOrder = (existing?.[0]?.sort_order ?? -1) + 1;
+
+        const { data: flow, error } = await supabase
+            .from('process_flows')
+            .insert({
+                unit_id: unitId,
+                title: flowTitle,
+                intro: intro?.trim() || null,
+                sort_order: sortOrder,
+            })
+            .select('*')
+            .single();
+        if (error) throw error;
+
+        if (withDefaultSteps) {
+            const rows = DEFAULT_FLOW_STEPS.map((step, idx) => ({
+                flow_id: flow.id,
+                ...step,
+                sort_order: idx,
+            }));
+            const { error: stepsError } = await supabase.from('process_flow_steps').insert(rows);
+            if (stepsError) throw stepsError;
+        }
+
+        await load({ silent: true });
+        return flow;
+    }, [load]);
+
+    const updateFlow = useCallback(async (flowId, { title, intro }) => {
+        const flowTitle = String(title || '').trim();
+        if (!flowTitle) throw new Error('Süreç adı zorunludur.');
+
+        const { data, error } = await supabase
+            .from('process_flows')
+            .update({
+                title: flowTitle,
+                intro: intro?.trim() || null,
+            })
+            .eq('id', flowId)
+            .select('*')
+            .single();
+        if (error) throw error;
+        await load({ silent: true });
+        return data;
+    }, [load]);
+
+    const deleteFlow = useCallback(async (flowId) => {
+        const { error } = await supabase.from('process_flows').delete().eq('id', flowId);
+        if (error) throw error;
+        await load({ silent: true });
+    }, [load]);
+
     return {
         units,
         setUnits,
@@ -139,5 +287,11 @@ export function useProcessFlowData() {
         reload: () => load({ silent: true }),
         hardReload: () => load({ silent: false }),
         persistFlow,
+        createUnit,
+        updateUnit,
+        deleteUnit,
+        createFlow,
+        updateFlow,
+        deleteFlow,
     };
 }

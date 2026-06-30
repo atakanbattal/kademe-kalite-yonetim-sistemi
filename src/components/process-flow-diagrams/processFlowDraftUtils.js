@@ -2,6 +2,42 @@ export function cloneUnits(units) {
     return JSON.parse(JSON.stringify(units || []));
 }
 
+export function slugFromCode(code) {
+    return String(code || '')
+        .trim()
+        .toLowerCase()
+        .replace(/ı/g, 'i')
+        .replace(/ğ/g, 'g')
+        .replace(/ü/g, 'u')
+        .replace(/ş/g, 's')
+        .replace(/ö/g, 'o')
+        .replace(/ç/g, 'c')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+export function unitToForm(unit) {
+    return {
+        code: unit?.code || '',
+        name: unit?.name || '',
+        subtitle: unit?.subtitle || '',
+        owner_role: unit?.owner_role || '',
+        roles: unit?.roles || '',
+        purpose: unit?.purpose || '',
+        is_ideal_process: !!unit?.is_ideal_process,
+    };
+}
+
+export const EMPTY_UNIT_FORM = {
+    code: '',
+    name: '',
+    subtitle: '',
+    owner_role: '',
+    roles: '',
+    purpose: '',
+    is_ideal_process: false,
+};
+
 export function findFlowInUnits(units, flowId) {
     for (const unit of units) {
         const flow = unit.flows?.find((f) => f.id === flowId);
@@ -90,6 +126,32 @@ export function insertStepAfterInUnits(units, flowId, afterStepId, template = {}
             return {
                 ...flow,
                 steps: steps.map((step, order) => ({ ...step, sort_order: order })),
+            };
+        }),
+    }));
+}
+
+export function insertFirstStepInUnits(units, flowId, template = {}) {
+    return units.map((unit) => ({
+        ...unit,
+        flows: unit.flows.map((flow) => {
+            if (flow.id !== flowId) return flow;
+            const newStep = {
+                id: `draft-${crypto.randomUUID()}`,
+                flow_id: flowId,
+                step_type: template.step_type || 'start',
+                text: template.text || 'Süreç başlangıcı',
+                role: template.role || null,
+                decision_question: null,
+                decision_yes_text: null,
+                decision_no_text: null,
+                sort_order: 0,
+                documents: [],
+                _isNew: true,
+            };
+            return {
+                ...flow,
+                steps: [newStep],
             };
         }),
     }));

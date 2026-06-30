@@ -334,6 +334,10 @@
   color: var(--pfd-brand);
 }
 
+.pfd-empty-flow {
+  border-style: dashed;
+}
+
 .pfd-flow-intro {
   font-size: 12.5px;
   color: var(--pfd-muted);
