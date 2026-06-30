@@ -35,6 +35,20 @@ export async function fetchInternalDocumentBlob(filePath, mimeType = 'applicatio
     return new Blob([arrayBuffer], { type: mimeType });
 }
 
+async function buildOfficeOnlinePreview(filePath) {
+    const { data, error } = await supabase.storage
+        .from(INTERNAL_DOCUMENTS_BUCKET)
+        .createSignedUrl(filePath, 3600);
+    if (error) {
+        return { error: error.message };
+    }
+    return {
+        mode: 'office-online',
+        previewUrl: buildOfficeOnlineEmbedUrl(data.signedUrl),
+        fallbackPreviewUrl: buildGoogleDocsEmbedUrl(data.signedUrl),
+    };
+}
+
 export async function prepareWordSourcePreview(attachment, normalizePath) {
     let filePath = attachment?.path;
     if (!filePath) {
@@ -50,29 +64,14 @@ export async function prepareWordSourcePreview(attachment, normalizePath) {
     const contentType = resolveEditableSourceMimeType(attachment?.name || filePath, attachment?.type);
 
     if (ext === '.xlsx' || ext === '.xls' || isExcelSourceAttachment(attachment)) {
-        try {
-            const blob = await fetchInternalDocumentBlob(filePath, contentType);
-            return { mode: 'spreadsheet', blob };
-        } catch (error) {
-            return { error: error.message || 'Excel dosyası alınamadı.' };
-        }
+        return buildOfficeOnlinePreview(filePath);
     }
 
     const useOfficeOnline = ext === '.doc'
         || (isLegacyDocSourceAttachment(attachment) && !isDocxSourceAttachment(attachment));
 
     if (useOfficeOnline) {
-        const { data, error } = await supabase.storage
-            .from(INTERNAL_DOCUMENTS_BUCKET)
-            .createSignedUrl(filePath, 3600);
-        if (error) {
-            return { error: error.message };
-        }
-        return {
-            mode: 'office-online',
-            previewUrl: buildOfficeOnlineEmbedUrl(data.signedUrl),
-            fallbackPreviewUrl: buildGoogleDocsEmbedUrl(data.signedUrl),
-        };
+        return buildOfficeOnlinePreview(filePath);
     }
 
     if (ext === '.docx' || isDocxSourceAttachment(attachment)) {

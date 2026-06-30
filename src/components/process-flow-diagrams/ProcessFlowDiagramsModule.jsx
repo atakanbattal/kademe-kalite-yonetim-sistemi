@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { normalizeTurkishForSearch } from '@/lib/utils';
-import { supabase } from '@/lib/customSupabaseClient';
+import { openDocumentPreview, downloadDocumentAttachment } from '@/lib/documentPdfPreview';
+import SourceDocumentViewerModal from '@/components/document/SourceDocumentViewerModal';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import ProcessFlowStepEditor, { stepToForm } from './ProcessFlowStepEditor';
 import ProcessFlowPrintDialog from './ProcessFlowPrintDialog';
@@ -91,8 +92,9 @@ function renderStepNode(step, { editMode, selectedStepId, onSelect }) {
                         {step.documents.map((doc) => (
                             <span
                                 key={doc.id || `${doc.document_code}-${doc.section_ref}`}
-                                className={`pfd-chip${doc.document_id ? ' clickable' : ''}`}
+                                className={`pfd-chip${(doc.document_id || doc.document_code) ? ' clickable' : ''}`}
                                 data-doc-id={doc.document_id || ''}
+                                data-doc-code={doc.document_code || ''}
                             >
                                 {formatDocumentChip(doc)}
                             </span>
@@ -147,6 +149,17 @@ const ProcessFlowDiagramsModule = () => {
     const [savedStepForm, setSavedStepForm] = useState(null);
     const [saving, setSaving] = useState(false);
     const [pdfViewer, setPdfViewer] = useState({ isOpen: false, url: null, title: '' });
+    const [sourceViewer, setSourceViewer] = useState({
+        isOpen: false,
+        blob: null,
+        previewUrl: null,
+        fallbackPreviewUrl: null,
+        previewMode: null,
+        title: '',
+        attachment: null,
+        documentType: null,
+        downloadName: '',
+    });
     const [unitNavOpen, setUnitNavOpen] = useState(readSidebarPreference);
     const [printDialogOpen, setPrintDialogOpen] = useState(false);
     const [unitDialog, setUnitDialog] = useState({ open: false, mode: 'create' });
@@ -384,35 +397,36 @@ const ProcessFlowDiagramsModule = () => {
         setSavedStepForm(null);
     }, [isFormDirty]);
 
-    const openDocument = useCallback(async (documentId, title) => {
-        if (!documentId) {
-            toast({ variant: 'destructive', title: 'Bağlantı yok', description: 'Bu kod için sistemde kayıtlı doküman bulunamadı.' });
-            return;
-        }
+    const openDocument = useCallback(async (documentId, documentCode, title) => {
         try {
-            const { data: doc } = await supabase.from('documents').select('id, title, document_number').eq('id', documentId).maybeSingle();
-            const { data: revs } = await supabase
-                .from('document_revisions')
-                .select('file_path')
-                .eq('document_id', documentId)
-                .order('revision_number', { ascending: false })
-                .limit(1);
-            const filePath = revs?.[0]?.file_path;
-            if (!filePath) throw new Error('Dosya yolu bulunamadı');
-            const { data, error: signError } = await supabase.storage.from('documents').createSignedUrl(filePath, 3600);
-            if (signError) throw signError;
-            setPdfViewer({ isOpen: true, url: data.signedUrl, title: title || doc?.document_number || 'Doküman' });
+            const preview = await openDocumentPreview({ documentId, documentCode, title });
+            if (preview.kind === 'pdf') {
+                setPdfViewer({ isOpen: true, url: preview.url, title: preview.title });
+                return;
+            }
+            setSourceViewer({
+                isOpen: true,
+                blob: preview.blob || null,
+                previewUrl: preview.previewUrl || null,
+                fallbackPreviewUrl: preview.fallbackPreviewUrl || null,
+                previewMode: preview.previewMode,
+                title: preview.title,
+                attachment: preview.attachment,
+                documentType: preview.documentType,
+                downloadName: preview.downloadName,
+            });
         } catch (err) {
             toast({ variant: 'destructive', title: 'Önizleme açılamadı', description: err.message });
         }
     }, [toast]);
 
     const handleContentClick = useCallback((e) => {
-        const chip = e.target.closest('.pfd-chip[data-doc-id]');
+        const chip = e.target.closest('.pfd-chip.clickable');
         if (!chip || editMode) return;
         const docId = chip.getAttribute('data-doc-id');
-        if (!docId) return;
-        openDocument(docId, chip.textContent?.trim());
+        const docCode = chip.getAttribute('data-doc-code');
+        if (!docId && !docCode) return;
+        openDocument(docId || null, docCode, chip.textContent?.trim());
     }, [editMode, openDocument]);
 
     const getFlowStepsDraft = useCallback(() => {
@@ -492,25 +506,23 @@ const ProcessFlowDiagramsModule = () => {
         setFlowStructureDirty(true);
     };
 
+    let bodyContent;
+
     if (loading) {
-        return (
+        bodyContent = (
             <div className="flex h-[50vh] items-center justify-center text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin mr-2" /> Süreç akışları yükleniyor...
             </div>
         );
-    }
-
-    if (error) {
-        return (
+    } else if (error) {
+        bodyContent = (
             <div className="p-6 text-center space-y-3">
                 <p className="text-destructive">{error}</p>
                 <Button onClick={reload} variant="outline"><RefreshCw className="h-4 w-4 mr-2" /> Yeniden dene</Button>
             </div>
         );
-    }
-
-    if (!activeUnit) {
-        return (
+    } else if (!activeUnit) {
+        bodyContent = (
             <div className="p-6 text-center space-y-4">
                 <p className="text-muted-foreground">Henüz süreç akış verisi yok.</p>
                 {canWrite ? (
@@ -518,51 +530,10 @@ const ProcessFlowDiagramsModule = () => {
                         <Plus className="h-4 w-4 mr-2" /> İlk birimi oluştur
                     </Button>
                 ) : null}
-                <ProcessFlowUnitDialog
-                    open={unitDialog.open}
-                    onOpenChange={(open) => setUnitDialog((s) => ({ ...s, open }))}
-                    mode={unitDialog.mode}
-                    unit={activeUnit}
-                    saving={entitySaving}
-                    onSubmit={handleUnitSubmit}
-                />
             </div>
         );
-    }
-
-    return (
-        <>
-            <PdfViewerModal
-                isOpen={pdfViewer.isOpen}
-                setIsOpen={(open) => setPdfViewer((s) => ({ ...s, isOpen: open }))}
-                pdfUrl={pdfViewer.url}
-                title={pdfViewer.title}
-            />
-            <ProcessFlowPrintDialog
-                open={printDialogOpen}
-                onOpenChange={setPrintDialogOpen}
-                unit={printUnit}
-                editMode={editMode}
-                hasUnsavedChanges={hasUnsavedChanges}
-                onError={(message) => toast({ variant: 'destructive', title: 'Yazdırılamadı', description: message })}
-            />
-            <ProcessFlowUnitDialog
-                open={unitDialog.open}
-                onOpenChange={(open) => setUnitDialog((s) => ({ ...s, open }))}
-                mode={unitDialog.mode}
-                unit={unitDialog.mode === 'edit' ? activeUnit : null}
-                saving={entitySaving}
-                onSubmit={handleUnitSubmit}
-            />
-            <ProcessFlowFlowDialog
-                open={flowDialog.open}
-                onOpenChange={(open) => setFlowDialog((s) => ({ ...s, open }))}
-                mode={flowDialog.mode}
-                flow={flowDialog.flow}
-                unitName={activeUnit.name}
-                saving={entitySaving}
-                onSubmit={handleFlowSubmit}
-            />
+    } else {
+        bodyContent = (
             <div className="-m-3 sm:-m-4 md:-m-6 pfd-root">
                 <div className={`pfd-layout${unitNavOpen ? '' : ' pfd-side-closed'}`}>
                     <button
@@ -806,6 +777,70 @@ const ProcessFlowDiagramsModule = () => {
                     </div>
                 </div>
             </div>
+        );
+    }
+
+    return (
+        <>
+            <PdfViewerModal
+                isOpen={pdfViewer.isOpen}
+                setIsOpen={(open) => {
+                    if (!open && pdfViewer.url?.startsWith('blob:')) {
+                        window.URL.revokeObjectURL(pdfViewer.url);
+                    }
+                    setPdfViewer((s) => ({ ...s, isOpen: open, url: open ? s.url : null }));
+                }}
+                pdfUrl={pdfViewer.url}
+                title={pdfViewer.title}
+            />
+            <SourceDocumentViewerModal
+                isOpen={sourceViewer.isOpen}
+                setIsOpen={(open) => setSourceViewer((s) => ({ ...s, isOpen: open }))}
+                blob={sourceViewer.blob}
+                previewUrl={sourceViewer.previewUrl}
+                fallbackPreviewUrl={sourceViewer.fallbackPreviewUrl}
+                previewMode={sourceViewer.previewMode}
+                title={sourceViewer.title}
+                onDownload={sourceViewer.attachment ? async () => {
+                    try {
+                        await downloadDocumentAttachment(
+                            sourceViewer.attachment,
+                            sourceViewer.documentType,
+                            sourceViewer.downloadName,
+                        );
+                    } catch (err) {
+                        toast({ variant: 'destructive', title: 'İndirilemedi', description: err.message });
+                    }
+                } : undefined}
+            />
+            <ProcessFlowPrintDialog
+                open={printDialogOpen}
+                onOpenChange={setPrintDialogOpen}
+                unit={printUnit}
+                editMode={editMode}
+                hasUnsavedChanges={hasUnsavedChanges}
+                onError={(message) => toast({ variant: 'destructive', title: 'Yazdırılamadı', description: message })}
+            />
+            <ProcessFlowUnitDialog
+                open={unitDialog.open}
+                onOpenChange={(open) => setUnitDialog((s) => ({ ...s, open }))}
+                mode={unitDialog.mode}
+                unit={unitDialog.mode === 'edit' ? activeUnit : null}
+                saving={entitySaving}
+                onSubmit={handleUnitSubmit}
+            />
+            {activeUnit ? (
+                <ProcessFlowFlowDialog
+                    open={flowDialog.open}
+                    onOpenChange={(open) => setFlowDialog((s) => ({ ...s, open }))}
+                    mode={flowDialog.mode}
+                    flow={flowDialog.flow}
+                    unitName={activeUnit.name}
+                    saving={entitySaving}
+                    onSubmit={handleFlowSubmit}
+                />
+            ) : null}
+            {bodyContent}
         </>
     );
 };
