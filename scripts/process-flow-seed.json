@@ -1,0 +1,4776 @@
+{
+  "units": [
+    {
+      "code": "ARG",
+      "slug": "arge",
+      "name": "Ar-Ge Direktörlüğü",
+      "subtitle": "Tasarım, projelendirme, fizibilite, homologasyon ve mühendislik değişiklik yönetimi.",
+      "owner_role": "Ar-Ge Müdürü",
+      "roles": "Ar-Ge Müdürü · Ar-Ge Mühendisi · Homologasyon Mühendisi · Kalite Güvence · Üretim · Satınalma · Üst Yönetim",
+      "purpose": "Müşteri talepleri ve pazar ihtiyaçları doğrultusunda ürünlerin tasarım, projelendirme ve mühendislik değişikliklerinin planlı, izlenebilir, kontrollü ve risk temelli yönetilmesi (ISO 9001:2015 Md.8.3).",
+      "is_ideal_process": false,
+      "sort_order": 0,
+      "key_document_codes": [
+        "ARG-PR-2026-0001",
+        "ARG-TL-2026-0001",
+        "ARG-TL-2026-0003",
+        "ARG-TL-2026-0005",
+        "ARG-TL-2026-0006",
+        "ARG-FR-2026-0001",
+        "ARG-FR-2026-0002",
+        "ARG-FR-2026-0003",
+        "ARG-FR-2026-0005",
+        "ARG-FR-2026-0006"
+      ],
+      "flows": [
+        {
+          "title": "A. Tasarım ve Geliştirme Süreci",
+          "intro": "Talebin alınmasından seri üretime aktarıma kadar tasarım yaşam döngüsü.",
+          "header_document_codes": [
+            "ARG-PR-2026-0001 §3.1"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Tasarım/geliştirme talebinin alınması (müşteri talebi, pazar analizi, ürün iyileştirme, yasal/emniyet gereklilikleri)",
+              "role": "Ar-Ge / Satış",
+              "document_codes": [
+                "ARG-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Talebin resmî kayıt altına alınması ve Ar-Ge tarafından ön değerlendirilmesi",
+              "role": "Ar-Ge Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Tasarım girdilerinin belirlenmesi: müşteri teknik şartları, mevzuat, ulusal/uluslararası standartlar, geçmiş proje bilgisi, riskler ve performans hedefleri",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [
+                "ARG-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Sipariş Teknik Yapılabilirlik / Fizibilite değerlendirmesi (bkz. Akış C)",
+              "role": "Ar-Ge · Üretim · Satınalma",
+              "document_codes": [
+                "ARG-TL-2026-0001",
+                "ARG-FR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Tasarım teknik ve ticari olarak yapılabilir mi?",
+              "role": "Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Tasarım teknik ve ticari olarak yapılabilir mi?",
+              "decision_yes_text": "Ürün Proje Dosyası (ÜPD) açılır; projelendirme başlar.",
+              "decision_no_text": "Talep gerekçeli olarak müşteri/üst yönetime geri bildirilir; süreç sonlanır veya revize talep alınır.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "ÜPD oluşturma ve PDM ortamında yönetimi; teknik resim, devre şeması, hesaplama ve şartnamelerin dosyalanması; revizyonların majör/minör sınıflandırılması",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [
+                "ARG-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "process",
+              "text": "DFMEA, sonlu elemanlar analizi ve benchmark çalışmaları ile tasarımın olgunlaştırılması",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [
+                "ARG-FR-2026-0005",
+                "ARG-FR-2026-0002",
+                "ARG-FR-2026-0004",
+                "ARG-TL-2026-0005"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "process",
+              "text": "Tasarım çıktılarının üretilmesi: emniyet, fonksiyon ve dayanım gerekliliklerini sağlayan; imalat/montaj/bakım/servis yapılabilirliğini destekleyen çıktılar",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "process",
+              "text": "Disiplinler arası Tasarım Gözden Geçirme: teknik yeterlilik, riskler, imal edilebilirlik, müşteri ve mevzuat uyumu",
+              "role": "Ar-Ge · Kalite · Üretim",
+              "document_codes": [
+                "KAL-PR-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            },
+            {
+              "step_type": "decision",
+              "text": "Gözden geçirmede uygunsuzluk tespit edildi mi?",
+              "role": "Ar-Ge Müdürü",
+              "document_codes": [],
+              "decision_question": "Gözden geçirmede uygunsuzluk tespit edildi mi?",
+              "decision_yes_text": "ÜPD revize edilir; gerekli aksiyonlar başlatılarak tasarım adımına dönülür.",
+              "decision_no_text": "Tasarım doğrulama ve geçerli kılma aşamasına geçilir.",
+              "sort_order": 9
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Tasarım Doğrulama (çıktı = girdi teyidi) ve Geçerli Kılma (prototip/pilot üretim ve testlerle kullanım koşulunda ispat)",
+              "role": "Ar-Ge · Kalite",
+              "document_codes": [
+                "ARG-FR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 10
+            },
+            {
+              "step_type": "decision",
+              "text": "Doğrulama ve geçerli kılma sonuçları başarılı mı?",
+              "role": "Ar-Ge · Kalite",
+              "document_codes": [],
+              "decision_question": "Doğrulama ve geçerli kılma sonuçları başarılı mı?",
+              "decision_yes_text": "Üretime aktarım onayına geçilir.",
+              "decision_no_text": "Tasarım/parametreler revize edilir; prototip ve testler tekrarlanır.",
+              "sort_order": 11
+            },
+            {
+              "step_type": "process",
+              "text": "Homologasyon / tip onayı gereksiniminin değerlendirilmesi ve gerekiyorsa sürecin tetiklenmesi",
+              "role": "Homologasyon Mühendisi",
+              "document_codes": [
+                "URY-PR-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 12
+            },
+            {
+              "step_type": "io",
+              "text": "Üretime aktarım: teknik resim ve ürün ağaçlarının yayınlanması; ÜPD'nin onaylanması",
+              "role": "Ar-Ge Müdürü",
+              "document_codes": [
+                "URP-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 13
+            },
+            {
+              "step_type": "end",
+              "text": "Seri üretime alma; sonraki değişiklikler yayınlı dokümanlar üzerinden yönetilir (Akış B)",
+              "role": "",
+              "document_codes": [
+                "KAL-PR-2026-0007"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 14
+            }
+          ]
+        },
+        {
+          "title": "B. Mühendislik Değişiklik Yönetimi (MDİ → MDB)",
+          "intro": "Üretim fazındaki ürünlerde Fit–Form–Function prensibiyle değişiklik kontrolü.",
+          "header_document_codes": [
+            "ARG-PR-2026-0001 §3.8",
+            "ARG-TL-2026-0006"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Üretim fazındaki üründe değişiklik ihtiyacının doğması (müşteri, kalite, maliyet, mevzuat veya uygunsuzluk kök nedeni)",
+              "role": "Talep Eden Birim",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Mühendislik Değişiklik İsteği (MDİ) düzenlenmesi ve resmî kayıt",
+              "role": "Talep Eden Birim",
+              "document_codes": [
+                "ARG-TL-2026-0006"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Değişikliğin sınıflandırılması: Sınıf I (yer değiştirilemez/kritik) · Sınıf II (yer değiştirilebilir) · Sınıf III (yalnız dokümantasyon)",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Değişiklik Sınıf I veya II mi?",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "Değişiklik Sınıf I veya II mi?",
+              "decision_yes_text": "Mühendislik Değişiklik Bildirimi (MDB) düzenlenir; etki analizi başlatılır.",
+              "decision_no_text": "Sınıf III: yalnızca ilgili doküman güncellenir ve yayınlanır.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Etkilenen tüm teknik dokümanların (ürün ağacı, teknik resim, şartname) belirlenmesi; üretim, kalite ve servis etkilerinin değerlendirilmesi",
+              "role": "Ar-Ge · Kalite · Üretim · SSH",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "decision",
+              "text": "Değişiklik onaylandı mı?",
+              "role": "Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Değişiklik onaylandı mı?",
+              "decision_yes_text": "Değişiklik yayınlanır ve uygulamaya alınır.",
+              "decision_no_text": "MDİ reddedilir veya revize edilir; gerekçe kayıt altına alınır.",
+              "sort_order": 5
+            },
+            {
+              "step_type": "process",
+              "text": "Değişikliğin ilk uygulandığı üründe etkinleştirilmesi ve doğrulanması; sonucun kayıt altına alınması",
+              "role": "Ar-Ge · Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "decision",
+              "text": "Doğrulama başarılı mı?",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [],
+              "decision_question": "Doğrulama başarılı mı?",
+              "decision_yes_text": "Değişiklik kalıcı hâle getirilir.",
+              "decision_no_text": "Ek aksiyonlar başlatılır; doğrulama tekrarlanır.",
+              "sort_order": 7
+            },
+            {
+              "step_type": "io",
+              "text": "Yayınlı doküman ve ürün ağaçlarının güncellenmesi; ilgili tüm birimlerin bilgilendirilmesi",
+              "role": "Ar-Ge Müdürü",
+              "document_codes": [
+                "KAL-PR-2026-0007",
+                "URP-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            },
+            {
+              "step_type": "end",
+              "text": "Değişikliğin kapatılması ve izlenebilir arşivleme",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 9
+            }
+          ]
+        },
+        {
+          "title": "C. Sipariş Teknik Yapılabilirlik / Fizibilite",
+          "intro": "Yeni sipariş/ürün taleplerinin teknik ve ticari yapılabilirlik analizi.",
+          "header_document_codes": [
+            "ARG-TL-2026-0001",
+            "ARG-FR-2026-0001"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Müşteri siparişi / yeni ürün talebinin Ar-Ge'ye yönlendirilmesi",
+              "role": "Satış / Üretim Planlama",
+              "document_codes": [
+                "URP-TL-2026-0002",
+                "URY-FR-2026-0016"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Sipariş teknik gereksinimlerinin analizi (ürün şartı, kapasite, mevzuat/tip onayı, teslim süresi)",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [
+                "ARG-FR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Fizibilite raporunun hazırlanması: teknik çözüm, maliyet, süre ve risk değerlendirmesi",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [
+                "ARG-TL-2026-0001",
+                "ARG-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Karakteristik (kritik/emniyet) özelliklerin belirlenmesi",
+              "role": "Ar-Ge · Kalite",
+              "document_codes": [
+                "ARG-TL-2026-0003",
+                "KAL-LS-2026-0009"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Sipariş teknik olarak yapılabilir mi?",
+              "role": "Ar-Ge Müdürü · Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Sipariş teknik olarak yapılabilir mi?",
+              "decision_yes_text": "Sipariş Teknik Yapılabilirlik Uygunluk Onay Formu imzalanır.",
+              "decision_no_text": "Karşılanamayan şartlar müşteriye iletilir; revizyon görüşülür veya talep reddedilir.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "io",
+              "text": "Onaylı yapılabilirlik çıktısının Satış ve Üretim Planlamaya iletilmesi; Gantt ile termin planı",
+              "role": "Ar-Ge Mühendisi",
+              "document_codes": [
+                "ARG-FR-2026-0006"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Fizibilite sürecinin kapatılması ve tasarım/planlamaya aktarım",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "URP",
+      "slug": "urp",
+      "name": "Üretim Planlama Müdürlüğü",
+      "subtitle": "Siparişin üretim planına dönüştürülmesi, iş emri/malzeme yönetimi, araç kimlik kartı ve izlenebilirlik.",
+      "owner_role": "Üretim Planlama Sorumlusu",
+      "roles": "Üretim Planlama Sorumlusu · Mühendislik · Kalite · Depo · Üretim · Satınalma · SSH",
+      "purpose": "Onaylı siparişlerin kapasiteye uygun planlanması, iş emri ve malzeme akışının yönetimi ve her aracın seri/lot bazlı tam izlenebilirliğinin sağlanması.",
+      "is_ideal_process": false,
+      "sort_order": 1,
+      "key_document_codes": [
+        "URP-PR-2026-0001",
+        "URP-TL-2026-0001",
+        "URP-TL-2026-0002",
+        "URP-TL-2026-0003",
+        "URP-FR-2026-0001",
+        "URP-FR-2026-0002",
+        "URP-FR-2026-0003",
+        "URP-FR-2026-0004",
+        "URP-LS-2026-0001",
+        "URP-PL-2026-0001"
+      ],
+      "flows": [
+        {
+          "title": "A. Sipariş → Üretim Planı → İş Emri",
+          "intro": "",
+          "header_document_codes": [
+            "URP-TL-2026-0002",
+            "URP-FR-2026-0003"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Onaylı satış siparişinin Üretim Planlamaya aktarılması",
+              "role": "Satış",
+              "document_codes": [
+                "YIS-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Müşteri Talebi Değerlendirme Formu ile teknik değerlendirme; Ar-Ge ve kapasite teyidi",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URP-TL-2026-0002",
+                "URY-FR-2026-0016"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Talep teknik ve kapasite açısından karşılanabilir mi?",
+              "role": "Üretim Planlama · Ar-Ge",
+              "document_codes": [],
+              "decision_question": "Talep teknik ve kapasite açısından karşılanabilir mi?",
+              "decision_yes_text": "Üretim siparişi açılır.",
+              "decision_no_text": "Satış/müşteri ile revizyon; termin ve kapsam yeniden görüşülür.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Ürün ağacının hazırlanması/teyidi",
+              "role": "Mühendislik",
+              "document_codes": [
+                "URP-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Üretim Sipariş Formu ve Araç Kimlik Kartı oluşturma; seri numarası atama",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URP-FR-2026-0001",
+                "URP-FR-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "İş Emri Formu açılması ve İş Emri-Malzeme Çekme Listesinin oluşturulması",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URP-FR-2026-0003",
+                "URP-LS-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "process",
+              "text": "Malzeme Talep Formu ile depo ve satınalma ihtiyaçlarının çıkarılması",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URP-FR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "decision",
+              "text": "İhtiyaç duyulan malzeme stokta mevcut mu?",
+              "role": "Depo · Satınalma",
+              "document_codes": [],
+              "decision_question": "İhtiyaç duyulan malzeme stokta mevcut mu?",
+              "decision_yes_text": "Depodan hat besleme talebi açılır (FIFO).",
+              "decision_no_text": "Satınalma talebi açılır ve tedarik beklenir.",
+              "sort_order": 7
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Üretim icrası ve üretim takibi (Üretim Müdürlüğü akışları)",
+              "role": "Üretim",
+              "document_codes": [
+                "URY-FR-2026-0017"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            },
+            {
+              "step_type": "process",
+              "text": "Üretim ilerlemesinin izlenmesi; hat duruş/gecikmelerin değerlendirilmesi ve plan revizyonu",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URY-FR-2026-0014"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 9
+            },
+            {
+              "step_type": "end",
+              "text": "Sevke hazır ürün; izlenebilirlik dosyasının tamamlanması (Akış B)",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 10
+            }
+          ]
+        },
+        {
+          "title": "B. Araç Kimlik Kartı ve İzlenebilirlik",
+          "intro": "Bitmiş üründe hangi tedarikçi lotlarının/seri numaralarının kullanıldığının ve teslim bilgisinin izlenmesi.",
+          "header_document_codes": [
+            "URP-PR-2026-0001"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Üretilen her makineye seri numarası verilmesi ve seri no klasörünün oluşturulması",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Araç Kimlik Kartının dijital ortamda oluşturulması (ürün ağacı, ilave parça no, makine özellikleri)",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URP-FR-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "İzlenebilirlik uygulanacak hammadde/yarı mamul listesinin belirlenmesi",
+              "role": "Mühendislik · Kalite",
+              "document_codes": [
+                "URP-LS-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "note",
+              "text": "LOT takibi kriterleri: ilişkili bileşenler (örn. hidrolik silindir), sızdırmazlık parçaları, iş güvenliği/insan sağlığı etkili parçalar (örn. fren), raf ömrü <36 ay, döküm malzeme, tedarik süresi >4 hafta.",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Pilot faz geri beslemesi; seri imalat öncesi izlenebilirlik listesinin güncellenmesi",
+              "role": "Kalite · Mühendislik",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Üretim sırasında kimlik kartının makine üzerinde (boyadan sonra) sürekli asılı tutulması",
+              "role": "Üretim Sorumlusu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "decision",
+              "text": "SSH final kontrolde sevk onayı verildi mi?",
+              "role": "SSH · Kalite",
+              "document_codes": [],
+              "decision_question": "SSH final kontrolde sevk onayı verildi mi?",
+              "decision_yes_text": "Aracın belirlenen bölgelerden fotoğraflanması ve klasöre eklenmesi.",
+              "decision_no_text": "Uygunsuzluk giderilene kadar sevk durdurulur.",
+              "sort_order": 6
+            },
+            {
+              "step_type": "io",
+              "text": "Araç teslim bilgileri, kalite belgeleri ve servis raporlarının Makine Kimlikleri klasörüne işlenmesi",
+              "role": "Kalite · SSH",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "end",
+              "text": "İzlenebilirlik dosyasının tamamlanması ve muhafazası",
+              "role": "",
+              "document_codes": [
+                "KAL-PR-2026-0007"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            }
+          ]
+        },
+        {
+          "title": "C. Depoya Malzeme Giriş ve Çıkış",
+          "intro": "",
+          "header_document_codes": [
+            "URP-TL-2026-0001"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Onaylı iş emri / malzeme talebi",
+              "role": "Üretim",
+              "document_codes": [
+                "URP-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Malzeme çekme listesine göre FIFO ile malzeme hazırlığı",
+              "role": "Depo",
+              "document_codes": [
+                "URP-LS-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Sistem üzerinden üretime çıkış işlemi; teslim eden/alan kaydı",
+              "role": "Depo",
+              "document_codes": [
+                "DEP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Kullanılmayan/iade malzeme var mı?",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "Kullanılmayan/iade malzeme var mı?",
+              "decision_yes_text": "Depoya iade girişi yapılır; sistem stoğu güncellenir.",
+              "decision_no_text": "Süreç tamamlanır.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Fiziksel stok ile sistem stoğunun mutabakatı",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SAA",
+      "slug": "saa",
+      "name": "Satınalma Müdürlüğü",
+      "subtitle": "İhtiyaçların tedariki, tedarikçi seçimi-sınıflandırması ve malzeme kabul/iade yönetimi.",
+      "owner_role": "Satınalma Sorumlusu",
+      "roles": "Satınalma Sorumlusu · Talep Eden Birim · Kalite (GKK) · Tedarikçi · Depo · Üst Yönetim",
+      "purpose": "Şirketin kalite, maliyet, teslimat ve sürdürülebilirlik hedeflerine uygun tedarik gerçekleştirmek ve objektif kriterlerle tedarikçi portföyü yönetmek.",
+      "is_ideal_process": false,
+      "sort_order": 2,
+      "key_document_codes": [
+        "SAA-PR-2026-0001",
+        "SAA-TL-2026-0001",
+        "SAA-ST-2026-0001",
+        "SAA-SZ-2026-0001",
+        "SAA-FR-2026-0001",
+        "SAA-FR-2026-0002",
+        "SAA-FR-2026-0003"
+      ],
+      "flows": [
+        {
+          "title": "A. Satınalma Süreci (Talep → Sipariş → Mal Kabul)",
+          "intro": "",
+          "header_document_codes": [
+            "SAA-FR-2026-0002",
+            "SAA-PR-2026-0001"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Birimden satınalma talebinin gelmesi (üretim planlama malzeme talebi, sarf, hizmet, dış kaynak)",
+              "role": "Talep Eden Birim",
+              "document_codes": [
+                "SAA-FR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Talebin uygunluk ve bütçe kontrolü; teknik şartname teyidi",
+              "role": "Satınalma Sorumlusu",
+              "document_codes": [
+                "SAA-ST-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Talep onaylandı mı?",
+              "role": "Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Talep onaylandı mı?",
+              "decision_yes_text": "Tedarikçi seçimi ve teklif toplama aşamasına geçilir.",
+              "decision_no_text": "Talep gerekçeyle iade edilir; revizyon istenir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Onaylı tedarikçi listesinden teklif toplama ve karşılaştırma (fiyat, kalite, termin)",
+              "role": "Satınalma Sorumlusu",
+              "document_codes": [
+                "SAA-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Uygun onaylı tedarikçi mevcut mu?",
+              "role": "Satınalma Sorumlusu",
+              "document_codes": [],
+              "decision_question": "Uygun onaylı tedarikçi mevcut mu?",
+              "decision_yes_text": "Sipariş oluşturulur.",
+              "decision_no_text": "Yeni tedarikçi değerlendirme/onay süreci başlatılır (Akış B).",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Sipariş / Yan Sanayi Ekipman Sipariş Formu düzenlenmesi ve sözleşme şartlarının uygulanması",
+              "role": "Satınalma Sorumlusu",
+              "document_codes": [
+                "SAA-FR-2026-0003",
+                "SAA-SZ-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "process",
+              "text": "Sipariş takibi ve termin yönetimi",
+              "role": "Satınalma Sorumlusu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Mal kabul ve Girdi Kalite Kontrol (GKK)",
+              "role": "Depo · Kalite",
+              "document_codes": [
+                "DEP-TL-2026-0002",
+                "KAL-PL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "decision",
+              "text": "Malzeme Girdi Kalite Kontrolünden geçti mi?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Malzeme Girdi Kalite Kontrolünden geçti mi?",
+              "decision_yes_text": "Stok girişi yapılır ve sipariş kapatılır.",
+              "decision_no_text": "Tedarikçiye iade / DÖF; uygunsuzluk yönetimine alınır.",
+              "sort_order": 8
+            },
+            {
+              "step_type": "io",
+              "text": "Tedarikçi teslimat ve kalite performansının kayıt altına alınması",
+              "role": "Satınalma Sorumlusu",
+              "document_codes": [
+                "SAA-FR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 9
+            },
+            {
+              "step_type": "end",
+              "text": "Satınalma sürecinin kapatılması ve ödeme için Mali İşler'e aktarım",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 10
+            }
+          ]
+        },
+        {
+          "title": "B. Tedarikçi Sınıflandırma ve Değerlendirme",
+          "intro": "Tedarikçilerin 100 puan üzerinden çok kriterli değerlendirilmesi ve A/B/C/D sınıflandırması.",
+          "header_document_codes": [
+            "SAA-PR-2026-0001",
+            "SAA-FR-2026-0001"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Dönemsel tedarikçi değerlendirmesi / yeni tedarikçi başvurusu",
+              "role": "Satınalma",
+              "document_codes": [
+                "SAA-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Tedarikçi Yetkinlik Değerlendirme Formu ile kriter bazlı puanlama",
+              "role": "Satınalma · Kalite",
+              "document_codes": [
+                "SAA-FR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "note",
+              "text": "Kriterler: KYS 15p · Üretim Süreci 12p · Malzeme Yönetimi 10p · İSG 6p · Lojistik/Teslimat 10p · İK ve Eğitim 6p · Düzeltici/Önleyici Faaliyet 15p · Özel Projeler 8p (+ genel bilgi/iletişim).",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Toplam puanın hesaplanması ve sınıfın belirlenmesi",
+              "role": "Satınalma",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Tedarikçi puanı 60 ve üzeri mi?",
+              "role": "Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Tedarikçi puanı 60 ve üzeri mi?",
+              "decision_yes_text": "A (90-100) Stratejik İş Ortağı · B (75-89) Güvenilir · C (60-74) İzlemeye Alınacak — onaylı listede kalır.",
+              "decision_no_text": "D (0-59): işbirliği gözden geçirilir ve gerekli görülmezse sonlandırılır.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "C sınıfı için gelişim/denetim planı; gerektiğinde yerinde tedarikçi denetimi",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-TL-2026-0014"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "io",
+              "text": "Onaylı Tedarikçi Listesinin güncellenmesi",
+              "role": "Satınalma",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "end",
+              "text": "Sınıflandırma sonucunun kayıt altına alınması ve takibi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            }
+          ]
+        },
+        {
+          "title": "C. Sac Renk Kodlama, Parti No ve Depolama",
+          "intro": "",
+          "header_document_codes": [
+            "SAA-TL-2026-0001"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Sac malzemenin teslim alınması",
+              "role": "Depo · Satınalma",
+              "document_codes": [
+                "DEP-TL-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Malzeme kalite/sertifika kontrolü ve parti (lot) numarası atama",
+              "role": "Kalite · Satınalma",
+              "document_codes": [
+                "SAA-TL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Malzeme tipine göre renk kodlama uygulaması",
+              "role": "Depo",
+              "document_codes": [
+                "SAA-TL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Renk kodu ve parti no ile raf/saha depolaması ve izlenebilirlik etiketleme",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Üretime FIFO ile sevk için hazır",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "DEP",
+      "slug": "depo",
+      "name": "Depo Şefliği",
+      "subtitle": "Mal kabul, teslim-tesellüm, FIFO/lot bazlı stok, hat besleme, iade ve araç sevkiyatı.",
+      "owner_role": "Depo Sorumlusu / Şefi",
+      "roles": "Depo Sorumlusu · Depo Personeli · Kalite · Satınalma · Üretim · Ar-Ge · SSH",
+      "purpose": "Depo süreçlerinin güvenli, izlenebilir, düzenli (5S) ve FIFO/lot bazlı sistemsel takip ile yürütülmesi; fiziksel-sistem stok uyumunun sağlanması.",
+      "is_ideal_process": false,
+      "sort_order": 3,
+      "key_document_codes": [
+        "DEP-PR-2026-0001",
+        "DEP-SM-2026-0001",
+        "DEP-TL-2026-0001",
+        "DEP-TL-2026-0002",
+        "DEP-FR-2026-0001",
+        "DEP-FR-2026-0002",
+        "DEP-FR-2026-0003"
+      ],
+      "flows": [
+        {
+          "title": "A. Mal Kabul / Teslim Tesellüm",
+          "intro": "",
+          "header_document_codes": [
+            "DEP-TL-2026-0002",
+            "DEP-PR-2026-0001 §2.5"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Tedarikçi aracının irsaliye ile gelişi",
+              "role": "Depo Personeli",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "decision",
+              "text": "İrsaliye ve onaylı sipariş mevcut mu?",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "İrsaliye ve onaylı sipariş mevcut mu?",
+              "decision_yes_text": "Mal kabule alınır.",
+              "decision_no_text": "İrsaliyesiz / sipariş dışı malzeme reddedilir.",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Malzeme kodu, miktar ve sipariş bilgilerinin kontrolü",
+              "role": "Depo",
+              "document_codes": [
+                "DEP-TL-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Girdi Kalite Kontrol (GKK) — Kalite onayı",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-PL-2026-0001",
+                "KAL-FR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Kalite onayı verildi mi?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Kalite onayı verildi mi?",
+              "decision_yes_text": "Lot bazlı barkodlama ve sistem girişine geçilir.",
+              "decision_no_text": "Karantina / Ret alanına alınır; tedarikçiye iade (DÖF).",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Lot numarasına göre barkodlama (barkodlama tamamlanmadan raf transferi yapılamaz)",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "process",
+              "text": "Sistem girişi tamamlandıktan sonra raf/saha transferi (5S ve FIFO)",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "end",
+              "text": "Stok güncel; fiziksel-sistem mutabakatı sağlanır",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            }
+          ]
+        },
+        {
+          "title": "B. Hat Besleme (FIFO)",
+          "intro": "",
+          "header_document_codes": [
+            "DEP-PR-2026-0001 §2.6"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Açılmış iş emrine göre hat besleme talebi",
+              "role": "Üretim",
+              "document_codes": [
+                "URP-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Önceden belirlenen besleme listesine göre malzeme hazırlığı",
+              "role": "Depo",
+              "document_codes": [
+                "URP-LS-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "FIFO kuralına uygun (en eski) lot mevcut mu?",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "FIFO kuralına uygun (en eski) lot mevcut mu?",
+              "decision_yes_text": "En eski lot çekilir.",
+              "decision_no_text": "Eski lot tükenmeden yeni lot kullanılamaz; çekim düzeltilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Sistem üzerinden üretime çıkış; teslim eden/alan kaydı",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Malzemenin hatta teslimi ve kaydı",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        },
+        {
+          "title": "C. İade ve Dış Kaynaklı İşlemler",
+          "intro": "",
+          "header_document_codes": [
+            "DEP-PR-2026-0001 §2.7-2.8"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "İade veya dış kaynaklı (fason) işlem ihtiyacı",
+              "role": "Üretim · Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "decision",
+              "text": "İşlem türü iade mi?",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "İşlem türü iade mi?",
+              "decision_yes_text": "İade satınalma üzerinden yürütülür; Kalite ve Ar-Ge onayı alınır.",
+              "decision_no_text": "Dış kaynaklı: sevk irsaliyesi ile sistem transferi yapılır.",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "İade/sevk edilecek ürünlerin ayrıştırılması ve etiketlenmesi",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Sistem transferi tamamlanmadan fiziksel sevkiyat yapılamaz; transfer kaydı",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Dönüşte standart teslim-tesellüm sürecinin uygulanması",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "İşlemin sistemsel kapatılması ve kayıt",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "D. Araç Teslim, Sevkiyat ve Evrak",
+          "intro": "",
+          "header_document_codes": [
+            "DEP-TL-2026-0001"
+          ],
+          "sort_order": 3,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Sevke hazır aracın sevkiyat talebi",
+              "role": "SSH · Satış",
+              "document_codes": [
+                "DEP-TL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Sevk Onay Formu ve Araç Teslim Evrak Listesinin kontrolü",
+              "role": "Depo · Kalite",
+              "document_codes": [
+                "KAL-FR-2026-0010",
+                "KAL-LS-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Tüm evrak ve kalite/sevk onayı tam mı?",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "Tüm evrak ve kalite/sevk onayı tam mı?",
+              "decision_yes_text": "Araç temizlik ve final hazırlığına geçilir.",
+              "decision_no_text": "Eksik evrak/onay tamamlanır.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Araç bekletme, temizlik ve koruma uygulamaları",
+              "role": "Depo",
+              "document_codes": [
+                "DEP-FR-2026-0001",
+                "DEP-FR-2026-0002",
+                "KAL-TL-2026-0011"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Ambalajlama final kontrolü ve yükleme",
+              "role": "Depo",
+              "document_codes": [
+                "DEP-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "io",
+              "text": "Sevk irsaliyesi düzenlenmesi ve araç çıkışı",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Müşteriye/sevkiyata teslim ve kayıt",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "URY",
+      "slug": "uretim",
+      "name": "Üretim Müdürlüğü (Üst Yapı)",
+      "subtitle": "Sac kesimden final sevke üst yapı araç üretimi; boya KK, bakım, homologasyon ve kaynak sarf yönetimi.",
+      "owner_role": "Fabrika Müdürü / Üretim Müdürü",
+      "roles": "Fabrika Müdürü · Kaynaklı İmalat Müh. · Montajhane Sorumlu Müh. · Elektrikhane Sorumlu Müh. · Boyahane Sorumlusu · Kaynakçı · Montaj Operatörü · Bakım Sorumlusu · Kalite · Homologasyon Müh.",
+      "purpose": "Üst yapı araçlarının (çöp sıkıştırma, vakumlu yol süpürge vb.) sac kesimden final sevke kadar kaliteli, izlenebilir ve iş güvenliğine uygun üretiminin sağlanması.",
+      "is_ideal_process": false,
+      "sort_order": 4,
+      "key_document_codes": [
+        "URY-PR-2026-0001",
+        "URY-PR-2026-0002",
+        "URY-PR-2026-0003",
+        "URY-PR-2026-0004",
+        "URY-SM-2026-0001",
+        "URY-ST-2026-0001",
+        "URY-ST-2026-0002",
+        "URY-TL-2026-0004",
+        "URY-TL-2026-0023",
+        "URY-TL-2026-0024",
+        "URY-FR-2026-0017"
+      ],
+      "flows": [
+        {
+          "title": "A. Üst Yapı Üretim Ana Akışı",
+          "intro": "Sac Kesim → Kaynakhane → Boyahane → Montaj → Final Kontrol; her aşamada kalite kapısı.",
+          "header_document_codes": [
+            "URY-SM-2026-0001",
+            "KAL-PR-2026-0001"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "İş emri ve malzemenin hatta hazır olması",
+              "role": "Üretim Planlama",
+              "document_codes": [
+                "URP-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Sac kesim (lazer/giyotin) ve büküm (abkant); üretim takip",
+              "role": "Kaynaklı İmalat Müh.",
+              "document_codes": [
+                "URY-FR-2026-0015",
+                "KAL-TL-2026-0002",
+                "URY-TL-2026-0016"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Kaynakhane: kaynaklı imalat (fikstür ve WPS parametrelerine göre)",
+              "role": "Kaynakçı",
+              "document_codes": [
+                "URY-TL-2026-0004",
+                "URY-TL-2026-0021",
+                "URY-FR-2026-0013"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Kaynakhane final kontrolü uygun mu? (K1 çapak · K2 çekme · K3 köpürme · K4 delik)",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Kaynakhane final kontrolü uygun mu? (K1 çapak · K2 çekme · K3 köpürme · K4 delik)",
+              "decision_yes_text": "Boyahaneye geçilir.",
+              "decision_no_text": "Hata giderilir / yeniden işleme; şartlı kabulde sapma onayı alınır.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Boyahane: kumlama/yüzey hazırlık, astar + boya uygulaması, fırın kürleme",
+              "role": "Boyahane Sorumlusu",
+              "document_codes": [
+                "URY-TL-2026-0026",
+                "URY-TL-2026-0023",
+                "URY-ST-2026-0001",
+                "URY-ST-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "decision",
+              "text": "Boya final kontrolü uygun mu? (KFK · cross cut · görsel)",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Boya final kontrolü uygun mu? (KFK · cross cut · görsel)",
+              "decision_yes_text": "Montaja geçilir.",
+              "decision_no_text": "Boya tamir-tashih veya yeniden boyama (bkz. Akış B).",
+              "sort_order": 5
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Montajhane: mekanik/hidrolik/pnömatik montaj ve elektrik tesisatı",
+              "role": "Montaj Operatörü · Elektrikhane",
+              "document_codes": [
+                "URY-FR-2026-0012",
+                "URY-TL-2026-0018"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "process",
+              "text": "Fonksiyonel testler: tank sızdırmazlık, elektrik fonksiyon, motor hararet vb.",
+              "role": "Kalite",
+              "document_codes": [
+                "URY-TL-2026-0015",
+                "KAL-FR-2026-0004",
+                "KAL-FR-2026-0011",
+                "KAL-FR-2026-0005"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "decision",
+              "text": "Final Kalite Kontrol (FKK) uygun mu?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Final Kalite Kontrol (FKK) uygun mu?",
+              "decision_yes_text": "Sevk onayı verilir.",
+              "decision_no_text": "Uygunsuzluk giderilir; karantina / yeniden işleme.",
+              "sort_order": 8
+            },
+            {
+              "step_type": "io",
+              "text": "Sevk Onay Formu ve araç kimlik/izlenebilirlik kayıtlarının tamamlanması",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-FR-2026-0010",
+                "URP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 9
+            },
+            {
+              "step_type": "end",
+              "text": "Aracın Depo/SSH üzerinden sevkiyata teslimi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 10
+            }
+          ]
+        },
+        {
+          "title": "B. Boya ve Kaplama Kalite Kontrol",
+          "intro": "",
+          "header_document_codes": [
+            "URY-PR-2026-0001"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Astar/boya hazırlığı; boyahane sorumlusunun kaliteye haber vermesi",
+              "role": "Boyahane Sorumlusu",
+              "document_codes": [
+                "URY-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Karışım sonrası viskozite ölçümü (DIN Cup 4 akış süresi)",
+              "role": "Kalite",
+              "document_codes": [
+                "URY-TL-2026-0022",
+                "URY-TL-2026-0023",
+                "URY-FR-2026-0009"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Viskozite TDS aralığında mı?",
+              "role": "Boyahane · Kalite",
+              "document_codes": [],
+              "decision_question": "Viskozite TDS aralığında mı?",
+              "decision_yes_text": "Boya uygulanır.",
+              "decision_no_text": "Karışım düzeltilir ve yeniden ölçülür.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Son kat sonrası yaş film kalınlığı ölçümü (yaş film tarağı)",
+              "role": "Kalite",
+              "document_codes": [
+                "URY-TL-2026-0024",
+                "URY-FR-2026-0010",
+                "URY-FR-2026-0011"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Boya sonrası görsel kontrol (portakal kabuğu, kabarcık, akma, renk farkı); hatalı bölge işaretleme",
+              "role": "Kalite",
+              "document_codes": [
+                "URY-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Yapışma (cross cut) testi",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-TL-2026-0010",
+                "KAL-FR-2026-0012"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "decision",
+              "text": "Cross cut sınıfı 0-3 mü?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Cross cut sınıfı 0-3 mü?",
+              "decision_yes_text": "Kuru film kalınlığı ölçümüne geçilir.",
+              "decision_no_text": "Sınıf 3-5: reddedilir, ürün yeniden boyanır.",
+              "sort_order": 6
+            },
+            {
+              "step_type": "process",
+              "text": "Kuru film kalınlığı (KFK) çoklu ölçüm; TDS ve Ek-1 Yüzey Tablosu ile karşılaştırma",
+              "role": "Kalite",
+              "document_codes": [
+                "URY-TL-2026-0024"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "decision",
+              "text": "KFK ve dayanım (gerekirse tuz/korozyon testi) uygun mu?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "KFK ve dayanım (gerekirse tuz/korozyon testi) uygun mu?",
+              "decision_yes_text": "Boya onayı verilir.",
+              "decision_no_text": "Proses durdurulur; düzeltici faaliyet başlatılır.",
+              "sort_order": 8
+            },
+            {
+              "step_type": "io",
+              "text": "Ölçüm kayıtlarının final formlara işlenmesi; cihaz kalibrasyon teyidi",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-PR-2026-0005"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 9
+            },
+            {
+              "step_type": "end",
+              "text": "Boyalı ürünün montaja sevki",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 10
+            }
+          ]
+        },
+        {
+          "title": "C. Planlı ve Arıza Bakım",
+          "intro": "",
+          "header_document_codes": [
+            "URY-PR-2026-0003"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Bakım ihtiyacı: planlı periyot veya arıza bildirimi",
+              "role": "Üretim · Operatör",
+              "document_codes": [
+                "URY-FR-2026-0007"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "decision",
+              "text": "Bakım türü planlı mı?",
+              "role": "Bakım Sorumlusu",
+              "document_codes": [],
+              "decision_question": "Bakım türü planlı mı?",
+              "decision_yes_text": "Yıllık bakım çizelgesine göre tarih teyidi; 'DİKKAT BAKIM VAR' levhası asılır.",
+              "decision_no_text": "Arıza: 'ARIZALIDIR' levhası asılır, arıza bakımı başlatılır.",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Bakım/onarım firma içinde yapılabilir mi?",
+              "role": "Bakım Sorumlusu",
+              "document_codes": [],
+              "decision_question": "Bakım/onarım firma içinde yapılabilir mi?",
+              "decision_yes_text": "İç ekip ile müdahale edilir.",
+              "decision_no_text": "Dış kaynaklı servis ile iletişime geçilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Yedek parça ihtiyacı var mı?",
+              "role": "Bakım · Satınalma",
+              "document_codes": [],
+              "decision_question": "Yedek parça ihtiyacı var mı?",
+              "decision_yes_text": "Satınalma ile temin edilir.",
+              "decision_no_text": "Mevcut parça ile devam edilir.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Bakım/onarımın gerçekleştirilmesi ve ekipmanın kontrollü devreye alınması",
+              "role": "Bakım Sorumlusu",
+              "document_codes": [
+                "URY-FR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "io",
+              "text": "Bakım kayıtlarının işlenmesi (bakım kartı, arıza bildirim formu)",
+              "role": "Bakım Sorumlusu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Ekipmanın üretime hazır hâle gelmesi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        },
+        {
+          "title": "D. Homologasyon / Tip Onayı ve DMO Muayene",
+          "intro": "",
+          "header_document_codes": [
+            "URY-PR-2026-0004",
+            "URY-TL-2026-0003"
+          ],
+          "sort_order": 3,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Tip onayı (2007/46/EC) gereksinimi veya DMO/müşteri muayene talebi",
+              "role": "Homologasyon Müh.",
+              "document_codes": [
+                "URY-PR-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "COP (üretim uygunluğu) kontrol planının hazırlanması; teknik servis/onay kuruluşu ile iletişim",
+              "role": "Homologasyon Müh.",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Girdi-proses-final kontroller, kalibrasyon ve izlenebilirliğin sağlanması",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-PR-2026-0001",
+                "KAL-PR-2026-0005",
+                "URP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Teknik servis/onay kuruluşu testlerinin yapılması, raporlanması ve numune taleplerinin karşılanması",
+              "role": "Homologasyon Müh.",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Tip onayı / muayene başarılı mı?",
+              "role": "Onay Kuruluşu",
+              "document_codes": [],
+              "decision_question": "Tip onayı / muayene başarılı mı?",
+              "decision_yes_text": "E/e belgeli üretime izin verilir.",
+              "decision_no_text": "Uygunsuzluk giderilir; onay alınmadan üretime geçilmez.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "DMO araç muayenesinde personel eşliği ve birimler arası koordinasyon (teknik karar Homologasyon Müh.'de)",
+              "role": "Kademe Personeli · Fabrika Müdürü",
+              "document_codes": [
+                "URY-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "decision",
+              "text": "Belge kapsamı dışında değişiklik veya uygunsuz araç var mı?",
+              "role": "Homologasyon · SSH",
+              "document_codes": [],
+              "decision_question": "Belge kapsamı dışında değişiklik veya uygunsuz araç var mı?",
+              "decision_yes_text": "Teknik servise bildirim / geri çağırma (recall) başlatılır.",
+              "decision_no_text": "Süreç sürdürülür.",
+              "sort_order": 6
+            },
+            {
+              "step_type": "end",
+              "text": "Onay kayıtlarının ve COP dosyasının muhafazası",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            }
+          ]
+        },
+        {
+          "title": "E. Kaynak Sarf Malzemelerinin Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "URY-PR-2026-0002"
+          ],
+          "sort_order": 4,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Kaynak sarf malzemesi (tel, elektrot, gaz) ihtiyacı",
+              "role": "Kaynakhane",
+              "document_codes": [
+                "URY-PR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Malzemenin uygun koşullarda (nem/sıcaklık) saklanması ve FIFO yönetimi",
+              "role": "Kaynakhane · Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Kaynak parametre listelerine göre malzeme tahsisi",
+              "role": "Kaynaklı İmalat Müh.",
+              "document_codes": [
+                "KAL-LS-2026-0006",
+                "KAL-LS-2026-0007",
+                "KAL-LS-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Kaynakhane parametre doğrulama ve fikstür yönetimi",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-FR-2026-0017",
+                "KAL-TL-2026-0007"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Sarf malzemenin kontrollü kullanımı ve kaydı",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "KAL",
+      "slug": "kalite",
+      "name": "Kalite Müdürlüğü",
+      "subtitle": "Ürün gerçekleştirme KK, uygunsuzluk/DÖF/8D, iç tetkik, kalibrasyon, hurda, risk/FMEA, YGG ve doküman kontrolü.",
+      "owner_role": "Kalite Güvence Müdürü",
+      "roles": "Kalite Güvence Müdürü · Kalite Kontrol Şefi/Formeni · Girdi KK Uzmanı · Araç Üstü/Kabin KK Görevlisi · Tetkik Heyeti · KYT · Tüm Birimler",
+      "purpose": "Ürün ve süreçlerin müşteri, yasal ve standart şartlarına uygunluğunu güvence altına almak; uygunsuzlukları sistematik yönetmek ve Entegre Yönetim Sistemini sürekli iyileştirmek.",
+      "is_ideal_process": false,
+      "sort_order": 5,
+      "key_document_codes": [
+        "KAL-PR-2026-0001",
+        "KAL-PR-2026-0002",
+        "KAL-PR-2026-0003",
+        "KAL-PR-2026-0004",
+        "KAL-PR-2026-0005",
+        "KAL-PR-2026-0006",
+        "KAL-PR-2026-0007",
+        "KAL-PR-2026-0008",
+        "KAL-EK-2026-0001",
+        "KAL-PO-2026-0001",
+        "KAL-PL-2026-0001"
+      ],
+      "flows": [
+        {
+          "title": "A. Ürün Gerçekleştirme ve Kalite Kontrol (GKK → PKK → FKK)",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0001"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Hammadde/yarı mamul girişi veya üretim prosesinin başlaması",
+              "role": "",
+              "document_codes": [
+                "KAL-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Girdi Kalite Kontrol (GKK): teknik resim, sipariş ve şartnameye göre kontrol; kritik malzemede sıklık artırımı",
+              "role": "Girdi KK Uzmanı",
+              "document_codes": [
+                "KAL-PL-2026-0001",
+                "KAL-LS-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Girdi kontrol kararı uygun mu?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Girdi kontrol kararı uygun mu?",
+              "decision_yes_text": "Kabul / şartlı kabul (sapma onayı ile) → stok ve üretime.",
+              "decision_no_text": "Ret / karantina → tedarikçi iadesi ve DÖF.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Proses Kalite Kontrol (PKK): kontrol planlarına göre; kritik %33, emniyet karakteristikleri %100; andon ve rassal denetim",
+              "role": "Kalite Kontrol Formeni",
+              "document_codes": [
+                "KAL-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Proseste uygunsuzluk tespit edildi mi?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Proseste uygunsuzluk tespit edildi mi?",
+              "decision_yes_text": "Hat durdurulur; kaynak sınıflandırılır (malzeme→iade, operatör→eğitim talebi).",
+              "decision_no_text": "Final kontrole geçilir.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Final Kalite Kontrol (FKK): kaynakhane/boyahane/montaj/kabin çıkış kontrolleri (araç tipine özel formlar)",
+              "role": "Kalite Kontrol Görevlisi",
+              "document_codes": [
+                "KAL-FR-2026-0013",
+                "KAL-FR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "decision",
+              "text": "Final kontrol uygun mu?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Final kontrol uygun mu?",
+              "decision_yes_text": "Sevk onayı verilir.",
+              "decision_no_text": "Etiketlenip karantinaya alınır; yeniden işleme veya sapma onayı.",
+              "sort_order": 6
+            },
+            {
+              "step_type": "io",
+              "text": "İzlenebilirlik ve kalite kayıtlarının parti/seri/araç bazında tutulması",
+              "role": "",
+              "document_codes": [
+                "URP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "end",
+              "text": "Onaylı ürünün sevke hazır hâle gelmesi; performans göstergelerinin izlenmesi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            }
+          ]
+        },
+        {
+          "title": "B. Uygun Olmayan Çıktı · Düzeltici Faaliyet (DÖF) · 8D",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0003"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Uygun olmayan çıktının tespiti (girdi/proses/final, iç tetkik, müşteri, tedarikçi, yönetim)",
+              "role": "",
+              "document_codes": [
+                "KAL-PR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Resmî kayıt ve izlenebilir hâle getirme",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "İzolasyon: etiketleme ve karantina (fiziksel ve/veya ERP statüsü)",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-FR-2026-0002",
+                "KAL-TL-2026-0018"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Teknik ve risk bazlı değerlendirme (emniyet/yasal, fonksiyon, müşteri riski, maliyet/teslimat)",
+              "role": "Kalite Güvence Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Verilen karar düzeltme yönünde mi?",
+              "role": "Kalite Güvence Müdürü",
+              "document_codes": [],
+              "decision_question": "Verilen karar düzeltme yönünde mi?",
+              "decision_yes_text": "Düzeltme/yeniden işleme · Şartlı kabul · Alternatif kullanım.",
+              "decision_no_text": "İade · Hurda/imha (gerekçeli ve izlenebilir).",
+              "sort_order": 4
+            },
+            {
+              "step_type": "decision",
+              "text": "Düzeltici faaliyet / 8D gerekli mi? (tekrar, yüksek risk/maliyet, sistemsel kök neden)",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Düzeltici faaliyet / 8D gerekli mi? (tekrar, yüksek risk/maliyet, sistemsel kök neden)",
+              "decision_yes_text": "DÖF açılır; 8D ile kök neden ve aksiyon yürütülür.",
+              "decision_no_text": "Kayıt kapatılır.",
+              "sort_order": 5
+            },
+            {
+              "step_type": "process",
+              "text": "Kök neden analizi, kalıcı aksiyon ve etkinlik doğrulaması",
+              "role": "İlgili Birim · Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "io",
+              "text": "DÖF/8D kapanışı; göstergelerin (tekrar oranı, kapanma süresi, 8D etkinliği) izlenmesi",
+              "role": "",
+              "document_codes": [
+                "KAL-PR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "end",
+              "text": "Sonuçların Yönetimin Gözden Geçirmesine girdi olarak sunulması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            }
+          ]
+        },
+        {
+          "title": "C. İç Tetkik",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0002"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Yıllık İç Tetkik Planının hazırlanması (en geç Ocak sonu)",
+              "role": "Kalite Güvence Müdürü",
+              "document_codes": [
+                "KAL-PR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Planın Genel Müdür onayı; birim / tarih / tetkikçi belirleme",
+              "role": "Genel Müdür",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Tetkik öncesi duyuru (en az 3 gün önce) ve İç Tetkik Soru Listesi hazırlığı",
+              "role": "Baş Tetkikçi",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Tetkikin tarafsız heyetçe gerçekleştirilmesi (tetkik edilen birim çalışanı dışından)",
+              "role": "Tetkik Heyeti",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Uygunsuzluk tespit edildi mi?",
+              "role": "Tetkik Heyeti",
+              "document_codes": [],
+              "decision_question": "Uygunsuzluk tespit edildi mi?",
+              "decision_yes_text": "Uygunsuzluk Formu düzenlenir; DF no verilir ve termin belirlenir.",
+              "decision_no_text": "Tetkik raporu olumlu kapatılır.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Birim amiri tarafından düzeltici faaliyetlerin başlatılması ve tamamlanması",
+              "role": "İlgili Birim Amiri",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "decision",
+              "text": "Takip tetkikinde DF etkin uygulanmış mı? (termin + 1 ay içinde)",
+              "role": "Tetkik Heyeti",
+              "document_codes": [],
+              "decision_question": "Takip tetkikinde DF etkin uygulanmış mı? (termin + 1 ay içinde)",
+              "decision_yes_text": "Uygunsuzluk kapatılır.",
+              "decision_no_text": "Yeni Uygunsuzluk Formu düzenlenir.",
+              "sort_order": 6
+            },
+            {
+              "step_type": "io",
+              "text": "İç Tetkik Raporu ve Uygunsuzluk Formlarının YGG'ye sunulması",
+              "role": "Kalite Güvence Müdürü",
+              "document_codes": [
+                "KAL-PR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "end",
+              "text": "Kayıtların muhafazası",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            }
+          ]
+        },
+        {
+          "title": "D. Kalibrasyon",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0005"
+          ],
+          "sort_order": 3,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Ölçüm cihazı envanterinin oluşturulması/güncellenmesi",
+              "role": "Kalite",
+              "document_codes": [
+                "KAL-PR-2026-0005"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Yıllık kalibrasyon planlaması (seyrek kullanılan cihazlar 3 yılda bir)",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Cihazın kalibrasyon zamanı geldi mi?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Cihazın kalibrasyon zamanı geldi mi?",
+              "decision_yes_text": "TÜRKAK akrediteli kuruluşa veya izlenebilir iç kalibrasyona gönderilir.",
+              "decision_no_text": "İzlemeye devam edilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Kalibrasyon yapılır; cihaza Kalibrasyon Etiketi yapıştırılır (tarih, kuruluş, geçerlilik)",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Cihaz tolerans içinde ölçüm yapıyor mu?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Cihaz tolerans içinde ölçüm yapıyor mu?",
+              "decision_yes_text": "Cihaz kullanıma devam eder.",
+              "decision_no_text": "'KULLANMAYINIZ' etiketi; karantina; ayar/servis süreci.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "io",
+              "text": "Sertifikaların dosyalanması; kayıtların cihaz bazında en az 5 yıl saklanması",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Sapma/hata analizlerinin yıllık değerlendirilmesi ve iyileştirme",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        },
+        {
+          "title": "E. Hurda Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0006"
+          ],
+          "sort_order": 4,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Üretim/montajda uygunsuz parça tespiti",
+              "role": "Operatör",
+              "document_codes": [
+                "KAL-PR-2026-0006"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Parçanın etiketli/kilitli hurda sandığına atılması (sahada bırakılmaz)",
+              "role": "Operatör",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Vardiya sonu Hurda Tespit Tutanağı doldurulması (tarih, hat, araç no, parça, miktar, hata)",
+              "role": "Hat Amiri",
+              "document_codes": [
+                "KAL-FR-2026-0009"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Kalite onayı uygun mu?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "Kalite onayı uygun mu?",
+              "decision_yes_text": "Kayıt sistemine işlenir.",
+              "decision_no_text": "Tutanak/parça yeniden değerlendirilir.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Haftalık Hurda Komisyonu değerlendirmesi (Kalite + Üretim)",
+              "role": "Hurda Komisyonu",
+              "document_codes": [
+                "KAL-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "decision",
+              "text": "Parça yeniden değerlendirilebilir mi?",
+              "role": "Komisyon",
+              "document_codes": [],
+              "decision_question": "Parça yeniden değerlendirilebilir mi?",
+              "decision_yes_text": "İyileştirme/onarım kararı alınır.",
+              "decision_no_text": "Hurda Kararı Tutanağı; geri dönüşüm/atık yönetimi.",
+              "sort_order": 5
+            },
+            {
+              "step_type": "process",
+              "text": "Kök neden analizi; tekrar eden hatalarda 8D/DÖF",
+              "role": "Kalite Mühendisliği",
+              "document_codes": [
+                "KAL-PR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "end",
+              "text": "Fire/hata göstergelerinin izlenmesi ve iyileştirme",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            }
+          ]
+        },
+        {
+          "title": "F. Risk ve FMEA Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0004"
+          ],
+          "sort_order": 5,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Risk belirleme ihtiyacı (yeni süreç/ürün, değişiklik, uygunsuzluk, yasal şart)",
+              "role": "",
+              "document_codes": [
+                "KAL-PR-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Risklerin belirlenmesi (süreç, ürün/tasarım, makine/yöntem, insan/çevre, yasal)",
+              "role": "Disiplinler Arası Ekip",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "FMEA uygulaması (PFMEA/DFMEA) veya 5x5 risk matrisi; S × O × D = RPN/RÖS",
+              "role": "Ekip",
+              "document_codes": [
+                "KAL-TB-2026-0002",
+                "KAL-TB-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "RPN/RÖS belirlenen eşiğin üzerinde mi?",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "RPN/RÖS belirlenen eşiğin üzerinde mi?",
+              "decision_yes_text": "Aksiyon zorunlu: kontrol/önlem planlanır.",
+              "decision_no_text": "Mevcut kontrollerle izlenir.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Aksiyonların uygulanması; kontrol planı ve süreç iyileştirmelerine yansıtma",
+              "role": "İlgili Birim",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "io",
+              "text": "FMEA ve risk kayıtlarının güncellenmesi; yasal uyum değerlendirmesi",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Sonuçların Yönetimin Gözden Geçirmesine girdi sağlaması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        },
+        {
+          "title": "G. Yönetimin Gözden Geçirmesi (YGG)",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0008"
+          ],
+          "sort_order": 6,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "YGG toplantısının planlanması (yılda en az 1 kez; gerekte ek toplantı)",
+              "role": "KYT",
+              "document_codes": [
+                "KAL-PR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Gündem ve girdilerin hazırlanması (memnuniyet, hedef/performans, DÖF, tetkik, tedarikçi, risk, İSG/çevre, kaynak)",
+              "role": "KYT",
+              "document_codes": [
+                "IK-FR-2026-0030"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Üst yönetim ile toplantının yapılması",
+              "role": "Üst Yönetim",
+              "document_codes": [
+                "IK-FR-2026-0031"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Çıktıların belirlenmesi (iyileştirme kararları, EYS değişiklikleri, kaynak ihtiyaçları, sorumlu/termin atama)",
+              "role": "Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Aksiyonlar bir sonraki toplantıya kadar tamamlandı mı?",
+              "role": "KYT",
+              "document_codes": [],
+              "decision_question": "Aksiyonlar bir sonraki toplantıya kadar tamamlandı mı?",
+              "decision_yes_text": "Aksiyon kapatılır.",
+              "decision_no_text": "Takip edilir; sonraki toplantının ilk gündem maddesi olur.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Tutanakların KAL-PR-2026-0007'ye göre saklanması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "H. Dokümanlı Bilginin Kontrolü",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0007"
+          ],
+          "sort_order": 7,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Yeni doküman veya revizyon ihtiyacı",
+              "role": "İlgili Birim",
+              "document_codes": [
+                "KAL-PR-2026-0007"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Taslağın hazırlanması; KYT kod atar ve şablon uygunluğunu kontrol eder",
+              "role": "KYT",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "İlgili yönetici ve Genel Müdür onayı verildi mi?",
+              "role": "Genel Müdür",
+              "document_codes": [],
+              "decision_question": "İlgili yönetici ve Genel Müdür onayı verildi mi?",
+              "decision_yes_text": "Doküman yürürlüğe girer.",
+              "decision_no_text": "Taslak revize edilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Elektronik yayım ve Ana Doküman Listesine işleme; kontrollü dağıtım",
+              "role": "KYT",
+              "document_codes": [
+                "KAL-LS-2026-0010"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Yürürlükten kalkan nüshaların toplanması / 'İPTAL' damgası; eski nüshanın arşivlenmesi",
+              "role": "KYT",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Dış kaynaklı dokümanların (standart, mevzuat, TDS) güncelliğinin izlenmesi",
+              "role": "KYT",
+              "document_codes": [
+                "KAL-LS-2026-0012"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "io",
+              "text": "Kayıtların saklama süresi/ortam/sorumlu ile yönetimi; süre sonunda onaylı imha",
+              "role": "KYT",
+              "document_codes": [
+                "KAL-LS-2026-0011"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "end",
+              "text": "İzlenebilir doküman ve kayıt yönetiminin sürdürülmesi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "İK",
+      "slug": "ik",
+      "name": "İnsan Kaynakları Müdürlüğü",
+      "subtitle": "İşe alım, eğitim/yetkinlik, performans, izin/özlük, disiplin, öneri-ödül, İSG ve acil durum.",
+      "owner_role": "İnsan Kaynakları Müdürü",
+      "roles": "İK Müdürü · İK Uzmanı · Departman Yöneticileri · Üst Yönetim · Disiplin Kurulu · İSG Uzmanı · Çalışanlar",
+      "purpose": "Çalışanların hak ve yükümlülüklerini, seçme-yerleştirme, eğitim, performans, özlük, disiplin ve İSG süreçlerini 4857 sayılı İş Kanunu ve EYS çerçevesinde yönetmek.",
+      "is_ideal_process": false,
+      "sort_order": 6,
+      "key_document_codes": [
+        "IK-PR-2026-0001",
+        "IK-PR-2026-0002",
+        "IK-PR-2026-0003",
+        "IK-PR-2026-0004",
+        "IK-PR-2026-0005",
+        "IK-PR-2026-0006",
+        "IK-FR-2026-0003",
+        "IK-FR-2026-0010",
+        "IK-FR-2026-0016",
+        "IK-FR-2026-0029"
+      ],
+      "flows": [
+        {
+          "title": "A. İşe Alım / Seçme ve Yerleştirme",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0001"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Bölüm yöneticisinden EBA üzerinden Çalışan Talep Formu",
+              "role": "Departman Yöneticisi",
+              "document_codes": [
+                "IK-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "İK değerlendirmesi ve Üst Yönetim onayının alınması",
+              "role": "İK Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Talep onaylandı mı?",
+              "role": "Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Talep onaylandı mı?",
+              "decision_yes_text": "Aday araştırma ve temin süreci başlatılır.",
+              "decision_no_text": "Talep askıya alınır / iade edilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Aday havuzunun oluşturulması (kariyer portalları, meslek ağları) ve ön eleme",
+              "role": "İK Uzmanı",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Mülakat (İK + Birim Yöneticisi); Mülakat Değerlendirme Formu ile 5 üzerinden puanlama",
+              "role": "İK · Birim Yöneticisi",
+              "document_codes": [
+                "IK-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "decision",
+              "text": "Aday genel başarı puanı uygun mu?",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "Aday genel başarı puanı uygun mu?",
+              "decision_yes_text": "İş teklifi yapılır (beyaz yaka: mektup · mavi yaka: sözlü).",
+              "decision_no_text": "Havuzdan alternatif aday / yeniden arama.",
+              "sort_order": 5
+            },
+            {
+              "step_type": "decision",
+              "text": "Teklif kabul edildi mi?",
+              "role": "Aday",
+              "document_codes": [],
+              "decision_question": "Teklif kabul edildi mi?",
+              "decision_yes_text": "İşe giriş evrak listesi tebliğ edilir; evraklar teslim alınır.",
+              "decision_no_text": "Alternatif aday değerlendirilir.",
+              "sort_order": 6
+            },
+            {
+              "step_type": "process",
+              "text": "İşe giriş sağlık raporu ve SGK İşe Giriş Bildirgesi (yasal süre içinde)",
+              "role": "İK",
+              "document_codes": [
+                "IK-FR-2026-0023"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "process",
+              "text": "EBA/SAP kullanıcı tanımı, yazılım yetkileri ve varlık tahsisi (İdari İşler ile)",
+              "role": "İK · İdari İşler",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Oryantasyon programı (ilk iş günü); Oryantasyon Değerlendirme Formu",
+              "role": "İK",
+              "document_codes": [
+                "IK-FR-2026-0010"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 9
+            },
+            {
+              "step_type": "process",
+              "text": "2 aylık deneme süresi değerlendirmesi (60 gün dolmadan)",
+              "role": "Departman Yöneticisi",
+              "document_codes": [
+                "IK-FR-2026-0019",
+                "IK-FR-2026-0020"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 10
+            },
+            {
+              "step_type": "decision",
+              "text": "Deneme süresi sonucu olumlu mu?",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "Deneme süresi sonucu olumlu mu?",
+              "decision_yes_text": "İstihdam sürdürülür; Polivalans takibine alınır.",
+              "decision_no_text": "İş sözleşmesi feshedilir; hak edişler ödenir.",
+              "sort_order": 11
+            },
+            {
+              "step_type": "end",
+              "text": "Personelin kadroya alınması ve özlük dosyasının oluşturulması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 12
+            }
+          ]
+        },
+        {
+          "title": "B. Eğitim ve Yetkinlik Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0006"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Yetkinlik gereksinimlerinin görev tanımı ve yetkinlik matrisinde tanımlanması",
+              "role": "",
+              "document_codes": [
+                "KAL-TB-2026-0003",
+                "IK-FR-2026-0016"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Eğitim ihtiyacının belirlenmesi (yetkinlik açığı, performans, yeni alım, görev değişikliği, yeni ekipman, yasal, uygunsuzluk kök neden)",
+              "role": "İK · Birim",
+              "document_codes": [
+                "IK-FR-2026-0029"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Yıllık eğitim planının hazırlanması (Kademe Akademi)",
+              "role": "İK Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Eğitimlerin gerçekleştirilmesi ve katılım kaydı",
+              "role": "İK",
+              "document_codes": [
+                "IK-FR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Eğitim etkinliğinin değerlendirilmesi (anket + performans/gözlem)",
+              "role": "İK",
+              "document_codes": [
+                "KAL-TL-2026-0019",
+                "IK-FR-2026-0009"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "decision",
+              "text": "Eğitim etkin bulundu mu?",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "Eğitim etkin bulundu mu?",
+              "decision_yes_text": "Polivalans/yetkinlik kaydı güncellenir.",
+              "decision_no_text": "Eğitim tekrar planlanır.",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Yetkinlik ve eğitim kayıtlarının saklanması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        },
+        {
+          "title": "C. İzin Yönetimi (EBA Onay Akışı)",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0001"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Personelin EBA üzerinden izin talebi (en az 2 iş günü önce)",
+              "role": "Çalışan",
+              "document_codes": [
+                "IK-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "İK tarafından izin hakkı / bakiye / tarih kontrolü",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "İK kontrolü uygun mu?",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "İK kontrolü uygun mu?",
+              "decision_yes_text": "Talep otomatik olarak yönetici onayına düşer.",
+              "decision_no_text": "Talep reddedilir; gerekçe sistemde kayıt altına alınır.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Departman yöneticisi onayladı mı?",
+              "role": "Departman Yöneticisi",
+              "document_codes": [],
+              "decision_question": "Departman yöneticisi onayladı mı?",
+              "decision_yes_text": "İzin kesinleşir ve puantaja işlenir.",
+              "decision_no_text": "Talep reddedilir; süreç sonlanır.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "note",
+              "text": "Onaysız/formsuz devamsızlıkta IK-PR-2026-0002 Disiplin Prosedürü hükümleri uygulanır; geriye dönük izin girişi yapılmaz.",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "İznin kayıt altına alınması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "D. Performans Değerlendirme",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0001"
+          ],
+          "sort_order": 3,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Periyodik performans değerlendirme döneminin başlaması (yılda en az 1)",
+              "role": "İK",
+              "document_codes": [
+                "IK-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Statüye göre form ile değerlendirme (beyaz/mavi yaka)",
+              "role": "Departman Yöneticisi",
+              "document_codes": [
+                "IK-FR-2026-0001",
+                "IK-FR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "6 aylık ve deneme süresi değerlendirmelerinin yapılması",
+              "role": "Yönetici",
+              "document_codes": [
+                "IK-FR-2026-0017",
+                "IK-FR-2026-0018"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Performans yeterli mi?",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "Performans yeterli mi?",
+              "decision_yes_text": "Gelişim planı / terfi-transfer-rotasyon değerlendirmesi.",
+              "decision_no_text": "Gelişim aksiyonu / eğitim talebi; gerekirse iş akdi gözden geçirme.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "Sonuçların kayıt altına alınması ve İK dosyasına işlenmesi",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Yetkinlik gelişim ve ödül/terfi süreçlerine girdi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "E. Disiplin Süreci",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0002"
+          ],
+          "sort_order": 4,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Disiplin ihlalinin tespiti",
+              "role": "Birim Amiri",
+              "document_codes": [
+                "IK-PR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Olay Tespit Tutanağı düzenlenmesi ve İK'ya bildirim",
+              "role": "Birim Amiri",
+              "document_codes": [
+                "IK-FR-2026-0026"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Çalışandan yazılı savunmanın alınması",
+              "role": "İK",
+              "document_codes": [
+                "IK-FR-2026-0027"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "İhlal ağır kusur niteliğinde mi?",
+              "role": "İK · Disiplin Kurulu",
+              "document_codes": [],
+              "decision_question": "İhlal ağır kusur niteliğinde mi?",
+              "decision_yes_text": "Disiplin Kurulu toplanır; soruşturma yürütülür.",
+              "decision_no_text": "İkaz / İhtar cezası uygulanır.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Kurul kararı ve Disiplin Cezası Tebliğ Formu ile tebliğ",
+              "role": "Disiplin Kurulu",
+              "document_codes": [
+                "IK-FR-2026-0028"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "decision",
+              "text": "Karara itiraz edildi mi?",
+              "role": "Üst Disiplin Kurulu",
+              "document_codes": [],
+              "decision_question": "Karara itiraz edildi mi?",
+              "decision_yes_text": "Üst Disiplin Kurulu nihai kararı verir.",
+              "decision_no_text": "Ceza kesinleşir.",
+              "sort_order": 5
+            },
+            {
+              "step_type": "io",
+              "text": "Kararın özlük dosyasına işlenmesi",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "end",
+              "text": "Sürecin kapatılması (ağır kusurda iş akdi feshi mümkündür)",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            }
+          ]
+        },
+        {
+          "title": "F. Öneri-Ödül Sistemi (Kademe Fikir Atölyesi)",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0001",
+            "IK-FR-2026-0006"
+          ],
+          "sort_order": 5,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Çalışanın Öneri Formu ile öneri kutusuna başvurusu",
+              "role": "Çalışan",
+              "document_codes": [
+                "IK-FR-2026-0006"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "İK haftalık kutu kontrolü; önerinin kaydı, tasnifi ve anonimleştirilmesi",
+              "role": "İK Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Değerlendirme Kurulu aylık toplantısı (uygulanabilirlik, maliyet-fayda, stratejik uygunluk)",
+              "role": "Değerlendirme Kurulu",
+              "document_codes": [
+                "IK-FR-2026-0005"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Öneri onaylandı mı?",
+              "role": "Kurul · Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Öneri onaylandı mı?",
+              "decision_yes_text": "Aksiyon planı ve termin oluşturulur; öneri sahibi ödüllendirilir.",
+              "decision_no_text": "Geri bildirim verilir; öneri arşivlenir.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "Sonuçların ve başarı hikâyelerinin kurum içinde paylaşılması",
+              "role": "İK",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Sürekli iyileştirme kültürünün canlı tutulması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "G. İşten Ayrılma",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0001"
+          ],
+          "sort_order": 6,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "İstifa veya iş akdi feshi",
+              "role": "Çalışan · İK",
+              "document_codes": [
+                "IK-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "İş Çıkış Mülakat Formunun uygulanması",
+              "role": "İK",
+              "document_codes": [
+                "IK-FR-2026-0021"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "İşten Ayrılma Formu ile Güvenlik, Revir ve İdari İşler koordinasyonu; zimmet teslimi",
+              "role": "İK · İdari İşler",
+              "document_codes": [
+                "IK-FR-2026-0014"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "SGK işten çıkış bildirgesi; kıdem/ihbar tazminatı ve hak ediş hesabı",
+              "role": "İK · Mali İşler",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "Görev devri ve özlük dosyasının kapatılması",
+              "role": "İK",
+              "document_codes": [
+                "IK-FR-2026-0024"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Yasal bildirim ve ödemelerin tamamlanması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "H. İSG ve Acil Durum Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "IK-PR-2026-0004",
+            "IK-PR-2026-0005"
+          ],
+          "sort_order": 7,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "İSG riski/tehlike tespiti veya acil durum (yangın, kaza, deprem)",
+              "role": "",
+              "document_codes": [
+                "IK-PR-2026-0004",
+                "IK-PR-2026-0005"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "decision",
+              "text": "Durum acil mi?",
+              "role": "İSG Uzmanı",
+              "document_codes": [],
+              "decision_question": "Durum acil mi?",
+              "decision_yes_text": "En yakın çalışan alarm verir; enerji/gaz kesilir; tahliye ve toplanma alanında sayım.",
+              "decision_no_text": "İSG risk analizi ve önlem süreci yürütülür.",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Acil durum ekiplerinin müdahalesi (söndürme / ilk yardım)",
+              "role": "Acil Durum Ekibi",
+              "document_codes": [
+                "URP-PL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Olay sonrası kök neden ve düzeltici faaliyet; yılda en az 1 tatbikat",
+              "role": "İSG · Kalite",
+              "document_codes": [
+                "KAL-PR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "İSG kurul toplantısı, risk analizi ve KKD zimmet kayıtları",
+              "role": "İSG Uzmanı",
+              "document_codes": [
+                "IK-FR-2026-0035",
+                "IK-FR-2026-0039"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "İSG performansının YGG'ye raporlanması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "YİS",
+      "slug": "yis",
+      "name": "Yurt İçi Satış Müdürlüğü",
+      "subtitle": "Müşteri talebi, teklif, sözleşme gözden geçirme, sipariş onayı ve üretime aktarım.",
+      "owner_role": "Satış ve Pazarlama Müdürü",
+      "roles": "Satış ve Pazarlama Müdürü · Yurt İçi Satış Sorumlusu · Ar-Ge · Üretim Planlama · Üst Yönetim · Müşteri",
+      "purpose": "Müşteri taleplerinin teknik ve ticari olarak değerlendirilmesi, teklif/sözleşmenin gözden geçirilmesi ve onaylı siparişlerin izlenebilir biçimde üretime aktarılması.",
+      "is_ideal_process": false,
+      "sort_order": 7,
+      "key_document_codes": [
+        "YIS-PR-2026-0001",
+        "YIS-FR-2026-0001"
+      ],
+      "flows": [
+        {
+          "title": "A. Satış ve Sözleşme Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "YIS-PR-2026-0001"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Müşteri talebinin yazılı olarak alınması",
+              "role": "Yurt İçi Satış Sorumlusu",
+              "document_codes": [
+                "YIS-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Müşteri Talebi Değerlendirme Formu ile teknik değerlendirme; Ar-Ge ve Üretim Planlama ile yapılabilirlik teyidi",
+              "role": "Satış · Ar-Ge",
+              "document_codes": [
+                "URY-FR-2026-0016",
+                "ARG-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Teklif öncesi gözden geçirme (ürün şartı, teslim süresi, fiyat, mevzuat/tip onayı, kapasite)",
+              "role": "Satış Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Şartlar karşılanabiliyor mu?",
+              "role": "Satış Müdürü",
+              "document_codes": [],
+              "decision_question": "Şartlar karşılanabiliyor mu?",
+              "decision_yes_text": "Yurtiçi Teklif Formu hazırlanır ve müşteriye sunulur.",
+              "decision_no_text": "Karşılanamayan şartlar müşteriye iletilir; revizyon görüşülür.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Müşteri teklifi/sözleşmeyi onayladı mı?",
+              "role": "Müşteri",
+              "document_codes": [],
+              "decision_question": "Müşteri teklifi/sözleşmeyi onayladı mı?",
+              "decision_yes_text": "Sipariş onaylanır.",
+              "decision_no_text": "Görüşme/revizyon yapılır veya süreç sonlanır.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Onaylanan siparişin Üretim Planlamaya aktarılması; izlenebilirliğin sağlanması",
+              "role": "Satış",
+              "document_codes": [
+                "URP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "decision",
+              "text": "Sözleşme/sipariş değişikliği var mı?",
+              "role": "Satış",
+              "document_codes": [],
+              "decision_question": "Sözleşme/sipariş değişikliği var mı?",
+              "decision_yes_text": "Değişiklik yeniden gözden geçirilir; ilgili birimler bilgilendirilir, dokümanlar güncellenir.",
+              "decision_no_text": "Süreç devam eder.",
+              "sort_order": 6
+            },
+            {
+              "step_type": "io",
+              "text": "Sevkiyat ve teslim koordinasyonu; müşteri bilgilendirme",
+              "role": "Satış",
+              "document_codes": [
+                "DEP-TL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            },
+            {
+              "step_type": "end",
+              "text": "Satış sürecinin kapatılması ve SSH'ye devir",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "YDS",
+      "slug": "yds",
+      "name": "Yurt Dışı Satış Müdürlüğü",
+      "subtitle": "İhracat satış, mevzuat/CE-tip onayı uyumu ve yurt dışı sevkiyat.",
+      "owner_role": "Yurt Dışı Satış Sorumlusu",
+      "roles": "Yurt Dışı Satış Sorumlusu · Ar-Ge / Homologasyon · Üretim Planlama · Depo · Üst Yönetim · Müşteri",
+      "purpose": "Yurt dışı müşteri taleplerinin hedef ülke mevzuatı ve tip onayı şartlarına uygun olarak satışı ve ürünlerin güvenli, eksiksiz sevkiyatının sağlanması.",
+      "is_ideal_process": true,
+      "sort_order": 8,
+      "key_document_codes": [
+        "YDS-TL-2026-0001",
+        "YDS-GT-2026-0001",
+        "YIS-PR-2026-0001",
+        "URY-PR-2026-0004"
+      ],
+      "flows": [
+        {
+          "title": "A. İhracat Satış Süreci (İdeal)",
+          "intro": "",
+          "header_document_codes": [
+            "YDS-GT-2026-0001",
+            "YIS-PR-2026-0001"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Yurt dışı müşteri talebi / ihale",
+              "role": "Yurt Dışı Satış Sorumlusu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Hedef ülke mevzuatı, CE/tip onayı ve teknik gereksinimlerin değerlendirilmesi",
+              "role": "Satış · Homologasyon",
+              "document_codes": [
+                "URY-PR-2026-0004"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Teklif ve sözleşme gözden geçirme (Incoterms, ödeme/akreditif, teslim süresi)",
+              "role": "Satış",
+              "document_codes": [
+                "YIS-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Şartlar ve mevzuat uyumu sağlanıyor mu?",
+              "role": "Üst Yönetim",
+              "document_codes": [],
+              "decision_question": "Şartlar ve mevzuat uyumu sağlanıyor mu?",
+              "decision_yes_text": "Sözleşme/sipariş onaylanır.",
+              "decision_no_text": "Revizyon görüşülür veya talep reddedilir.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Siparişin Üretim Planlamaya aktarımı; izlenebilirlik",
+              "role": "Satış",
+              "document_codes": [
+                "URP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "subprocess",
+              "text": "Yurt Dışı Sevkiyat (bkz. Akış B)",
+              "role": "Depo",
+              "document_codes": [
+                "YDS-TL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Gümrük/ihracat evrakının tamamlanması ve SSH'ye devir",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        },
+        {
+          "title": "B. Yurt Dışı Sevkiyat",
+          "intro": "",
+          "header_document_codes": [
+            "YDS-TL-2026-0001"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Yurt dışı sevkiyat talimatının başlaması; sipariş formu kontrolü",
+              "role": "Depo",
+              "document_codes": [
+                "YDS-TL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Birlikte gidecek yedek parça kontrolü; parçaların kodlanması, fotoğraflanması ve ambalajlanması",
+              "role": "Depo",
+              "document_codes": [
+                "SSH-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Sevk edilecek ekipmanın son kontrol formunun kaliteden istenmesi",
+              "role": "Depo",
+              "document_codes": [
+                "KAL-FR-2026-0010"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Ürün dış temizliği; taşıyıcı aracın yükleme alanına alınması",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Ekipmanın forklift/tavan vinci ile konteyner/dorseye yerleştirilmesi ve sabitlenmesi",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "process",
+              "text": "Patlatmalı ambalaj ile sarma; yedek parça sandığının yerleştirilmesi",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "io",
+              "text": "Yüklü ekipmanın fotoğraflanması; kantar ve fabrika çıkışı; kantar fişinin ilgili birimlere iletilmesi",
+              "role": "Depo",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            },
+            {
+              "step_type": "end",
+              "text": "Sevkiyatın tamamlanması ve kayıt",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SSH",
+      "slug": "ssh",
+      "name": "Satış Sonrası Hizmetler Müdürlüğü",
+      "subtitle": "Garanti takibi, müşteri şikayet/memnuniyet, yedek parça ve teknik servis yönetimi.",
+      "owner_role": "SSH Müdürü",
+      "roles": "SSH Müdürü · SSH Sorumlusu · Teknik Servis · Kalite · Satınalma · Müşteri",
+      "purpose": "Satış sonrası arıza, garanti, yedek parça ve teknik servis taleplerinin hızlı çözümü ile müşteri memnuniyetinin sürdürülmesi ve saha geri bildirimlerinin iyileştirmeye dönüştürülmesi.",
+      "is_ideal_process": false,
+      "sort_order": 9,
+      "key_document_codes": [
+        "SSH-PR-2026-0001",
+        "SSH-TL-2026-0001",
+        "SSH-TL-2026-0002",
+        "SSH-TL-2026-0003",
+        "SSH-FR-2026-0005",
+        "SSH-FR-2026-0006",
+        "SSH-FR-2026-0003"
+      ],
+      "flows": [
+        {
+          "title": "A. Garanti Takip Süreci",
+          "intro": "",
+          "header_document_codes": [
+            "SSH-PR-2026-0001"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Müşteriden arıza / ürün değişim talebi",
+              "role": "Müşteri",
+              "document_codes": [
+                "SSH-FR-2026-0005"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Teknik servis arıza tespiti ve kök neden analizi",
+              "role": "Teknik Servis",
+              "document_codes": [
+                "SSH-FR-2026-0006",
+                "SSH-FR-2026-0007"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Garanti süresi geçmedi VE kök neden Kademe/tedarik kaynaklı mı?",
+              "role": "SSH Sorumlusu",
+              "document_codes": [],
+              "decision_question": "Garanti süresi geçmedi VE kök neden Kademe/tedarik kaynaklı mı?",
+              "decision_yes_text": "Talep garanti kapsamına dâhil edilir.",
+              "decision_no_text": "Kapsam dışı: ürün ücreti mukabilinde tedarik edilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Sahada/fabrikada değişim; değişen ürünün Kalite Kontrole gönderilmesi",
+              "role": "Teknik Servis",
+              "document_codes": [
+                "KAL-PR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "decision",
+              "text": "Ürün grubu tamir edilebilir mi?",
+              "role": "SSH",
+              "document_codes": [],
+              "decision_question": "Ürün grubu tamir edilebilir mi?",
+              "decision_yes_text": "Maks. 20 iş günü içinde tamir/onarım yapılır ve sevk edilir.",
+              "decision_no_text": "Maks. 5 iş günü içinde ürün tedarik edilir ve sevk edilir.",
+              "sort_order": 4
+            },
+            {
+              "step_type": "io",
+              "text": "Garanti sürecinin ilgili listeye işlenmesi ve üst yönetime raporlanması",
+              "role": "SSH Sorumlusu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Müşteri bilgilendirme ve kaydın kapatılması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        },
+        {
+          "title": "B. Müşteri Şikayet ve Memnuniyet Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "SSH-TL-2026-0001"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Müşteri görüşü/şikayeti veya memnuniyet anketi",
+              "role": "Müşteri",
+              "document_codes": [
+                "SSH-FR-2026-0004",
+                "SSH-FR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Şikayetin kayıt altına alınması ve değerlendirilmesi",
+              "role": "SSH Sorumlusu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "DÖF açma kriteri karşılanıyor mu?",
+              "role": "SSH",
+              "document_codes": [],
+              "decision_question": "DÖF açma kriteri karşılanıyor mu?",
+              "decision_yes_text": "DÖF açılır; Kalite ile kök neden ve aksiyon yürütülür.",
+              "decision_no_text": "Müşteriye doğrudan çözüm/bilgilendirme yapılır.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Aksiyonların izlenmesi ve müşteriye geri bildirim",
+              "role": "SSH",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "Memnuniyet verilerinin YGG'ye girdi olarak raporlanması",
+              "role": "SSH",
+              "document_codes": [
+                "KAL-PR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Şikayet kaydının kapatılması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "C. Yedek Parça Yönetimi",
+          "intro": "",
+          "header_document_codes": [
+            "SSH-TL-2026-0003",
+            "SSH-FR-2026-0003"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Müşteriden yedek parça talebi",
+              "role": "Müşteri",
+              "document_codes": [
+                "SSH-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Teklif Formu hazırlanması ve fiyatlandırma",
+              "role": "SSH",
+              "document_codes": [
+                "SSH-FR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Parça stokta mevcut mu?",
+              "role": "SSH",
+              "document_codes": [],
+              "decision_question": "Parça stokta mevcut mu?",
+              "decision_yes_text": "Sevk hazırlığına geçilir.",
+              "decision_no_text": "Satınalma/üretim ile temin edilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Yedek parçanın etiketlenmesi, ambalajlanması ve sevki",
+              "role": "SSH",
+              "document_codes": [
+                "SSH-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Teslim ve kayıt",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        },
+        {
+          "title": "D. Teknik Servis / Saha Görevlendirme",
+          "intro": "",
+          "header_document_codes": [
+            "SSH-TL-2026-0002"
+          ],
+          "sort_order": 3,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Saha servis / montaj / eğitim ihtiyacı",
+              "role": "SSH",
+              "document_codes": [
+                "SSH-TL-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "İl dışı personel görevlendirme planı ve onayı",
+              "role": "SSH Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Sahada servis/eğitim icrası; Teknik Servis Eğitim / Servis Raporu",
+              "role": "Teknik Servis",
+              "document_codes": [
+                "SSH-FR-2026-0002",
+                "SSH-FR-2026-0006"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "io",
+              "text": "Raporların kayıt altına alınması ve garanti/izlenebilirliğe işlenmesi",
+              "role": "SSH",
+              "document_codes": [
+                "URP-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Görevin kapatılması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "İDİ",
+      "slug": "idari",
+      "name": "İdari İşler Müdürlüğü",
+      "subtitle": "Tesis/ekipman bakımı, demirbaş-zimmet yönetimi ve idari/çevre hizmetleri.",
+      "owner_role": "İdari İşler Müdürü",
+      "roles": "İdari İşler Müdürü · Bakım Personeli · İK · Satınalma · Dış Servis",
+      "purpose": "Üretim ekipmanları (vinç, montaj hattı, kaynakhane ekipmanı) ile tesisin güvenli, verimli ve kesintisiz çalışmasını sağlamak; demirbaş ve idari hizmetleri yönetmek.",
+      "is_ideal_process": true,
+      "sort_order": 10,
+      "key_document_codes": [
+        "IDI-TL-2026-0001",
+        "IDI-TL-2026-0002",
+        "IDI-FR-2026-0001",
+        "IDI-FR-2026-0002"
+      ],
+      "flows": [
+        {
+          "title": "A. Tesis ve Ekipman Bakım Hizmetleri",
+          "intro": "",
+          "header_document_codes": [
+            "IDI-TL-2026-0001",
+            "IDI-TL-2026-0002"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Bakım ihtiyacı: planlı bakım veya arıza bildirimi (vinç, montaj hattı, kaynakhane ekipmanı vb.)",
+              "role": "Üretim · Bakım",
+              "document_codes": [
+                "IDI-TL-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Bakımhane alanında ekipman/araç-gereç hazırlığı; periyot/plan teyidi",
+              "role": "Bakım Personeli",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Bakım firma içinde yapılabilir mi?",
+              "role": "İdari İşler Müdürü",
+              "document_codes": [],
+              "decision_question": "Bakım firma içinde yapılabilir mi?",
+              "decision_yes_text": "İç ekip ile planlı/arızi bakım gerçekleştirilir.",
+              "decision_no_text": "Dış bakım: yetkili servis ile koordinasyon kurulur.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Yedek parça/malzeme gerekli mi?",
+              "role": "Satınalma",
+              "document_codes": [],
+              "decision_question": "Yedek parça/malzeme gerekli mi?",
+              "decision_yes_text": "Satınalma ile temin edilir.",
+              "decision_no_text": "Mevcut malzeme ile devam edilir.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "process",
+              "text": "Bakımın gerçekleştirilmesi; vinç/kritik ekipmanda periyodik kontrol; kontrollü devreye alma",
+              "role": "Bakım Personeli",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "io",
+              "text": "Bakım kayıtlarının tutulması",
+              "role": "İdari İşler",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            },
+            {
+              "step_type": "end",
+              "text": "Ekipmanın güvenli ve kesintisiz çalışır hâle gelmesi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 6
+            }
+          ]
+        },
+        {
+          "title": "B. Demirbaş ve Zimmet Yönetimi (İdeal)",
+          "intro": "",
+          "header_document_codes": [
+            "IDI-FR-2026-0002"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Demirbaş/ekipman tahsis ihtiyacı (yeni personel, talep)",
+              "role": "İK · Birim",
+              "document_codes": [
+                "IDI-FR-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Demirbaş Zimmet Tutanağı ile teslim ve imza",
+              "role": "İdari İşler",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Envanter kaydının güncellenmesi ve takibi",
+              "role": "İdari İşler",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Personel ayrılışı/iade var mı?",
+              "role": "İdari İşler",
+              "document_codes": [],
+              "decision_question": "Personel ayrılışı/iade var mı?",
+              "decision_yes_text": "Zimmet iadesi alınır ve tutanak güncellenir (İK ile).",
+              "decision_no_text": "Periyodik envanter kontrolü sürdürülür.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Envanter mutabakatı",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        },
+        {
+          "title": "C. İdari ve Çevre Hizmetleri (İdeal)",
+          "intro": "",
+          "header_document_codes": [
+            "IDI-FR-2026-0001"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "İdari hizmet/çevre ihtiyacı (su sebili, temizlik, saha hizmetleri)",
+              "role": "İdari İşler",
+              "document_codes": [
+                "IDI-FR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Periyodik su sebili temizliği ve kayıt",
+              "role": "İdari İşler",
+              "document_codes": [
+                "IK-TL-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Genel idari ve çevre hizmetlerinin planlanması ve yürütülmesi",
+              "role": "İdari İşler",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "end",
+              "text": "Hizmetin tamamlanması ve kayıt",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "MAL",
+      "slug": "mali",
+      "name": "Mali İşler Müdürlüğü",
+      "subtitle": "Bütçe, muhasebe, tedarikçi ödemeleri, müşteri tahsilatı ve mali raporlama.",
+      "owner_role": "Mali İşler Müdürü",
+      "roles": "Mali İşler Müdürü · Finans ve Muhasebe Sorumlusu · Satınalma · Satış · Üst Yönetim",
+      "purpose": "İşletme bütçesinin hazırlanması/uygulanması, cari hesapların doğru tutulması, ödeme-tahsilat süreçlerinin yürütülmesi ve dönemsel mali tabloların hazırlanması.",
+      "is_ideal_process": true,
+      "sort_order": 11,
+      "key_document_codes": [
+        "MAL-GT-2026-0001",
+        "MAL-GT-2026-0002"
+      ],
+      "flows": [
+        {
+          "title": "A. Satınalma → Ödeme (Tedarikçi)",
+          "intro": "",
+          "header_document_codes": [
+            "MAL-GT-2026-0002"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Tedarikçi faturasının gelmesi",
+              "role": "Mali İşler",
+              "document_codes": [
+                "MAL-GT-2026-0002"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Fatura-irsaliye-sipariş üçlü mutabakatı (mal kabul teyidi)",
+              "role": "Finans ve Muhasebe Sorumlusu",
+              "document_codes": [
+                "SAA-FR-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Üçlü mutabakat sağlandı mı?",
+              "role": "Mali İşler",
+              "document_codes": [],
+              "decision_question": "Üçlü mutabakat sağlandı mı?",
+              "decision_yes_text": "Muhasebe kaydı yapılır; ödeme planına alınır.",
+              "decision_no_text": "Satınalma/Depo ile uyumsuzluk giderilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Ödeme onayı ve banka ödemesi; cari hesap güncelleme",
+              "role": "Mali İşler Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "Muhasebe kaydı ve dekontun arşivlenmesi",
+              "role": "Muhasebe",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Ödeme sürecinin kapatılması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "B. Müşteri Tahsilatı",
+          "intro": "",
+          "header_document_codes": [
+            "MAL-GT-2026-0002"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Müşteri satış faturasının kesilmesi",
+              "role": "Mali İşler",
+              "document_codes": [
+                "YIS-PR-2026-0001"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Cari hesap takibi ve vade izleme",
+              "role": "Finans Sorumlusu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Tahsilat zamanında yapıldı mı?",
+              "role": "Mali İşler",
+              "document_codes": [],
+              "decision_question": "Tahsilat zamanında yapıldı mı?",
+              "decision_yes_text": "Tahsilat kaydı yapılır; cari hesap kapatılır.",
+              "decision_no_text": "Satış sorumlusundan bilgi alınır; müşteri ile görüşülüp gecikme giderilir.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "io",
+              "text": "Banka mutabakatı ve kayıt",
+              "role": "Muhasebe",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Tahsilat sürecinin kapatılması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        },
+        {
+          "title": "C. Bütçe ve Mali Raporlama",
+          "intro": "",
+          "header_document_codes": [
+            "MAL-GT-2026-0001"
+          ],
+          "sort_order": 2,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Dönemsel kapanış / bütçe dönemi",
+              "role": "Mali İşler Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Genel muhasebe ve maliyet muhasebesi kayıtlarının kontrolü",
+              "role": "Muhasebe",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Dönemsel mali tablo ve raporların hazırlanması",
+              "role": "Mali İşler Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "process",
+              "text": "Bütçe-gerçekleşme analizi ve üst yönetime sunum",
+              "role": "Mali İşler Müdürü",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "Raporların Yönetimin Gözden Geçirmesine girdi sağlaması",
+              "role": "Mali İşler",
+              "document_codes": [
+                "KAL-PR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Mali raporlama döngüsünün kapatılması",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "GEN",
+      "slug": "genel",
+      "name": "Genel — Kurumsal Sertifika ve Belge Yönetimi",
+      "subtitle": "Yönetim sistemi sertifikaları (ISO/DIN) ve personel (kaynakçı) yeterlilik belgelerinin geçerlilik ve yenileme yönetimi.",
+      "owner_role": "Kalite Yönetim Temsilcisi (KYT)",
+      "roles": "KYT · Kalite Güvence Müdürü · İK · Kaynakhane · Belgelendirme Kuruluşu",
+      "purpose": "Kurumsal yönetim sistemi sertifikalarının ve personel yeterlilik belgelerinin geçerliliğinin sürekli izlenmesi, zamanında yenilenmesi ve izlenebilir arşivlenmesi.",
+      "is_ideal_process": true,
+      "sort_order": 12,
+      "key_document_codes": [
+        "ISO 9001:2015",
+        "ISO 14001:2015",
+        "ISO 45001:2018",
+        "ISO 28000:2007",
+        "DIN EN ISO 3834",
+        "KAL-LS-2026-0003"
+      ],
+      "flows": [
+        {
+          "title": "A. Yönetim Sistemi Sertifikaları (ISO/DIN)",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-PR-2026-0002",
+            "KAL-PR-2026-0008"
+          ],
+          "sort_order": 0,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Sertifika geçerlilik/gözetim takibi (ISO 9001/14001/45001/28000, DIN EN ISO 3834)",
+              "role": "KYT",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Gözetim/yeniden belgelendirme tetkikine hazırlık (iç tetkik, YGG, DÖF kapanışları)",
+              "role": "Kalite Güvence Müdürü",
+              "document_codes": [
+                "KAL-PR-2026-0002",
+                "KAL-PR-2026-0008"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "process",
+              "text": "Belgelendirme kuruluşu dış tetkiki",
+              "role": "Belgelendirme Kuruluşu",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 2
+            },
+            {
+              "step_type": "decision",
+              "text": "Tetkik sonucu uygun mu?",
+              "role": "Belgelendirme Kuruluşu",
+              "document_codes": [],
+              "decision_question": "Tetkik sonucu uygun mu?",
+              "decision_yes_text": "Sertifika geçerli kalır / yenilenir.",
+              "decision_no_text": "Uygunsuzluklar için DÖF açılır; takip tetkiki yapılır.",
+              "sort_order": 3
+            },
+            {
+              "step_type": "io",
+              "text": "Sertifikaların güncel arşivlenmesi ve ilgili taraflara duyurulması",
+              "role": "KYT",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            },
+            {
+              "step_type": "end",
+              "text": "Sertifika geçerliliğinin sürdürülmesi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 5
+            }
+          ]
+        },
+        {
+          "title": "B. Personel (Kaynakçı) Yeterlilik Belgeleri",
+          "intro": "",
+          "header_document_codes": [
+            "KAL-LS-2026-0003",
+            "KAL-TB-2026-0003"
+          ],
+          "sort_order": 1,
+          "steps": [
+            {
+              "step_type": "start",
+              "text": "Kaynakçı yeterlilik (örn. EN ISO 9606) sertifika takibi",
+              "role": "Kaynakhane · Kalite",
+              "document_codes": [
+                "KAL-LS-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 0
+            },
+            {
+              "step_type": "process",
+              "text": "Sertifika geçerlilik süresi ve kapsam (yöntem/pozisyon) kontrolü",
+              "role": "Kalite",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 1
+            },
+            {
+              "step_type": "decision",
+              "text": "Sertifika geçerli mi?",
+              "role": "Kalite · İK",
+              "document_codes": [],
+              "decision_question": "Sertifika geçerli mi?",
+              "decision_yes_text": "Kaynakçı ilgili işte görevlendirilir.",
+              "decision_no_text": "Yenileme/sınav planlanır; geçerli olana kadar görevlendirilmez.",
+              "sort_order": 2
+            },
+            {
+              "step_type": "io",
+              "text": "Sertifika kayıtlarının personel ve kalite dosyasına işlenmesi",
+              "role": "İK · Kalite",
+              "document_codes": [
+                "KAL-TB-2026-0003"
+              ],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 3
+            },
+            {
+              "step_type": "end",
+              "text": "Yetkinlik izlenebilirliğinin sürdürülmesi",
+              "role": "",
+              "document_codes": [],
+              "decision_question": "",
+              "decision_yes_text": "",
+              "decision_no_text": "",
+              "sort_order": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
