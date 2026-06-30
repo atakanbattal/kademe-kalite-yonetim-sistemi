@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Archive, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, BookOpen, RotateCcw } from 'lucide-react';
+import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Archive, Edit, RefreshCw, FileSpreadsheet, FileEdit, MoreVertical, BookOpen, RotateCcw, Loader2, Workflow } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { analyzeDocumentCompliance } from '@/lib/documentCompliance';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    fetchDocumentProcessFlowUsages,
+    formatProcessFlowUsageLabel,
+    formatProcessFlowUsageType,
+    processFlowUsageKey,
+    removeDocumentProcessFlowUsages,
+} from '@/lib/documentProcessFlowUsages';
 
 /** İNS-FR-2026-0031 gibi kodlarda yıl + sıra; FR/PR karışımında araya girme hatası olmaz. */
 function parseDocumentNumberSortKey(documentNumber) {
@@ -292,6 +300,10 @@ const DocumentModule = () => {
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [documentPendingArchive, setDocumentPendingArchive] = useState(null);
     const [archiveReason, setArchiveReason] = useState('');
+    const [processFlowUsages, setProcessFlowUsages] = useState([]);
+    const [selectedProcessFlowUsageKeys, setSelectedProcessFlowUsageKeys] = useState(new Set());
+    const [loadingProcessFlowUsages, setLoadingProcessFlowUsages] = useState(false);
+    const [archivingDocument, setArchivingDocument] = useState(false);
     const [lifecycleFilter, setLifecycleFilter] = useState('active');
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
@@ -467,21 +479,95 @@ const DocumentModule = () => {
         });
     };
 
-    const archiveDocument = async (doc, reason = '') => {
-        const { error } = await supabase.rpc('archive_internal_document', {
-            p_document_id: doc.id,
-            p_reason: reason?.trim() || null,
-            p_archived_by: user?.id || null,
-            p_status: 'İptal',
-        });
-        if (error) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Doküman arşive alınamadı.' });
-        } else {
+    const resetArchiveDialogState = () => {
+        setDocumentPendingArchive(null);
+        setArchiveReason('');
+        setProcessFlowUsages([]);
+        setSelectedProcessFlowUsageKeys(new Set());
+        setLoadingProcessFlowUsages(false);
+        setArchivingDocument(false);
+    };
+
+    useEffect(() => {
+        if (!documentPendingArchive?.id) {
+            setProcessFlowUsages([]);
+            setSelectedProcessFlowUsageKeys(new Set());
+            setLoadingProcessFlowUsages(false);
+            return;
+        }
+
+        let cancelled = false;
+        setLoadingProcessFlowUsages(true);
+        setProcessFlowUsages([]);
+        setSelectedProcessFlowUsageKeys(new Set());
+
+        fetchDocumentProcessFlowUsages(documentPendingArchive.id)
+            .then((usages) => {
+                if (cancelled) return;
+                setProcessFlowUsages(usages);
+                setSelectedProcessFlowUsageKeys(new Set(usages.map(processFlowUsageKey)));
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error(err);
+                toast({
+                    variant: 'destructive',
+                    title: 'Süreç akış kontrolü başarısız',
+                    description: 'Dokümanın süreç akış şemasındaki kullanımları yüklenemedi.',
+                });
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingProcessFlowUsages(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [documentPendingArchive, toast]);
+
+    const archiveDocument = async (doc, reason = '', usagesToRemove = []) => {
+        setArchivingDocument(true);
+        try {
+            if (usagesToRemove.length) {
+                const removedCount = await removeDocumentProcessFlowUsages(usagesToRemove);
+                if (removedCount < usagesToRemove.length) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Kısmi güncelleme',
+                        description: 'Bazı süreç akış referansları kaldırılamadı; arşivleme yine de denenecek.',
+                    });
+                }
+            }
+
+            const { error } = await supabase.rpc('archive_internal_document', {
+                p_document_id: doc.id,
+                p_reason: reason?.trim() || null,
+                p_archived_by: user?.id || null,
+                p_status: 'İptal',
+            });
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Doküman arşive alınamadı.' });
+                return;
+            }
+
+            const removedMsg = usagesToRemove.length
+                ? ` ${usagesToRemove.length} süreç akış referansı kaldırıldı.`
+                : '';
             toast({
                 title: 'Arşive alındı',
-                description: 'Doküman numarası korunarak iptal edildi. Kayıt arşiv listesinde görüntülenebilir.',
+                description: `Doküman numarası korunarak iptal edildi.${removedMsg} Kayıt arşiv listesinde görüntülenebilir.`,
             });
+            resetArchiveDialogState();
             refreshData();
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: err.message || 'Doküman arşive alınamadı.',
+            });
+        } finally {
+            setArchivingDocument(false);
         }
     };
 
@@ -613,20 +699,81 @@ const DocumentModule = () => {
             <AlertDialog
                 open={!!documentPendingArchive}
                 onOpenChange={(open) => {
-                    if (!open) {
-                        setDocumentPendingArchive(null);
-                        setArchiveReason('');
+                    if (!open && !archivingDocument) {
+                        resetArchiveDialogState();
                     }
                 }}
             >
-                <AlertDialogContent>
+                <AlertDialogContent className="max-w-xl">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Dokümanı arşive al / iptal et</AlertDialogTitle>
                         <AlertDialogDescription>
                             Doküman silinmez; numarası korunur ve arşiv listesine taşınır. Dosyalar ve revizyon geçmişi saklanır.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <div className="py-2">
+                    {documentPendingArchive && (
+                        <p className="text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">{documentPendingArchive.document_number}</span>
+                            {' — '}
+                            {documentPendingArchive.title}
+                        </p>
+                    )}
+                    <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                            <Workflow className="h-4 w-4 shrink-0" />
+                            Süreç akış şeması kullanımları
+                        </div>
+                        {loadingProcessFlowUsages ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Kullanım yerleri kontrol ediliyor…
+                            </div>
+                        ) : processFlowUsages.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Bu doküman süreç akış şemalarında referans olarak kullanılmıyor.
+                            </p>
+                        ) : (
+                            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                {processFlowUsages.map((usage) => {
+                                    const key = processFlowUsageKey(usage);
+                                    const checked = selectedProcessFlowUsageKeys.has(key);
+                                    return (
+                                        <label
+                                            key={key}
+                                            className="flex items-start gap-3 rounded-md border bg-background p-2 cursor-pointer hover:bg-muted/40"
+                                        >
+                                            <Checkbox
+                                                checked={checked}
+                                                onCheckedChange={(value) => {
+                                                    setSelectedProcessFlowUsageKeys((prev) => {
+                                                        const next = new Set(prev);
+                                                        if (value) next.add(key);
+                                                        else next.delete(key);
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="mt-0.5"
+                                            />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-xs text-muted-foreground">
+                                                    {formatProcessFlowUsageType(usage.usage_type)}
+                                                </span>
+                                                <span className="block text-sm leading-snug">
+                                                    {formatProcessFlowUsageLabel(usage)}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {processFlowUsages.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                İşaretli referanslar arşivleme sırasında süreç akış şemasından kaldırılır. İşareti kaldırırsanız referans korunur.
+                            </p>
+                        )}
+                    </div>
+                    <div className="py-1">
                         <Label htmlFor="archive-reason">İptal gerekçesi (isteğe bağlı)</Label>
                         <Textarea
                             id="archive-reason"
@@ -638,18 +785,27 @@ const DocumentModule = () => {
                         />
                     </div>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+                        <AlertDialogCancel disabled={archivingDocument}>Vazgeç</AlertDialogCancel>
                         <AlertDialogAction
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => {
-                                if (documentPendingArchive) {
-                                    archiveDocument(documentPendingArchive, archiveReason);
-                                    setDocumentPendingArchive(null);
-                                    setArchiveReason('');
-                                }
+                            disabled={archivingDocument || loadingProcessFlowUsages}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                if (!documentPendingArchive) return;
+                                const usagesToRemove = processFlowUsages.filter((usage) =>
+                                    selectedProcessFlowUsageKeys.has(processFlowUsageKey(usage)),
+                                );
+                                archiveDocument(documentPendingArchive, archiveReason, usagesToRemove);
                             }}
                         >
-                            Arşive Al
+                            {archivingDocument ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Arşivleniyor…
+                                </>
+                            ) : (
+                                'Arşive Al'
+                            )}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
