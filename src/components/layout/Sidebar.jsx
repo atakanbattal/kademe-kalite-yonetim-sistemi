@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets, Globe2, ShieldAlert, ClipboardCheck } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets, Globe2, ShieldAlert, ClipboardCheck, Workflow } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -55,6 +55,7 @@ const navGroups = [
     items: [
       { id: 'equipment', icon: FlaskConical, label: 'Ekipman & Kalibrasyon' },
       { id: 'document', icon: BookOpen, label: 'İç Kaynaklı Doküman Yönetimi' },
+      { id: 'process-flow-diagrams', icon: Workflow, label: 'Süreç Akış Şemaları' },
       { id: 'external-docs', icon: Globe2, label: 'Dış Kaynak Dokümanları' },
       { id: 'wps', icon: FileSignature, label: 'WPS Yönetimi' },
     ]

@@ -54,6 +54,7 @@ const NonconformityModule = lazyWithRetry(() => import('@/components/nonconformi
 const FixtureModule = lazyWithRetry(() => import('@/components/fixture/FixtureModule'));
 const LeakTestModule = lazyWithRetry(() => import('@/components/leak-test/LeakTestModule'));
 const ExternalDocumentsModule = lazyWithRetry(() => import('@/components/external-docs/ExternalDocumentsModule'));
+const ProcessFlowDiagramsModule = lazyWithRetry(() => import('@/components/process-flow-diagrams/ProcessFlowDiagramsModule'));
 const FmeaModule = lazyWithRetry(() => import('@/components/fmea/FmeaModule'));
 const ControlFormsModule = lazyWithRetry(() => import('@/components/control-forms/ControlFormsModule'));
 
@@ -82,6 +83,7 @@ const moduleTitles = {
     'df-8d': 'DF ve 8D Yönetimi',
     'internal-audit': 'İç Tetkik Yönetimi',
     document: 'İç Kaynaklı Doküman Yönetimi',
+    'process-flow-diagrams': 'Süreç Akış Şemaları',
     'external-docs': 'Dış Kaynaklı Doküman Yönetimi',
     'supplier-quality': 'Tedarikçi Kalite Yönetimi',
     'supplier-audit': 'Tedarikçi Denetimi',
@@ -119,6 +121,9 @@ const MainLayout = () => {
         const p = { ...(profile?.permissions || user?.user_metadata?.permissions || {}) };
         if (p['external-docs'] == null && (p.document === 'read' || p.document === 'full')) {
             p['external-docs'] = p.document;
+        }
+        if (p['process-flow-diagrams'] == null && (p.document === 'read' || p.document === 'full')) {
+            p['process-flow-diagrams'] = p.document;
         }
         return p;
     }, [profile, user]);
@@ -693,6 +698,7 @@ const MainLayout = () => {
         'df-8d': <Df8dManagement onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onDownloadPDF={handleDownloadPDF} />,
         'internal-audit': <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />,
         document: <DocumentModule />,
+        'process-flow-diagrams': <ProcessFlowDiagramsModule />,
         'external-docs': <ExternalDocumentsModule />,
         'supplier-quality': <SupplierQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onOpenPdfViewer={handleOpenPdfViewer} />,
         'customer-complaints': <CustomerComplaintsModule />,
